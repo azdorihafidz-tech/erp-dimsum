@@ -3,9 +3,9 @@
 > **Untuk Claude Code**: File ini adalah **single source of truth** untuk seluruh project. WAJIB dibaca sebelum eksekusi apapun.
 > Isinya: keputusan bisnis, temuan audit, aturan teknis, dan filosofi kerja.
 
-**Versi**: 3.2  
-**Update terakhir**: 2026-09-17  
-**Status**: 🎉 **PROJECT READY FOR PRODUCTION** — Tahap 1-7 SELESAI SEMUA (Branding, Master Data, POS, Rename qty_per_unit, Setoran Cabang→HO, Dashboard & Laporan, Final Polish & Testing) + Bug Fix Ronde 2 (6 temuan test manual final) + Rename Jenis Menu/Master Bumbu Pusat + Fitur Import dari Bumbu Pusat SELESAI. Siap go-live.
+**Versi**: 3.3  
+**Update terakhir**: 2026-09-18  
+**Status**: 🎉 **PROJECT LIVE DI PRODUCTION** (https://erpdimsum.azwacore.com) — Tahap 1-7 SELESAI SEMUA (Branding, Master Data, POS, Rename qty_per_unit, Setoran Cabang→HO, Dashboard & Laporan, Final Polish & Testing) + Bug Fix Ronde 2 + Rename Jenis Menu/Master Bumbu Pusat + Fitur Import dari Bumbu Pusat + Improvement Test Manual Production (rename label, hapus Gojek/Grab) SELESAI.
 
 ---
 
@@ -288,6 +288,18 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 **File utama**: migration `2026_09_17_600002_add_resep_bumbu_ref_to_resep_bumbu_items_table.php`, `ResepBumbuItem::expandKeBahanMentah()`/`isLinked()`, `MasterProdukJualController::{syncResep,kalkulatorResep,listBumbuPusat}()`, `ProdukJualRequest::withValidator()`, `PenjualanService::{cekResepCukup,potongStokUntukItem}()` (expand-aware), `master/produk-jual/_form.blade.php` (modal picker + badge baris linked).
 
 **Verifikasi**: `tests/Feature/Tahap7/ImportBumbuPusatTest.php` (21 test) — struktur data, modal picker (render/search/permission), import=link bukan copy, HPP akurat (manual+linked mix), auto-update HPP tanpa sentuh produk, hapus link vs master tetap ada, edge case (bumbu nonaktif tetap jalan utk link lama, cyclic reference structural block 2 arah), regresi fitur existing (create/edit/varian/foto/kalkulator/Master Bumbu Pusat CRUD/POS checkout stok terpotong benar).
+
+### 4.17 🟢 Improvement Test Manual Production: Rename Label "Nama" + Hapus Gojek/Grab (2026-09-18)
+
+**Latar belakang**: 2 temuan test manual Owner di production (tablet POS) — (a) label "Nama (jika tidak terdaftar)" kepanjangan, wrap 2 baris di layar sempit; (b) 5 tipe pembayaran (Tunai/Transfer/QRIS/Gojek/Grab) dianggap terlalu ramai untuk bisnis retail walk-in D'mentai (bukan food delivery). Sebelum eksekusi, audit read-only menyeluruh dijalankan dulu (grep semua file yang sentuh "gojek"/"grab" + cek data historis production via Owner) — hasilnya **0 baris data** pakai Gojek/Grab baik di dev maupun production, sehingga aman dieksekusi tanpa risiko data loss.
+
+- **Rename label**: `resources/views/penjualan/pos.blade.php` — "Nama (jika tidak terdaftar)" → "Nama" (placeholder "Nama pelanggan / walk-in" DIPERTAHANKAN, masih relevan sebagai hint).
+- **Hapus Gojek/Grab dari `TipePembayaran` enum**: `Gojek`/`Grab` cases dihapus, `kasKategori()` disederhanakan (dulu ada branch khusus Gojek/Grab→'transfer', sekarang tinggal `return $this->value` krn cuma 3 case tersisa yang semuanya kasKategori = value-nya sendiri).
+- **Migration** `2026_09_18_700001_hapus_gojek_grab_dari_enum_tipe_pembayaran.php` — pola **"data-migrate unconditional lalu alter enum"** dalam 1 migration: `UPDATE ... WHERE tipe_pembayaran/metode IN ('gojek','grab') SET = 'transfer'` (no-op aman kalau 0 baris) diikuti `ALTER TABLE ... MODIFY ENUM('tunai','transfer','qris')` pada `orders.tipe_pembayaran` dan `order_payments.metode`. Diverifikasi reversibel (`migrate:rollback` → enum balik ke 5 opsi → `migrate` lagi → balik ke 3 opsi, tanpa data loss krn dev/production sama-sama 0 baris affected).
+- **Blast radius kode**: validasi (`PenjualanController`, `OrderRequest`), breakdown hardcode (`SetoranKasirService` — array loop 5→3 metode), UI POS (~10 titik: tombol utama, 2 dropdown split-payment, modal Bill Tersimpan, 3 baris JS), UI Setoran Kasir (2 baris tabel breakdown), Panduan (6 lokasi di slug `pos` + `setoran-kasir`). **TIDAK perlu diubah**: `PenjualanController::edit()`+`SetoranHarianService` (sudah pakai `TipePembayaran::cases()` dinamis, otomatis adaptif), model `Order`/`OrderPayment` (cast enum, ikut definisi), Dashboard/Laporan Setoran Kasir (iterate `setoran_details` dinamis), Tooltip (0 hasil grep — tidak ada yang menyebut Gojek/Grab), seeder `KategoriTransaksi` (0 hasil — tidak ada mapping kategori ke situ).
+- Migration lama (`2026_09_13_200002`, `2026_09_13_200006`) yang ORIGINALLY menambahkan Gojek/Grab **SENGAJA TIDAK diedit** — migration yang sudah pernah jalan di production tidak boleh diubah isinya, riwayatnya tetap sebagai catatan historis; migration baru inilah yang jadi "penyeimbang"-nya.
+
+**Verifikasi**: `tests/Feature/Tahap7/HapusGojekGrabTest.php` (12 test) — label baru, tombol Gojek/Grab hilang dari POS, enum cuma 3 value (app+DB), submit order 3 metode valid, submit dgn `gojek`/`grab` ditolak validasi (baik lewat `POST /penjualan` maupun `POST .../charge`), breakdown Setoran Kasir 3 metode, submit setoran total akurat, panduan sudah bersih. 1 test lama (`Tahap5\SetoranKasirHttpTest`) diupdate assertion-nya (`assertCount(5,...)` → `assertCount(3,...)`) krn memang sengaja berubah oleh perubahan ini, bukan regresi tak terduga.
 
 ---
 
@@ -743,6 +755,12 @@ php artisan backup:run --only-db
 - [x] Anti cyclic-reference by construction (1 level kedalaman maksimal)
 - [x] Panduan `produk-jual` + tooltip baru + 21 test (feature+edge case+regresi), 182 test total lintas fase PASS
 
+### 12.9 Improvement Test Manual Production: Rename Label + Hapus Gojek/Grab — ✅ Selesai (2026-09-18)
+- [x] Rename label POS "Nama (jika tidak terdaftar)" → "Nama" — lihat [[4.17]]
+- [x] Hapus `Gojek`/`Grab` dari `TipePembayaran` enum + migration incremental reversible (data-migrate + alter enum) — lihat [[4.17]]
+- [x] Update validasi, breakdown Setoran Kasir, UI POS (~10 titik), UI Setoran Kasir, panduan (6 lokasi)
+- [x] 12 test baru + 1 assertion test lama diupdate (perubahan disengaja), 194 test total lintas fase PASS
+
 ---
 
 ## 13. CHECKLIST SEBELUM MULAI FITUR BARU
@@ -777,7 +795,7 @@ Setiap kali mulai kerja fitur baru, Claude Code WAJIB:
 
 ---
 
-**🎉 PROJECT READY FOR PRODUCTION — Tahap 7 (Final Polish) selesai 2026-09-14, Bug Fix Ronde 2 selesai 2026-09-15, Rename Jenis Menu/Master Bumbu Pusat + Fitur Import dari Bumbu Pusat selesai 2026-09-17.** Semua 7 tahap roadmap tuntas + 6 bug dari test manual final (termasuk 1 KRITIS: data ghost akibat nested form) sudah difix & diguard-rail + fitur link-resep-antar-produk (anti cyclic by construction, live-calculation tanpa cache/job) sudah dibangun. 182 test lintas fase PASS (0 regresi), smoke test 187 halaman clean, dead code dibersihkan, bug BEP+Loyalty terwariskan sudah difix, error page branded, 4 alur bisnis end-to-end terverifikasi. Siap go-live — lihat panduan test manual final untuk verifikasi terakhir sebelum rilis.
+**🎉 PROJECT LIVE DI PRODUCTION** (https://erpdimsum.azwacore.com) **— Tahap 7 (Final Polish) selesai 2026-09-14, Bug Fix Ronde 2 selesai 2026-09-15, Rename Jenis Menu/Master Bumbu Pusat + Fitur Import dari Bumbu Pusat selesai 2026-09-17, Improvement Test Manual Production selesai 2026-09-18.** Semua 7 tahap roadmap tuntas + 6 bug dari test manual final (termasuk 1 KRITIS: data ghost akibat nested form) sudah difix & diguard-rail + fitur link-resep-antar-produk (anti cyclic by construction, live-calculation tanpa cache/job) sudah dibangun + POS disederhanakan jadi 3 metode pembayaran (Tunai/Transfer/QRIS, Gojek/Grab dihapus) berdasar masukan pemakaian nyata di production. 194 test lintas fase PASS (0 regresi), smoke test 187 halaman clean, dead code dibersihkan, bug BEP+Loyalty terwariskan sudah difix, error page branded, 4 alur bisnis end-to-end terverifikasi.
 
 ---
 

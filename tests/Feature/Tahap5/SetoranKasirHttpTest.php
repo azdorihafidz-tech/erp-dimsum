@@ -86,7 +86,9 @@ class SetoranKasirHttpTest extends TestCase
         $this->assertEquals(12000, $setoran->total_penjualan_sistem);
         $this->assertEquals(12000, $setoran->total_disetor);
         $this->assertEquals(0, $setoran->selisih);
-        $this->assertCount(5, $setoran->details); // tunai/transfer/qris/gojek/grab
+        // Tahap 7 D'mentai (2026-09-18) — Gojek/Grab dihapus dari TipePembayaran
+        // (keputusan Owner, fokus retail walk-in), sisa 3 metode.
+        $this->assertCount(3, $setoran->details); // tunai/transfer/qris
     }
 
     public function test_ho_lihat_list_setoran_pending(): void

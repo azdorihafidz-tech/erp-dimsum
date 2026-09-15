@@ -19,8 +19,8 @@ use Illuminate\Support\Facades\DB;
 /**
  * Tahap 5 D'mentai — Setoran Kasir (rekonsiliasi kas harian cabang -> HO).
  *
- * SCOPE SENGAJA DIBATASI ke KAS TUNAI saja: metode non-tunai (transfer/qris/
- * gojek/grab) sudah otomatis settle ke kas non-tunai cabang saat order dibuat
+ * SCOPE SENGAJA DIBATASI ke KAS TUNAI saja: metode non-tunai (transfer/qris)
+ * sudah otomatis settle ke kas non-tunai cabang saat order dibuat
  * (lihat PenjualanService — order langsung pilih Kas sesuai
  * TipePembayaran::kasKategori()), jadi TIDAK ada uang fisik yang perlu
  * "diserahkan" kasir untuk metode itu. Breakdown per metode di
@@ -44,7 +44,7 @@ class SetoranKasirService
 
         $perMetode = [];
         $total = 0.0;
-        foreach (['tunai', 'transfer', 'qris', 'gojek', 'grab'] as $metode) {
+        foreach (['tunai', 'transfer', 'qris'] as $metode) {
             $jumlah = (float) ($rows[$metode] ?? 0);
             $perMetode[$metode] = $jumlah;
             $total += $jumlah;

@@ -296,7 +296,7 @@ class PenjualanController extends Controller
     {
         $data = $request->validate([
             'payments'          => 'required|array|min:1',
-            'payments.*.metode' => 'required|in:tunai,transfer,qris,gojek,grab',
+            'payments.*.metode' => 'required|in:tunai,transfer,qris',
             'payments.*.jumlah' => 'required|numeric|min:0.01',
         ]);
 

@@ -2018,7 +2018,7 @@ Mencatat transaksi penjualan dimsum/gyoza harian dari pelanggan ke sistem — gr
    - **Save Bill** — simpan keranjang, belum bayar, bisa dilanjut nanti (stok belum berkurang)
    - **Print Bill** — preview cetak sebelum bayar (bukan struk final)
    - **Bayar / Charge** — buka modal pembayaran
-8. Di modal pembayaran: pilih metode (Tunai/QRIS/Transfer/Gojek/Grab), atau klik **+ Tambah Metode Bayar** untuk **split payment** (mis. sebagian tunai + sebagian QRIS)
+8. Di modal pembayaran: pilih metode (Tunai/QRIS/Transfer), atau klik **+ Tambah Metode Bayar** untuk **split payment** (mis. sebagian tunai + sebagian QRIS)
 9. Klik **Proses Pembayaran** → stok berkurang otomatis (FIFO, termasuk breakdown bahan baku kalau produknya punya resep), modal struk muncul otomatis
 
 ## Mencetak Struk (Modal Struk — Baru!)
@@ -2082,14 +2082,14 @@ Setelah transaksi berhasil, sistem secara otomatis memperbarui antrian produksi 
 
 Bill tersimpan (belum dibayar) muncul di section **"Bill Tersimpan"**, di PALING BAWAH halaman POS (di bawah tombol "PROSES ORDER"/"Save Bill" utama — supaya tidak mengganggu alur bikin transaksi baru). Ada 3 aksi per bill:
 - **Tunai Pas** — bayar cepat 1 klik, tunai sejumlah tagihan persis (tanpa kembalian, tanpa modal tambahan)
-- **Bayar...** — buka modal pembayaran lengkap (pilih metode Tunai/Transfer/QRIS/Gojek/Grab, bisa Split Payment 2 metode, bisa pilih Kas manual), untuk bayar dengan metode selain tunai pas
+- **Bayar...** — buka modal pembayaran lengkap (pilih metode Tunai/Transfer/QRIS, bisa Split Payment 2 metode, bisa pilih Kas manual), untuk bayar dengan metode selain tunai pas
 - **Batalkan** (ikon silang merah) — HANYA muncul untuk user dengan izin "Batalkan Bill Tersimpan" (`order.bill_tersimpan.batalkan`, default: admin_pusat). Membatalkan bill yang salah/tidak jadi, tanpa proses lebih lanjut — aman karena bill Pending belum pernah potong stok atau catat kas sama sekali.
 
 Stok baru benar-benar dipotong saat bill dibayar (via "Tunai Pas" atau "Bayar..."), bukan saat disimpan — jadi stok bisa berubah antara saat Save Bill dan saat dibayar kalau ada order lain yang menghabiskan stok duluan (sistem cek ulang otomatis saat dibayar).
 
 ## Split Payment (1 Transaksi, Beberapa Metode Bayar)
 
-Klik **+ Tambah Metode Bayar** di modal pembayaran untuk membagi 1 tagihan ke beberapa metode (mis. Rp50.000 Tunai + Rp30.000 QRIS). Gojek/Grab dicatat granular untuk laporan, tapi uangnya settle ke Kas kategori "Transfer" outlet.
+Klik **+ Tambah Metode Bayar** di modal pembayaran untuk membagi 1 tagihan ke beberapa metode (mis. Rp50.000 Tunai + Rp30.000 QRIS).
 
 ## Varian Produk
 
@@ -2102,7 +2102,7 @@ Produk yang punya **resep produksi** (diatur di menu Master Resep) otomatis memo
 ## Catatan Penting
 
 - Stok DIPOTONG saat klik **Bayar/Charge**, bukan saat klik produk atau Save Bill
-- QRIS/Transfer/Gojek/Grab: upload bukti bersifat opsional, bisa dilengkapi nanti di Riwayat Penjualan
+- QRIS/Transfer: upload bukti bersifat opsional, bisa dilengkapi nanti di Riwayat Penjualan
 - Untuk membatalkan transaksi, hubungi Manajer Cabang
 - Transaksi besar otomatis kirim notifikasi ke management
 - **Split Bill** (bagi tagihan ke beberapa orang) belum tersedia — tombolnya masih placeholder
@@ -3254,7 +3254,7 @@ Merekonsiliasi uang tunai hasil penjualan harian outlet ke HO (Head Office/Gudan
 ## Langkah-langkah (Kasir)
 
 1. Buka menu **Setoran Kasir** dari sidebar, klik **Buat Setoran Hari Ini**
-2. Sistem otomatis menampilkan **Ringkasan Penjualan Sistem** — breakdown per metode bayar (Tunai/Transfer/QRIS/Gojek/Grab) hari ini
+2. Sistem otomatis menampilkan **Ringkasan Penjualan Sistem** — breakdown per metode bayar (Tunai/Transfer/QRIS) hari ini
 3. Isi **Jumlah Uang Tunai yang Diserahkan** — sudah terisi default sesuai sistem, ubah kalau ada selisih uang fisik di laci
 4. *(Opsional)* Upload **Bukti Foto** dan isi **Catatan**
 5. Klik **Submit Setoran** — status berubah jadi **Menunggu Approval**
@@ -3269,7 +3269,7 @@ Merekonsiliasi uang tunai hasil penjualan harian outlet ke HO (Head Office/Gudan
 
 ## Catatan Penting
 
-- **Hanya uang TUNAI yang disetorkan fisik** ke HO lewat fitur ini — metode Transfer/QRIS/Gojek/Grab sudah otomatis masuk ke Kas non-tunai outlet saat transaksi dibuat, TIDAK perlu disetor manual
+- **Hanya uang TUNAI yang disetorkan fisik** ke HO lewat fitur ini — metode Transfer/QRIS sudah otomatis masuk ke Kas non-tunai outlet saat transaksi dibuat, TIDAK perlu disetor manual
 - Uang BELUM berpindah saat kasir submit — saldo Kas baru berubah setelah HO klik **Approve**
 - 1 outlet cuma bisa punya 1 setoran per tanggal — kalau sudah pernah submit untuk hari itu, submit ulang akan memperbarui data yang sama (bukan bikin baris baru), kecuali statusnya masih Menunggu (harus diproses HO dulu)
 - Setoran yang **Ditolak** bisa direvisi kasir kapan saja untuk tanggal yang sama — cukup buka menu **Buat Setoran** lagi

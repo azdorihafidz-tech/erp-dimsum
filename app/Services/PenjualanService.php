@@ -399,9 +399,9 @@ class PenjualanService
 
     /**
      * Split Payment: proses N metode bayar untuk 1 order. Tiap metode
-     * resolve ke Kas kategori masing-masing (Gojek/Grab -> kategori
-     * "transfer", keputusan Owner Tahap 3), bikin 1 OrderPayment + 1
-     * TransaksiKeuangan per baris, kas ter-increment sesuai bagiannya.
+     * resolve ke Kas kategori masing-masing (TipePembayaran::kasKategori()),
+     * bikin 1 OrderPayment + 1 TransaksiKeuangan per baris, kas
+     * ter-increment sesuai bagiannya.
      *
      * @return array{0: ?int, 1: TipePembayaran, 2: float} [$kasIdUtama, $tipePembayaranSummary, $totalDibayar]
      */

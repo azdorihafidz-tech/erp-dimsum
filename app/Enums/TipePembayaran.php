@@ -7,8 +7,6 @@ enum TipePembayaran: string
     case Tunai = 'tunai';
     case Transfer = 'transfer';
     case Qris = 'qris';
-    case Gojek = 'gojek';
-    case Grab = 'grab';
 
     public function label(): string
     {
@@ -16,22 +14,23 @@ enum TipePembayaran: string
             TipePembayaran::Tunai => 'Tunai',
             TipePembayaran::Transfer => 'Transfer Bank',
             TipePembayaran::Qris => 'QRIS',
-            TipePembayaran::Gojek => 'Gojek (GoFood)',
-            TipePembayaran::Grab => 'Grab (GrabFood)',
         };
     }
 
     /**
-     * Kategori Kas yang menampung settlement metode ini. Gojek/Grab SENGAJA
-     * tidak dapat Kas kategori sendiri (keputusan Owner, Tahap 3) — uangnya
-     * cair ke rekening bank via transfer, jadi settle ke Kas kategori
-     * "transfer" outlet yang sama seperti transfer bank biasa.
+     * Kategori Kas yang menampung settlement metode ini.
+     *
+     * Riwayat (2026-09-17, dihapus): sempat ada case Gojek/Grab yang SENGAJA
+     * tidak dapat Kas kategori sendiri — uangnya cair ke rekening bank via
+     * transfer, jadi settle ke Kas kategori "transfer" outlet yang sama
+     * seperti transfer bank biasa. Case-nya dihapus (keputusan Owner,
+     * D'mentai fokus retail walk-in bukan food delivery; kalau ada order
+     * Gojek/Grab, settlement dicatat manual sebagai "Transfer" saja) — tapi
+     * method ini dipertahankan strukturnya (match ke $this->value) supaya
+     * kalau nanti dibutuhkan lagi tinggal tambah case + 1 baris match di sini.
      */
     public function kasKategori(): string
     {
-        return match($this) {
-            TipePembayaran::Gojek, TipePembayaran::Grab => 'transfer',
-            default => $this->value,
-        };
+        return $this->value;
     }
 }

@@ -203,7 +203,7 @@ body.pos-tablet-mode #btnProses { padding: 0.45rem 0.75rem !important; font-size
                             </select>
                         </div>
                         <div class="col-6 col-md-3">
-                            <label class="form-label small">Nama (jika tidak terdaftar)</label>
+                            <label class="form-label small">Nama</label>
                             <input type="text" name="nama_pelanggan" id="namaPelangganInput"
                                 class="form-control form-control-sm" placeholder="Nama pelanggan / walk-in"
                                 value="{{ old('nama_pelanggan') }}">
@@ -346,14 +346,6 @@ body.pos-tablet-mode #btnProses { padding: 0.45rem 0.75rem !important; font-size
                                 onclick="setTipePembayaran('qris')">
                                 <i class="bi bi-qr-code d-block fs-4"></i>QRIS
                             </button>
-                            <button type="button" class="btn btn-outline-primary payment-btn flex-fill" id="btnGojek"
-                                onclick="setTipePembayaran('gojek')">
-                                <i class="bi bi-bicycle d-block fs-4"></i>Gojek
-                            </button>
-                            <button type="button" class="btn btn-outline-primary payment-btn flex-fill" id="btnGrab"
-                                onclick="setTipePembayaran('grab')">
-                                <i class="bi bi-car-front d-block fs-4"></i>Grab
-                            </button>
                         </div>
 
                         {{-- Tahap 3 D'mentai — Split Payment --}}
@@ -371,8 +363,6 @@ body.pos-tablet-mode #btnProses { padding: 0.45rem 0.75rem !important; font-size
                                         <option value="tunai">Tunai</option>
                                         <option value="transfer">Transfer</option>
                                         <option value="qris">QRIS</option>
-                                        <option value="gojek">Gojek</option>
-                                        <option value="grab">Grab</option>
                                     </select>
                                 </div>
                                 <div class="col-6">
@@ -601,7 +591,7 @@ body.pos-tablet-mode #btnProses { padding: 0.45rem 0.75rem !important; font-size
 
 {{--
     Modal Pembayaran Lengkap utk Bill Tersimpan (Bug 2c) — REUSE opsi metode
-    bayar (Tunai/Transfer/QRIS/Gojek/Grab) + Split Payment + Pilih Kas yang
+    bayar (Tunai/Transfer/QRIS) + Split Payment + Pilih Kas yang
     sama dengan form utama, dikemas sebagai modal supaya bisa dipanggil dari
     kartu Bill Tersimpan mana pun tanpa mengganggu form transaksi baru yang
     sedang diisi kasir. Submit -> AJAX ke endpoint charge-bill yang SAMA
@@ -625,7 +615,7 @@ body.pos-tablet-mode #btnProses { padding: 0.45rem 0.75rem !important; font-size
                 <label class="form-label fw-semibold">Metode Pembayaran</label>
                 <div class="d-flex gap-2 flex-wrap mb-2">
                     <input type="hidden" id="modalBillMetode1" value="tunai">
-                    @foreach(['tunai' => ['Tunai','bi-cash'], 'transfer' => ['Transfer','bi-bank'], 'qris' => ['QRIS','bi-qr-code'], 'gojek' => ['Gojek','bi-bicycle'], 'grab' => ['Grab','bi-car-front']] as $kode => [$label, $icon])
+                    @foreach(['tunai' => ['Tunai','bi-cash'], 'transfer' => ['Transfer','bi-bank'], 'qris' => ['QRIS','bi-qr-code']] as $kode => [$label, $icon])
                     <button type="button" class="btn btn-outline-primary btn-sm modal-bill-metode-btn {{ $kode === 'tunai' ? 'active' : '' }}"
                         data-metode="{{ $kode }}" onclick="setModalBillMetode('{{ $kode }}')">
                         <i class="bi {{ $icon }} me-1"></i>{{ $label }}
@@ -647,8 +637,6 @@ body.pos-tablet-mode #btnProses { padding: 0.45rem 0.75rem !important; font-size
                                 <option value="tunai">Tunai</option>
                                 <option value="transfer">Transfer</option>
                                 <option value="qris">QRIS</option>
-                                <option value="gojek">Gojek</option>
-                                <option value="grab">Grab</option>
                             </select>
                         </div>
                         <div class="col-6">
@@ -1305,7 +1293,7 @@ function hitungKembalian() {
 
 function setTipePembayaran(tipe) {
     document.getElementById('tipePembayaranInput').value = tipe;
-    ['tunai','transfer','qris','gojek','grab'].forEach(t => {
+    ['tunai','transfer','qris'].forEach(t => {
         const btn = document.getElementById('btn' + t.charAt(0).toUpperCase() + t.slice(1));
         if (btn) {
             btn.className = t === tipe
@@ -1484,7 +1472,7 @@ document.getElementById('formPos').addEventListener('submit', async function(e) 
 
     const tipe = document.getElementById('tipePembayaranInput').value;
     const isSplit = document.getElementById('splitPaymentCheck')?.checked;
-    // Wajib bukti untuk transfer/qris/gojek/grab (metode utama), kecuali split
+    // Wajib bukti untuk transfer/qris (metode utama), kecuali split
     // (kombinasi metode, bukti tidak dipaksa salah satu jalur)
     if (tipe !== 'tunai' && !isSplit) {
         const fileFoto = document.getElementById('buktiFotoInput').files;
@@ -1670,16 +1658,13 @@ function updateKasDefault(tipe) {
     if (kasManual && kasManual.value) return;
 
     const info = document.getElementById('kasDefaultInfo');
-    // Gojek/Grab tidak dapat Kas kategori sendiri (keputusan Owner) — settle
-    // ke Kas kategori "transfer" outlet, sama seperti transfer bank biasa.
-    const kasKategori = (tipe === 'gojek' || tipe === 'grab') ? 'transfer' : tipe;
-    const def = kasListData.find(k => k.default_untuk === kasKategori);
+    const def = kasListData.find(k => k.default_untuk === tipe);
     if (def) {
         kasInput.value = def.id;
         info.innerHTML = `<small class="text-muted"><i class="bi bi-wallet2 me-1 text-success"></i>Kas: <strong>${def.nama_kas}</strong></small>`;
     } else {
         kasInput.value = '';
-        const label = {'tunai':'Tunai','transfer':'Transfer','qris':'QRIS','gojek':'Gojek (Transfer)','grab':'Grab (Transfer)'}[tipe] || tipe;
+        const label = {'tunai':'Tunai','transfer':'Transfer','qris':'QRIS'}[tipe] || tipe;
         info.innerHTML = kasListData.length
             ? `<small class="text-warning"><i class="bi bi-exclamation-triangle me-1"></i>Belum ada kas default untuk ${label}.</small>`
             : '';

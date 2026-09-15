@@ -35,8 +35,6 @@
                         <tr><td>Tunai</td><td class="text-end">Rp {{ number_format($hitung['per_metode']['tunai'], 0, ',', '.') }}</td></tr>
                         <tr><td>Transfer</td><td class="text-end">Rp {{ number_format($hitung['per_metode']['transfer'], 0, ',', '.') }}</td></tr>
                         <tr><td>QRIS</td><td class="text-end">Rp {{ number_format($hitung['per_metode']['qris'], 0, ',', '.') }}</td></tr>
-                        <tr><td>Gojek</td><td class="text-end">Rp {{ number_format($hitung['per_metode']['gojek'], 0, ',', '.') }}</td></tr>
-                        <tr><td>Grab</td><td class="text-end">Rp {{ number_format($hitung['per_metode']['grab'], 0, ',', '.') }}</td></tr>
                         <tr class="fw-bold border-top"><td>Total</td><td class="text-end">Rp {{ number_format($hitung['total'], 0, ',', '.') }}</td></tr>
                     </tbody>
                 </table>

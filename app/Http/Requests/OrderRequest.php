@@ -25,7 +25,7 @@ class OrderRequest extends FormRequest
             'tanggal_expired_frozen' => 'nullable|date',
             // Split Payment — sumber kebenaran, WAJIB minimal 1 baris.
             'payments'              => 'required|array|min:1',
-            'payments.*.metode'     => 'required|in:tunai,transfer,qris,gojek,grab',
+            'payments.*.metode'     => 'required|in:tunai,transfer,qris',
             'payments.*.jumlah'     => 'required|numeric|min:0.01',
             'kas_id'             => 'nullable|exists:kas,id',
             'jumlah_bayar'       => 'required|numeric|min:0',
