@@ -1,0 +1,29 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/azwc7142/public_html/erpdimsum.azwacore.com/
+
+    # Set permission folder yang perlu writable
+    - /bin/chmod -R 755 $DEPLOYPATH/storage
+    - /bin/chmod -R 755 $DEPLOYPATH/bootstrap/cache
+    - /bin/chmod -R 775 $DEPLOYPATH/storage/logs
+    - /bin/chmod -R 775 $DEPLOYPATH/storage/framework
+    - /bin/chmod -R 775 $DEPLOYPATH/storage/app
+
+    # Ensure storage subfolders exist
+    - /bin/mkdir -p $DEPLOYPATH/storage/framework/cache/data
+    - /bin/mkdir -p $DEPLOYPATH/storage/framework/sessions
+    - /bin/mkdir -p $DEPLOYPATH/storage/framework/views
+    - /bin/mkdir -p $DEPLOYPATH/storage/logs
+    - /bin/mkdir -p $DEPLOYPATH/storage/app/public
+
+    # Clear Laravel cache
+    - /usr/local/bin/php $DEPLOYPATH/artisan config:clear
+    - /usr/local/bin/php $DEPLOYPATH/artisan cache:clear
+    - /usr/local/bin/php $DEPLOYPATH/artisan view:clear
+    - /usr/local/bin/php $DEPLOYPATH/artisan route:clear
+
+    # Recache config untuk production
+    - /usr/local/bin/php $DEPLOYPATH/artisan config:cache
+    - /usr/local/bin/php $DEPLOYPATH/artisan route:cache
+    - /usr/local/bin/php $DEPLOYPATH/artisan view:cache
