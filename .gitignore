@@ -21,14 +21,7 @@
 !/public/models/README.md
 /storage/*.key
 /storage/pail
-/vendor/*
-!/vendor/autoload.php
-!/vendor/silviolleite
-!/vendor/silviolleite/**
-!/vendor/pusher
-!/vendor/pusher/**
-!/vendor/composer
-!/vendor/composer/**
+
 Homestead.json
 Homestead.yaml
 Thumbs.db
