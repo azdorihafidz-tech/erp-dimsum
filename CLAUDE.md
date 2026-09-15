@@ -1,0 +1,784 @@
+# CLAUDE.md — ERP D'mentai
+
+> **Untuk Claude Code**: File ini adalah **single source of truth** untuk seluruh project. WAJIB dibaca sebelum eksekusi apapun.
+> Isinya: keputusan bisnis, temuan audit, aturan teknis, dan filosofi kerja.
+
+**Versi**: 3.2  
+**Update terakhir**: 2026-09-17  
+**Status**: 🎉 **PROJECT READY FOR PRODUCTION** — Tahap 1-7 SELESAI SEMUA (Branding, Master Data, POS, Rename qty_per_unit, Setoran Cabang→HO, Dashboard & Laporan, Final Polish & Testing) + Bug Fix Ronde 2 (6 temuan test manual final) + Rename Jenis Menu/Master Bumbu Pusat + Fitur Import dari Bumbu Pusat SELESAI. Siap go-live.
+
+---
+
+## 1. GAMBARAN UMUM PROJECT
+
+### 1.1 Identitas Brand
+- **Nama Brand**: **D'mentai**
+- **Tagline**: **Dimsum & Gyoza**
+- **Jenis Bisnis**: Retail food (dimsum & gyoza)
+- **Sistem**: ERP (Enterprise Resource Planning) — POS + inventory + HR + keuangan
+
+### 1.2 Asal Project
+- **Base**: hasil copy penuh dari `erp-manajemenberkahmulyo` (Laravel 12) — ERP untuk jasa giling daging
+- **Tanggal fork**: September 2026
+- **Alasan fork**: bisnis beda total, tapi 90% infrastruktur bisa reuse
+
+### 1.3 Struktur Bisnis Saat Ini
+- **1 HO / Gudang Pusat** (di rumah owner)
+- **5 Outlet retail**
+- **Total 6 lokasi** di sistem
+
+### 1.4 Prinsip Fleksibilitas (FILOSOFI UTAMA!)
+Meski saat ini ada 5 outlet, sistem **HARUS fleksibel** untuk:
+- Jumlah outlet bisa nambah/berkurang tanpa ganti kode
+- Lokasi outlet: 1 kota / lintas kota / lintas provinsi
+- Harga per outlet: bisa sama semua atau beda-beda (config-driven)
+- Jenis produk per outlet: bisa beda (config per outlet)
+- Varian produk: N-dimensi, opsional per produk
+- Stok varian: bisa terpisah atau ikut induk (config per produk)
+
+**Aturan emas: kalau bisa jadi config, JANGAN hardcode.**
+
+---
+
+## 2. TECH STACK & LINGKUNGAN
+
+### 2.1 Stack
+| Item | Detail |
+|------|--------|
+| Framework | Laravel 12 (bootstrap/app.php style, no Kernel.php) |
+| PHP | 8.2+ |
+| Database | MySQL (via XAMPP) |
+| Frontend | Bootstrap 5.3.3 (CDN) + Select2 + SweetAlert2 + Chart.js + Bootstrap Icons + jQuery |
+| Permission | 100% custom (BUKAN spatie/laravel-permission) |
+| PDF | barryvdh/laravel-dompdf ^3.1 |
+| Excel | maatwebsite/excel ^3.1 |
+| Activity Log | spatie/laravel-activitylog ^4.12 |
+| Backup | spatie/laravel-backup ^9.3 |
+| PWA | silviolleite/laravelpwa ^2.0 |
+| Realtime | pusher/pusher-php-server ^7.2 |
+
+### 2.2 Lingkungan Lokal
+| Item | Detail |
+|------|--------|
+| Path folder | `D:\xampp\htdocs\erp-dimsum` |
+| Nama database | `erp_dimsum` |
+| Port dev | `php artisan serve --port=8001` |
+| URL akses | `http://localhost:8001` |
+
+### 2.3 Project Lain di Environment (JANGAN DISENTUH)
+| Project | Folder | Database | Port | Status |
+|---------|--------|----------|------|--------|
+| erp-manajemenberkahmulyo (ASLI) | `erp-manajemenberkahmulyo` | `erp_berkahmulyo` | 8000 | 🔴 Production, HARAM disentuh |
+| erp-dimsum (INI) | `erp-dimsum` | `erp_dimsum` | 8001 | 🟢 Aktif dikerjakan |
+| erp-coffeeshop (lain) | `erp-coffeeshop` | `erp_coffeeshop` | 8002 | 🟡 Dikerjakan di chat lain |
+
+---
+
+## 3. ATURAN KERJA WAJIB (JANGAN DILANGGAR)
+
+### 🔴 3.1 JANGAN pernah sentuh folder ini:
+- `D:\xampp\htdocs\erp-manajemenberkahmulyo` — project produksi Berkah Mulyo
+- `D:\xampp\htdocs\erp-coffeeshop` — project coffeeshop terpisah
+- Database `erp_berkahmulyo` — data real yang lagi dipakai
+
+Semua modifikasi HANYA di folder `erp-dimsum` dan database `erp_dimsum`.
+
+### 🔴 3.2 Test SETIAP perubahan
+Setelah edit kode, WAJIB:
+1. Cek error di `storage/logs/laravel.log`
+2. Jalankan `php artisan config:clear` dan `php artisan view:clear`
+3. Coba akses menu terkait di browser
+4. Kalau ada error, FIX DULU sebelum lanjut fitur lain
+
+### 🔴 3.3 Reuse dulu, bikin baru terakhir
+Sebelum bikin controller/model/view baru, **cek dulu** apakah pola serupa sudah ada:
+- Cek folder: `app/Http/Controllers`, `app/Models`, `resources/views`
+- Kalau ada pola serupa, IKUTI pola itu (naming, struktur folder, style code)
+- Jangan bikin pola baru kalau tidak perlu
+
+### 🔴 3.4 Filter Cabang WAJIB Manual (SECURITY-CRITICAL!)
+**Temuan audit ronde 2**: `CabangScope` DORMANT (tidak pernah aktif). Ke-62 pemanggilan `withoutGlobalScope(CabangScope::class)` di codebase adalah no-op — efek nyatanya cuma matiin `SoftDeletingScope`.
+
+**Konsekuensi**: Filter cabang HARUS ditulis manual di setiap query.
+
+**Contoh yang BENAR**:
+```php
+$orders = Order::where('cabang_id', auth()->user()->cabang_aktif_id)->get();
+```
+
+**Contoh yang SALAH** (akan bocor data cabang lain):
+```php
+$orders = Order::all(); // SECURITY BUG — lihat semua cabang!
+```
+
+**Aturan**: Setiap query yang menyentuh data cabang, cek dulu apakah sudah ada filter `cabang_id`. Ini security-critical.
+
+### 🔴 3.5 Migration Harus Urut & Bisa Rollback
+- Nama file migration harus datetime yang benar (bukan asal timestamp)
+- Setiap `up()` HARUS ada `down()` yang balikin state
+- Cek foreign key: tabel yang dirujuk harus dibuat DULU
+
+### 🔴 3.6 Permission + Panduan + Tooltip + Tombol Cara Pakai Wajib Dibuat
+Setiap fitur/menu BARU wajib:
+1. Tambah entry di `PermissionSeeder` (untuk hak akses)
+2. Tambah entry di `RolePermissionSeeder` (mapping role ke permission)
+3. Tambah panduan di menu Panduan (via `PanduanKontenSeeder`)
+4. Tambah tooltip untuk form-form penting (via `TooltipKontenSeeder`)
+5. **Embed tombol "Cara Pakai" (`<x-panduan-button slug="{slug}" />`) di halaman fitur** — pojok kanan atas header halaman, atau header section untuk sub-fitur (mis. section Varian di form Produk Jual). Panduan yang cuma bisa diakses lewat menu Panduan (bukan langsung dari halaman fiturnya) dianggap **belum lengkap**.
+
+Ini WAJIB, bukan optional. Kalau lupa, kerjaan bakal dobel di akhir.
+
+**Validasi (2026-09-16)**: audit menyeluruh Tahap 1-6 menemukan Permission + Role Mapping SELALU konsisten diisi di setiap tahap sebelumnya (0 gap) — tapi Panduan + Tooltip 2 poin terakhir kelewat di 6 dari 9 fitur baru. Backfill konten sudah dilakukan (lihat 4.11), TAPI backfill pertama itu sendiri kelewat poin ke-5 (tombol Cara Pakai) — ketahuan dari test manual, bukan dari checklist. Backfill kedua (embed `<x-panduan-button>` ke 13 halaman) sudah menutup gap ini. **Pelajaran**: poin 1-2 (Permission/Role) rawan "otomatis kepikiran" karena langsung berhubungan dengan akses/keamanan (kalau lupa, fitur langsung error 403 — cepat ketahuan). Poin 3-5 (Panduan/Tooltip/Tombol) TIDAK menyebabkan error apapun kalau kelewat — silently missing, baru ketahuan kalau ada yang audit atau test manual. Ke depan: checklist section 13 WAJIB dicentang eksplisit per poin (termasuk poin 5), jangan cuma diingat — dan "panduan sudah ditulis" TIDAK SAMA dengan "panduan sudah accessible dari halaman fitur".
+
+---
+
+## 4. TEMUAN AUDIT PENTING (WAJIB DIINGAT)
+
+### 4.1 🔴 BUG SILENT: Hardcoded `jasa_giling` + `berat_daging`
+
+**Lokasi**:
+- `app/Services/BepOtomatisService.php` → filter query pakai `tipe_order='jasa_giling'` + `berat_daging_kg`
+- `app/Services/LoyaltyService.php` (method `auto_track`) → sama
+
+**Efek untuk D'mentai**:
+- Dashboard BEP tampil kosong/nol (karena tidak ada order tipe `jasa_giling`)
+- Loyalty poin `auto_track` tidak pernah bertambah otomatis (silent fail, no error)
+
+**Rencana Fix**:
+- Extend service supaya bisa handle `tipe_order='penjualan'` juga
+- Basis perhitungan diubah dari kg → jumlah pcs / total belanja Rp
+- Dikerjakan saat menyentuh modul BEP & Loyalty (Tahap 5 & 6)
+
+### 4.2 🟡 2 SISTEM LOGO TERPISAH — PERANGKAP BRANDING
+
+**Lokasi**:
+- **Mekanisme 1 (dinamis)**: `PengaturanUmum` model → upload via UI `/pengaturan/umum` → Storage
+- **Mekanisme 2 (statis)**: file `public/images/logo.png` → dipakai favicon, PWA icon, PDF header
+
+**Efek**: User upload logo baru di Pengaturan Umum → cuma muncul di TV Antrian, tidak di sidebar/PDF/favicon.
+
+**Rencana Fix (Tahap 1 - Branding)**:
+- Replace file statis `public/images/logo.png` dengan logo D'mentai
+- Update `PengaturanUmum` default seed → "D'mentai"
+- IDEAL: bikin fitur "logo master" di Pengaturan Umum yang override 2 mekanisme (opsional, kompleksitas tinggi)
+
+### 4.3 🟡 PWA ICON HARDCODE (harus siapkan manual)
+
+**Fakta**: `config/laravelpwa.php` 100% hardcode. 8 ukuran PNG (72-512px) harus disiapkan external, tidak ada UI admin atau command artisan untuk generate.
+
+**Rencana**:
+- Generate 8 ukuran PWA icon dari logo D'mentai full
+- Tools: Imagemagick / ImageMagick PHP / online tool (pilih saat eksekusi)
+- Dikerjakan di Tahap 1 - Branding
+
+### 4.4 🟢 CabangScope DORMANT — JANGAN DIUBAH
+
+**Fakta**: `app/Models/Scopes/CabangScope.php` tidak pernah aktif. Ke-62 pemanggilan `withoutGlobalScope(CabangScope::class)` adalah no-op.
+
+**Aturan**: JANGAN diubah atau dihapus — terlalu banyak tempat, salah satu bisa bug. Biarkan sebagai "dokumentasi diri sendiri" bahwa dulu ada rencana global scope.
+
+### 4.5 🟢 Tailwind + Alpine DEAD CODE
+
+**Fakta**: `package.json` include Tailwind + Alpine, tapi 100% tidak dipakai di app real. Cuma tersisa di Breeze scaffolding (`welcome.blade.php`, register form) yang tidak dipakai.
+
+**Rencana**: Skip dulu, cleanup di Tahap 7 (Testing/Go-live).
+
+### 4.6 🟢 BOOTSTRAP APP MINIMALIS
+
+**Fakta**: `bootstrap/app.php` cuma 2 middleware alias (`role`, `cabang`). Tidak ada middleware global tambahan. `routes/api.php` tidak terdaftar. Exception handling kosong (tidak ada custom 403/404/500).
+
+**Aturan**: 
+- Kalau nambah route API, harus register `api.php` dulu di `bootstrap/app.php`
+- Kalau butuh middleware global, tambah di `bootstrap/app.php` (bukan `app/Http/Kernel.php` — file itu tidak ada di Laravel 12)
+
+### 4.7 🟢 Recurring Transaction Trigger On-Request
+
+**Fakta**: `AppServiceProvider::boot()` panggil `triggerRecurringIfNeeded()` dengan cache key harian. Jadi recurring dipicu on-request, bukan cuma cron.
+
+**Aturan**: Kalau modif logic recurring, hati-hati — dia dipanggil setiap request.
+
+### 4.8 🟢 `items.jenis` vs `items.tipe` — 2 Axis Orthogonal, JANGAN Digabung
+
+**Fakta**: `items.jenis` (`bahan_baku`/`perlengkapan`, dari modul "Perlengkapan Habis Pakai" warisan Berkah Mulyo) dan `items.tipe` (5 nilai sejak Tahap 2.5, lihat 7.1) adalah **2 kolom independen** yang KEBETULAN sama-sama punya nilai literal `'bahan_baku'` — tapi maknanya beda total (satu soal "barang produksi vs ATK", satu lagi soal "dijual di POS atau tidak"). Jangan pernah asumsikan salah satu bisa dihitung dari yang lain.
+
+### 4.9 🟢 `item_cabang` — Fallback "Tanpa Row = Aktif di Semua Cabang"
+
+**Fakta**: Pivot `item_cabang` (Tahap 2.5) dipakai POS untuk filter ketersediaan produk_jual/produk_tambahan per outlet + `harga_override`. Item yang TIDAK PUNYA row sama sekali di tabel ini dianggap **aktif di semua cabang** (`Item::tersediaDiCabang()`) — sengaja begitu supaya 21 item dummy lama (belum pernah di-assign eksplisit lewat form Produk Jual baru) tidak hilang dari POS. Produk BARU yang dibuat lewat menu Produk Jual selalu dapat row eksplisit per cabang (checked/unchecked), jadi behaviour-nya deterministik ke depan — fallback ini murni utk data lama.
+
+### 4.10 🟢 Permission Naming: `item.*` (Flat) vs `master.produk_jual.*`/`master.bahan_baku.*` (Namespaced)
+
+**Fakta**: `item.*` (CRUD generik warisan Berkah Mulyo, tetap ada sebagai "Master Barang (Lengkap)" — unified fallback semua 5 tipe) dipakai bareng dengan 2 set permission baru `master.bahan_baku.*`/`master.produk_jual.*` (menu split Tahap 2.5) — pola namespace `master.*` ini konsisten dengan `master.item_varian.*`/`master.resep_bumbu.*` yang sudah ada duluan. Ketiga controller (`ItemController`, `MasterBahanBakuController`, `MasterProdukJualController`) sama-sama baca/tulis tabel `items` yang SAMA — bukan 3 sumber data terpisah, cuma beda filter+form+permission gate.
+
+### 4.11 🟢 Backfill Panduan & Tooltip Fitur Tahap 1-6 (2026-09-16)
+
+**Temuan**: Audit lengkap terhadap 9 fitur baru sejak fork (Tahap 1-6) menunjukkan Permission + Role Mapping SELALU lengkap (0 gap — kemungkinan karena lupa permission langsung menghasilkan error 403 yang cepat ketahuan saat testing), tapi **Panduan + Tooltip kelewat di 6 fitur**: Master Bahan Baku, Master Produk Jual, Setoran Kasir, Dashboard Owner (widget setoran), Laporan Setoran Kasir, dan Pengaturan Umum (branding) — plus 1 panduan **stale** (`item-varian` masih bilang "Coming Soon" padahal UI-nya sudah live sejak Tahap 3).
+
+**Backfill yang dilakukan**: 6 panduan baru + 1 rewrite (semua via `Panduan::updateOrCreate()`, format `## Tujuan → ## Langkah-langkah → ## Catatan Penting → ## Troubleshooting`, 300-800 kata) + 20 tooltip baru (`master_produk_jual.*`, `master_bahan_baku.*`, `pos.*` tambahan, `setoran_kasir.*`, `laporan_setoran_kasir.*`, `dashboard_owner.*`) di `TooltipKontenSeeder.php`, DI-EMBED langsung ke `<x-tooltip key="...">` di 7 file view terkait (bukan cuma masuk tabel tanpa dipakai — cek ulang, tooltip yang tidak dipanggil di view TIDAK tampil ke user sama sekali).
+
+**Bug pre-existing ditemukan & diperbaiki sekalian**: `resources/views/components/tooltip.blade.php` melakukan `e()` manual pada title+content lalu mencetak hasilnya lewat `{{ }}` (yang otomatis escape lagi) — DOUBLE-ESCAPE untuk tooltip mana pun yang kontennya mengandung karakter `&`/`<`/`>` (mis. tooltip baru `laporan_setoran_kasir.filter_status` yang berisi "Menunggu, Disetujui **&** Ditolak" tampil sebagai `&amp;amp;` bukan `&`). Fix: ganti jadi `{!! $tipContent !!}` (variabel sudah di-escape manual sebelumnya, tidak perlu escape kedua). Bug ini laten sejak tooltip component dibuat — mempengaruhi SEMUA tooltip lama yang kebetulan mengandung karakter HTML-special, bukan cuma yang baru ditambah sesi ini.
+
+**Metode verifikasi**: 19 HTTP Feature test baru (`tests/Feature/Tahap7/PanduanTooltipBackfillTest.php`) — akses tiap slug panduan via route asli, cek isi (bukan cuma render OK), cek tooltip benar-benar muncul di response HTML form terkait (bukan cuma ada di tabel `tooltips`), regresi ke panduan/tooltip lama.
+
+### 4.12 🟢 Tahap 7 — Final Polish & Go-Live (2026-09-14)
+
+**A. Cleanup dead code**: Hapus `welcome.blade.php` + `layouts/navigation.blade.php` (dikonfirmasi 0 reference — root `/` adalah closure custom, bukan `view('welcome')`; navigation.blade.php tidak pernah di-`@include`). Hapus `tailwind.config.js` + `postcss.config.js`. `package.json` devDependencies dipangkas 11→5 (buang `tailwindcss`, `@tailwindcss/*`, `autoprefixer`, `postcss`, `alpinejs`). `resources/css/app.css` dan `resources/js/app.js` DIKOSONGKAN (bukan dihapus) — biar `vite.config.js` tetap valid, tidak ada view aktif yang `@vite()` isinya. **Register route & profil (`register.blade.php`, `/profile`) SENGAJA DIBIARKAN** — bukan dead code, itu keputusan produk (bisa dipakai suatu saat), bukan scope cleanup.
+
+**B1. Fix `BepOtomatisService` hardcode `jasa_giling`+kg** (lihat [[4.1]]): pola fix = **fallback by data presence** — cek dulu apakah ada order `tipe_order='jasa_giling'` di periode query; kalau ADA pakai basis kg (logic lama, backward compat data historis), kalau TIDAK ADA (kasus normal D'mentai) pakai basis pcs dari `order_items.qty` dengan `tipe_order='penjualan'`. **Nama key return array (`volume_kg`, dst) SENGAJA DIPERTAHANKAN** meski semantiknya berubah (kg→pcs) — trade-off disetujui owner untuk hindari rename yang beresiko regresi di 6+ file konsumen; unit sebenarnya didokumentasikan via `@return array{...}` PHPDoc di `hitungBepOtomatis()`. `BusinessOverviewService::hitungProduksiSummary()` (dipakai laporan eksekutif PDF) punya bug identik, ikut difix dengan pola sama sebagai efek samping temuan audit.
+
+**B2. Fix `LoyaltyService::auto_track` hardcode kg** (lihat [[4.1]]): migration widen enum `loyalty_programs.sumber_data` dari 1 nilai (`orders.berat_daging_kg`) jadi 3 (+`orders.total_bayar`, `orders.count`). Service pakai helper `resolveAgregat()` untuk branch SUM(total_bayar) / COUNT(*) / SUM(berat_daging_kg) sesuai `sumber_data` program. Basis kg lama tetap jalan apa adanya untuk program existing (backward compat, tidak perlu migrasi data). Form create/edit loyalty program ditambah dropdown "Basis Perhitungan"; `satuan_qty` di-derive otomatis dari `sumber_data` yang dipilih (Rp / transaksi / kg).
+
+**B3. Sinkron 2 mekanisme logo** (lihat [[4.2]]): dibuat `PengaturanUmumObserver::saved()`, registrasi di `AppServiceProvider::boot()`. Saat `PengaturanUmum.logo_path` berubah → otomatis copy isi file ke `public/images/logo.png` (mekanisme statis). **Scope SENGAJA dibatasi cuma logo utama** — TIDAK menyentuh `logo-icon.png` atau 8 ukuran PWA icon (itu tetap manual sesuai [[4.3]], kompleksitas generate ulang PWA icon di luar scope Tahap 7).
+
+**C. Error pages 403/404/500** di-restyle (bukan dibuat baru — file-nya sudah ada dari base Berkah Mulyo) pakai palet brand D'mentai (`#1A1A1A`/`#FF6B00`/`#FFF8E7`), logo D'mentai, tombol CTA gradient balik ke dashboard/login.
+
+**Verifikasi**: 14 test baru `BepLoyaltyExtendTest.php` (B1+B2, termasuk 3 test backward-compat data lama) + 7 test `ErrorPagesAndLogoSyncTest.php` (error pages + sinkron logo real-filesystem + regresi cleanup) + 14 test `EndToEndFlowTest.php` (4 alur bisnis end-to-end: kasir jualan→setor, HO approve→dashboard update, permission 6 role, konsistensi tombol Cara Pakai). Total 118 test lintas Tahap 2.5/5/6/7 PASS, 0 regresi.
+
+### 4.13 🔴 Bug Fix Ronde 2 — Temuan Test Manual Final Sebelum Go-Live (2026-09-15)
+
+Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug baru (di luar 7 tahap resmi) — 3 di antaranya genuine bug produksi, bukan cuma polish:
+
+- **Bug 1 (Dropdown Cabang Aktif cuma tampil sampai Outlet 2)**: root cause BUKAN CSS overflow seperti dugaan awal — `CabangMiddleware` memfilter `$userCabangs` (daftar cabang di dropdown switcher) ke `$user->cabangs()` (pivot `cabang_user` eksplisit) BAHKAN untuk role `canAccessAllBranches()` (owner/admin_pusat). Dikonfirmasi data dev: Owner/Admin Pusat cuma punya 3/6 pivot cabang. Fix: role dengan `canAccessAllBranches()` → tampilkan SEMUA cabang aktif, bukan cuma yang di-pivot. CSS `max-height`+`overflow-y:auto` tetap ditambahkan sebagai defensive fix kedua (kalau outlet bertambah banyak ke depan, sesuai filosofi fleksibilitas [[1.4]]).
+- **Bug 2 (Bill Tersimpan POS)**: 3 perbaikan — (a) posisi dipindah ke PALING BAWAH halaman POS, di luar `<form id="formPos">` (menu sekunder, jangan ganggu alur transaksi baru); (b) tombol Batalkan BARU dengan permission `order.bill_tersimpan.batalkan` (default admin_pusat) — reuse `PenjualanService::batalkan()` yang sudah otomatis skip reversal stok/kas kalau order bukan status Selesai (bill Pending memang belum pernah potong stok apapun, jadi aman); (c) tombol "Bayar..." baru buka modal pembayaran lengkap (Tunai/Transfer/QRIS/Gojek/Grab + Split Payment + pilih Kas), reuse endpoint `charge-bill` yang sama dengan "Tunai Pas" existing.
+- **Bug 3 🔴 KRITIS (Data Ghost di Produk Jual)**: root cause **nested `<form>` HTML**, BUKAN delete-recreate/filter-salah seperti 3 dugaan awal. `master/produk-jual/_form.blade.php` dan `master/bahan-baku/edit.blade.php` punya form "Zona Berbahaya" (hapus) yang ter-nested di dalam form utama (Simpan). Browser membuang tag `<form>` dalam yang bersarang tapi tetap memasukkan child input-nya (termasuk hidden `_method=DELETE`) ke form LUAR — karena posisinya di DOM SETELAH hidden `_method=PUT` bawaan form utama, klik "Simpan Produk" ter-method-spoof jadi DELETE (PHP: nilai `_method` TERAKHIR yang menang di `$_POST`), produk ke-soft-delete alih-alih ter-update. **Data TIDAK hilang permanen** (soft-delete, `CascadeDeleteService::deleteItemCascade()` pakai `$item->delete()` bukan `forceDelete()`) — bisa direstore via `/trash?model=items`. Kebingungan "Data Terhapus kelihatan kosong" murni UX (default tab "Orders", bukan bug kedua). Fix: pisahkan form hapus jadi SIBLING (bukan nested), tombol hapus pakai HTML5 `form="id"` attribute biar tetap tampil di card sidebar tanpa jadi child DOM form utama. Lihat [[4.14]] untuk guard rail permanennya.
+- **Bug 4 (Audit Sync)**: audit menyeluruh pasca Bug 1-3 — smoke test 187 route GET, guard rail nested-form seluruh project, cek coverage Data Terhapus, cek 4 komponen wajib fitur baru. Menemukan 2 bug tambahan independen (Bug 5, Bug 6 di bawah) sebagai efek samping audit ini.
+
+**Bonus temuan audit sync (disetujui Owner untuk sekalian difix, kriteria: crash/data-loss/silent-failure + fix <15menit + pola sudah ada di codebase)**:
+- **Bug 5 (`notifikasi/index.blade.php`)**: nested form SAMA PERSIS pattern-nya dengan Bug 3 — form "Tandai Semua Dibaca" (POST) nested di dalam form filter (GET). Efeknya BUKAN data loss, tapi **silent failure**: tombol ter-asosiasi ke form GET yang salah, jadi klik "Tandai Semua Dibaca" cuma reload halaman filter, TIDAK benar-benar memanggil endpoint `notifikasi.read-all`. Fix: sibling form + `form="id"` attribute, sama seperti Bug 3.
+- **Bug 6 (`RangkumanFinalService::hitungHealthScore()`)**: crash 500 di Laporan Eksekutif (`/laporan/eksekutif/preview` & `/export`) kalau cabang/periode TIDAK ADA penjualan sama sekali bulan berjalan (`margin_persen` null, `skalakan()` butuh `float` non-null). Ditemukan lewat smoke test 187 halaman, BUKAN bagian fitur Tahap manapun (laten dari Laporan Eksekutif versi lama). Severity dianggap kritis karena akan **natural terpicu di production** (outlet baru buka bulan ini = belum ada penjualan = kondisi ini persis). Fix: null-check eksplisit sebelum `skalakan()`, pola sama seperti `rasio_lancar`/rasio kewajiban-aset di fungsi yang sama.
+
+**Metode verifikasi**: `Bug1CabangSwitcherScrollTest.php`, `Bug2BillTersimpanTest.php`, `Bug3NestedFormFixTest.php`, `Bug5NotifikasiNestedFormFixTest.php`, `Bug6RangkumanFinalNullMarginTest.php`, `DataTerhapusCoverageTest.php`, `NestedFormGuardRailTest.php`, `SmokeTestSemuaMenuTest.php` — semua di `tests/Feature/Tahap7/`.
+
+### 4.14 🔴 Nested `<form>` HTML — POLA HARAM, DIGUARD RAIL
+
+**Aturan mutlak**: `<form>` TIDAK BOLEH nested (bersarang) di dalam `<form>` lain, di file blade manapun, ke depan tanpa kecuali.
+
+**Kenapa ini bukan cuma "kode jelek" tapi BUG NYATA**: HTML5 parser membuang tag `<form>` yang bersarang (invalid), TAPI child input-nya (hidden `_token`/`_method`, dst) tetap masuk ke DOM sebagai bagian dari form LUAR. Efeknya tergantung isi form dalam:
+- Kalau form dalam punya `@method('DELETE')`/`PUT` yang beda dari form luar → **method-spoofing salah sasaran** (submit form luar memicu action form DALAM secara tidak sengaja) — ini yang terjadi di [[4.13]] Bug 3 (data ghost, KRITIS)
+- Kalau form dalam action-nya beda tapi method sama → tombol form dalam **ter-asosiasi ke form luar yang salah**, silent tidak memanggil endpoint yang dimaksud — ini yang terjadi di Bug 5 (notifikasi tandai dibaca)
+
+**Fix standar**: pisahkan jadi 2 form SIBLING (bukan nested). Tombol yang secara visual perlu ada "di dalam" card/section form lain pakai **HTML5 `form="id-form-lain"` attribute** pada `<button type="submit">`-nya — submit ke form yang benar tanpa perlu nested DOM. Lihat `master/produk-jual/_form.blade.php`, `master/bahan-baku/edit.blade.php`, `notifikasi/index.blade.php` untuk contoh pola fix-nya.
+
+**Guard rail permanen**: `tests/Feature/Tahap7/NestedFormGuardRailTest.php` — scan SEMUA file `.blade.php` project tiap kali test suite dijalankan, gagal kalau ada nested form baru manapun. **WAJIB tetap PASS** — kalau gagal karena fitur baru, JANGAN suppress test-nya, perbaiki struktur form-nya (sibling + `form="id"` attribute).
+
+### 4.15 🟢 Rename UI "Jenis Olahan" → "Jenis Menu", "Resep Bumbu Standar" → "Master Bumbu Pusat" (2026-09-15)
+
+**Latar belakang**: audit read-only menemukan 2 menu warisan Berkah Mulyo ini masih hidup dan dipakai (bukan dead code sepenuhnya), tapi seluruh isi panduan+UI-nya mendeskripsikan alur **jasa-giling lama yang sudah tidak ada** ("dropdown 🧂 Pilih Resep Bumbu di POS", "Terapkan Resep", "Berat Gilingan (kg)") — endpoint AJAX pendukungnya (`GET /pos/resep-bumbu/{id}`) dikonfirmasi **0 caller** di `resources/views` manapun. Keputusan: **rename + perbaiki panduan** (bukan hapus) — route name/permission name/model/table SEMUA TETAP (`jenis-olahan.*`, `resep-bumbu`, `master.resep_bumbu.*`, tabel `jenis_olahans`/`resep_bumbu` tidak disentuh), zero migration.
+
+- **"Jenis Olahan" → "Jenis Menu"**: label di sidebar, judul halaman, judul kolom Laporan Laba Rugi ("Per Jenis Olahan" → "Per Jenis Menu", key query `jenis_olahan` TETAP), tooltip, dan panduan (`slug: jenis-olahan`) — direposisi sebagai kategorisasi referensi untuk Master Bumbu Pusat, BUKAN lagi "dropdown POS transaksi Jasa Giling".
+- **"Resep Bumbu Standar" → "Master Bumbu Pusat"**: label di sidebar, judul halaman, `display_name` permission, dan panduan (`slug: resep-bumbu`) ditulis ulang total — sekarang eksplisit menjelaskan bahwa **cara utama kelola resep adalah lewat form Produk Jual** (section Komposisi/Resep, lihat Tahap 2.5), halaman ini murni overview/referensi. Kolom BARU **"Produk Terhubung"** ditambahkan ke tabel index (`ResepBumbuController::index()` eager-load relasi `item`) supaya user langsung lihat resep mana yang genuinely dipakai POS vs orphan.
+- **⚠️ Peringatan ditambahkan eksplisit di panduan**: tombol "Tambah Resep" di halaman Master Bumbu Pusat membuat resep TANPA `item_id` (orphan, tidak pernah dipakai POS karena POS cuma menemukan resep lewat produk yang di-klik kasir) — user diarahkan pakai form Produk Jual untuk resep baru. Tombolnya SENGAJA TIDAK dihapus/diubah perilakunya di sesi ini (di luar scope "rename UI + panduan"; kalau mau ditutup beneran, lihat rekomendasi audit terpisah).
+- **Info box BARU** ditambahkan ke modal "Tambah Kategori Baru" (satu-satunya UI kelola `item_categories`, ada di `item/create.blade.php` & `item/edit.blade.php` — TIDAK ada halaman "Master Kategori Item" terpisah) menjelaskan kategori baru tidak langsung muncul sebagai chip filter POS (baru muncul kalau sudah punya ≥1 produk aktif).
+
+**TODO awalnya dicatat di sini (2026-09-15) sudah DIKERJAKAN 2026-09-17** — lihat [[4.16]] fitur "Import dari Bumbu Pusat".
+
+**Verifikasi**: `tests/Feature/Tahap7/RenameJenisMenuMasterBumbuPusatTest.php` (10 test) — label baru tampil di halaman+panduan, teks lama sudah hilang, route/permission name regresi tidak berubah, tombol Cara Pakai tetap ada, kolom Produk Terhubung menampilkan nama item.
+
+### 4.16 🟢 Fitur "Import dari Bumbu Pusat" — Link (Bukan Copy) Resep Antar Produk (2026-09-17)
+
+**Konsep**: Master Bumbu Pusat (`ResepBumbu` tanpa `item_id`, sebelumnya orphan tidak berguna — lihat [[4.15]]) sekarang bisa di-**link** ke resep produk manapun lewat tombol **"Import dari Bumbu Pusat"** di form Produk Jual. 1 baris resep produk sekarang `item_id` langsung (bahan manual) ATAU `resep_bumbu_ref_id` (link ke Master Bumbu Pusat) — mutually exclusive, divalidasi di `ProdukJualRequest::withValidator()`.
+
+**Skema**: migration `2026_09_17_600002` — `resep_bumbu_items.item_id` dibuat nullable, tambah kolom `resep_bumbu_ref_id` (FK nullable ke `resep_bumbu.id`, `nullOnDelete`).
+
+**Anti cyclic-reference BY CONSTRUCTION (bukan cuma validasi runtime)**: `MasterResepBumbuController::storeItem()` (form Master Bumbu Pusat sendiri) **TIDAK PERNAH** menerima field `resep_bumbu_ref_id` — item milik sebuah bumbu SELALU `item_id` langsung. Kombinasi dengan aturan "cuma bisa link ke `ResepBumbu` yang `item_id IS NULL`" (`MasterProdukJualController::syncResep()`) membuat kedalaman referensi **maksimal 1 level** (Produk → Bumbu → Bahan Mentah) secara struktural — cycle tidak mungkin terjadi apapun inputnya, tidak perlu deteksi cycle runtime/rekursi.
+
+**🟢 Pattern "Live Calculation, No Cache/Job" untuk auto-update lintas-entitas**: HPP dan potong-stok baris linked dihitung **live** setiap kali dibutuhkan (`ResepBumbuItem::expandKeBahanMentah()` — expand 1 baris jadi kebutuhan bahan mentah on-the-fly, dipanggil dari `PenjualanService::cekResepCukup()`/`potongStokUntukItem()` saat checkout DAN `MasterProdukJualController::kalkulatorResep()` saat preview). **TIDAK ADA snapshot/cache/job apapun** — begitu Master Bumbu Pusat diedit, SEMUA produk yang link ke situ otomatis dapat angka baru di request berikutnya, tanpa event listener/queue/invalidasi cache. Prinsip ini konsisten dengan pola lama "Jangan input harga di Master Resep" (harga selalu live dari `Item::harga_beli_terakhir`) — cukup diperluas 1 level referensi. **Kapan pola ini BUKAN pilihan tepat**: kalau perhitungan yang di-live-kan mahal (query berat/N+1 dalam jumlah besar) atau butuh nilai historis-beku (mis. harga di struk transaksi lama TIDAK BOLEH ikut berubah kalau master harga diedit — itu sebabnya `order_items.hpp`/`harga_satuan` tetap snapshot permanen, beda dari resep yang genuinely representasi "kondisi sekarang").
+
+**Permission**: reuse `master.produk_jual.edit` (tidak ada permission baru) — keputusan Owner: 1 tombol = 1 permission, siapa yang boleh edit produk otomatis boleh import bumbu.
+
+**File utama**: migration `2026_09_17_600002_add_resep_bumbu_ref_to_resep_bumbu_items_table.php`, `ResepBumbuItem::expandKeBahanMentah()`/`isLinked()`, `MasterProdukJualController::{syncResep,kalkulatorResep,listBumbuPusat}()`, `ProdukJualRequest::withValidator()`, `PenjualanService::{cekResepCukup,potongStokUntukItem}()` (expand-aware), `master/produk-jual/_form.blade.php` (modal picker + badge baris linked).
+
+**Verifikasi**: `tests/Feature/Tahap7/ImportBumbuPusatTest.php` (21 test) — struktur data, modal picker (render/search/permission), import=link bukan copy, HPP akurat (manual+linked mix), auto-update HPP tanpa sentuh produk, hapus link vs master tetap ada, edge case (bumbu nonaktif tetap jalan utk link lama, cyclic reference structural block 2 arah), regresi fitur existing (create/edit/varian/foto/kalkulator/Master Bumbu Pusat CRUD/POS checkout stok terpotong benar).
+
+---
+
+## 5. STRATEGI PENGEMBANGAN
+
+### 5.1 Modul yang DIMODIFIKASI/REPLACE 🔴
+
+| Modul | Perlakuan | Alasan |
+|-------|-----------|--------|
+| **POS/Transaksi** | REPLACE (bikin baru) | Bisnis retail food beda total dari jasa giling |
+| **Produk & Resep** | REPLACE | Fokus dimsum, bukan produk giling |
+| **Master Item + Kategori** | REPLACE | Data dimsum, bukan daging |
+| **Jenis Olahan** | REPLACE atau hapus | Konsep "olahan daging" tidak relevan |
+
+### 5.2 Modul yang DIMODIF/ADD 🟡
+
+| Modul | Perlakuan | Detail |
+|-------|-----------|--------|
+| **Setoran & Kas** | MODIFY | Tambah alur cabang→HO dengan approval |
+| **Dashboard & Laporan** | MODIFY | Tambah info setoran & selisih |
+| **BEP Otomatis** | EXTEND | Support `tipe_order='penjualan'` (bukan cuma `jasa_giling`) |
+| **Loyalty Service** | EXTEND | `auto_track` support basis total belanja Rp / jumlah transaksi |
+| **Panduan & Tooltip** | ADD | Untuk fitur baru saja |
+| **Permission & Role** | ADD | Untuk menu baru saja |
+| **Fitur Varian Produk** | ADD | Struktur N-dimensi baru (belum ada di Berkah Mulyo) |
+
+### 5.3 Modul yang DIPAKAI APA ADANYA (REUSE) 🟢
+
+| Modul | Alasan |
+|-------|--------|
+| **HR** (Karyawan, Absensi, Cuti, Gaji, Shift, Evaluasi) | Universal, pola sama untuk bisnis apapun |
+| **Aset & Depresiasi** | Universal, bisnis butuh tracking aset |
+| **Keuangan Dasar** (COA, Neraca, Kategori Transaksi) | Universal, akuntansi standar |
+| **Stok FIFO + Batch** | Universal, pattern inventory food industry |
+| **Notifikasi, Activity Log, Backup** | Infrastruktur, tidak perlu diubah |
+| **Pembelian (PO)** | Universal untuk semua bisnis |
+| **Transfer Antar Cabang** | Universal |
+
+**Prinsip**: Kalau modulnya universal, JANGAN diubah. Fokus energi ke yang beda.
+
+### 5.4 Roadmap 7 Tahap
+
+| # | Tahap | Kompleksitas | Ketergantungan | Status |
+|---|-------|--------------|-----------------|--------|
+| 1 | **Branding** (warna, logo, nama, PWA icons) | Low | Independen | ✅ Selesai (2026-09-13) |
+| 2 | **Master Data** (kategori, produk dimsum, resep, varian) | Medium | Bergantung keputusan varian (SUDAH TERJAWAB) | ✅ Selesai (2026-09-13) |
+| 3 | **POS Modifikasi** (grid gambar, dine-in/takeaway/frozen, auto potong stok, varian) | HIGH | Bergantung Tahap 2 | ✅ Selesai (2026-09-13, dikoreksi: UI rollback ke Berkah Mulyo asli + modifikasi ringan — lihat catatan di bawah) |
+| 4 | **Stok/Resep Adaptation** (rename `qty_per_kg` → `qty_per_unit`, resep basis "per porsi") | Medium | Bergantung Tahap 3 | ✅ Selesai (2026-09-13) |
+| 2.5 | **Split Master Item** (Bahan Baku &amp; Kemasan vs Produk Jual, foto+resep+varian+outlet dalam 1 form) | High | Bergantung Tahap 2-4 | ✅ Selesai (2026-09-14) |
+| 5 | **Setoran Kasir Cabang → HO** (submit auto-hitung, approve/reject, kas HO) | Medium | Independen (bisa paralel Tahap 3-4) | ✅ Selesai (2026-09-15) |
+| 6 | **Dashboard & Laporan Owner** (widget setoran+kas HO, laporan Setoran Kasir) | Medium | Bergantung Tahap 5 | ✅ Selesai (2026-09-15) |
+| 7 | **Final Polish & Go-Live** (cleanup Tailwind/Alpine, fix BEP+Loyalty hardcode, sinkron logo, error pages branded, E2E testing) | Medium-High | Bergantung SEMUA tahap | ✅ Selesai (2026-09-14) — lihat [[4.12]] |
+
+### 5.5 Strategi Data Awal
+- JANGAN langsung `migrate:fresh` — data HR dari Berkah Mulyo masih berguna sebagai template
+- Bikin seeder baru khusus D'mentai untuk: outlet, produk, kategori, resep, varian
+- Data lama Berkah Mulyo yang tidak relevan (produk giling) soft-delete bertahap sambil ganti dengan data D'mentai
+- Nanti bikin tools "Reset Data D'mentai" di menu Settings untuk kemudahan reset ulang saat testing
+
+---
+
+## 6. DESAIN & BRANDING
+
+### 6.1 Palette Warna
+| Warna | Hex | Pakai untuk |
+|-------|-----|-------------|
+| **Hitam** | `#1A1A1A` | Sidebar, header, primary text, background utama |
+| **Oranye** | `#FF6B00` | Button primary, accent, highlight, badge |
+| **Krim** | `#FFF8E7` | Background section, card, hover state |
+| Putih | `#FFFFFF` | Background section kontras |
+| Abu terang | `#F5F5F5` | Divider, background secondary |
+
+**Filosofi warna**: Hitam-oranye elegant + krim buat kesan hangat food-friendly. Sesuai dengan logo D'mentai.
+
+### 6.2 Nama & Tagline
+- **Nama**: **D'mentai**
+- **Tagline**: **Dimsum & Gyoza**
+- **APP_NAME** di `.env`: `"ERP D'mentai"`
+- **Default `PengaturanUmum.nama_perusahaan`**: `"D'mentai"`
+- **Tagline struk default**: `"Dimsum & Gyoza"` (bisa diedit per outlet)
+
+### 6.3 Logo
+| Versi | Fungsi | Sumber |
+|-------|--------|--------|
+| **Logo Full** (bulat, dengan text + tagline + mascot) | Login page, sidebar full, PDF header, PWA icon | File asli dari owner |
+| **Logo Icon** (cuma mascot dimsum) | Sidebar collapsed, favicon, notif icon | Generate otomatis (crop mascot dari logo full) |
+
+**PWA Icon**: Generate 8 ukuran (72, 96, 128, 144, 152, 192, 384, 512) dari logo full.
+
+### 6.4 Responsif
+- Wajib bisa dipakai di PC (browser desktop) dan Tablet
+- Ikuti pola responsif Berkah Mulyo (Bootstrap 5 grid)
+- POS khususnya: layout harus optimal di tablet horizontal (kasir pakai tablet)
+
+---
+
+## 7. SPESIFIKASI FITUR UTAMA
+
+### 7.1 POS (Point of Sale)
+
+**Layout**: Grid produk dengan gambar (bukan text list). Sidebar kanan untuk keranjang & bayar.
+
+**Klasifikasi `items.tipe` (5 nilai, sejak Tahap 2.5 — 2026-09-14)**:
+| Tipe | Tampil di POS? | Kelola via menu |
+|------|----------------|-----------------|
+| `bahan_baku` | Tidak (bahan mentah) | Bahan Baku & Kemasan |
+| `kemasan` | Tidak | Bahan Baku & Kemasan |
+| `tambahan_gratis` | Ya — section "Item Tambahan" (1-klik, gratis) | Bahan Baku & Kemasan |
+| `produk_jual` | Ya — grid utama | Produk Jual |
+| `produk_tambahan` | Ya — section "Item Tambahan" (berbayar) | Produk Jual |
+
+Nilai lama `produk_jadi`/`lainnya` MASIH VALID di enum DB (backward compat, tidak dihapus) tapi tidak dipakai data manapun lagi setelah reklasifikasi 21 item dummy. Ketersediaan per outlet dikontrol tabel `item_cabang` (pivot item↔cabang, `harga_override` + `is_active`) — item TANPA row sama sekali dianggap aktif di semua cabang (fallback, lihat `Item::tersediaDiCabang()`).
+
+**Fitur wajib**:
+1. **Grid produk dengan gambar + nama + harga**
+   - Filter kategori: "All Items", "Food", "Drink", "Frozen", dll (dinamis, bisa nambah dari admin)
+   - Cari produk cepat (search bar)
+2. **Tipe transaksi**: Dine-in / Takeaway / Frozen (dropdown atau tab)
+   - Kalau Dine-in: bisa input nomor meja (optional, config per outlet)
+   - Kalau Takeaway: mungkin ada fee (config)
+   - Kalau Frozen: nanti bisa cetak tanggal produksi/expired di struk
+3. **Varian produk** (N-dimensi)
+   - Klik produk → muncul modal pilih varian (kalau ada)
+   - Contoh: Dimsum Mentai → Size (S/M/L) + Level Pedas (1-5) + Saus (Mayo/Cheese)
+   - Bisa juga tidak ada varian (produk simple)
+   - Stok: config per produk (ikut induk atau terpisah per varian)
+4. **Auto potong stok**
+   - Stok dipotong SETELAH klik "Charge/Bayar" (bukan saat klik produk)
+   - Produk yang bahan bakunya habis → di-disable dengan warning "Stok habis"
+   - Produk lain yang stoknya masih ada tetap bisa dijual
+   - Cek stok berdasarkan komposisi resep (per outlet)
+5. **Resep opsional per produk**
+   - Ada produk yang punya resep (auto potong komposisi seperti bumbu, kemasan, dll)
+   - Ada produk yang tidak punya resep (potong 1 unit produk jadi aja)
+6. **Item tambahan** (garpu, sumpit, saus, dll)
+   - Bisa gratis (Rp 0) atau berbayar (misal Rp 100)
+   - Ikut motong stok kalau bahan bakunya di-track
+7. **Custom item** (input produk bebas di luar menu)
+8. **Add customer** (untuk loyalty/riwayat pelanggan)
+9. **Diskon & fee**
+   - Diskon manual (kasir input %)
+   - Diskon dari voucher/kode
+   - Service charge (config per outlet)
+   - Take away fee (config per outlet)
+10. **Metode pembayaran**: Cash, QRIS, Transfer, Gojek, Grab (bisa split payment)
+11. **Multi-action**: Save Bill (bill sementara), Print Bill (preview), Charge (bayar & selesai), Split Bill (bagi tagihan)
+12. **Struk cetak**
+    - Fleksibel: bisa cetak / tidak cetak / cetak 1-2 rangkap
+    - Ikuti pola Berkah Mulyo (footer struk configurable per cabang)
+
+**Prinsip UI/UX POS**:
+- Layout harus lebih bagus & informatif dari referensi POS lain
+- Optimasi untuk speed kasir (button besar, sedikit klik)
+- Tampilan yang jelas: stok, keranjang, total
+
+### 7.2 Struktur Varian Produk (BARU!)
+
+**Model konseptual**:
+```
+Item (Produk)
+  ├─ punya_varian: BOOLEAN (config per item)
+  ├─ stok_per_varian: BOOLEAN (config per item)
+  │
+  └─ Kalau punya_varian = TRUE:
+       ├─ ItemAttribute (misal: "Size", "Rasa", "Level Pedas")
+       │    └─ ItemAttributeValue (misal Size: "S", "M", "L")
+       └─ ItemVariant (kombinasi: Size M + Rasa Mentai + Level 3)
+             ├─ harga_override (opsional)
+             ├─ stok (kalau stok_per_varian = TRUE)
+             └─ resep_override (opsional)
+```
+
+Ini fitur BARU (tidak ada di Berkah Mulyo). Perlu migration + model + controller + view.
+
+### 7.3 Setoran Kasir Cabang → HO — ✅ Selesai (2026-09-15)
+
+**Realisasi vs spesifikasi awal (2 penyesuaian disetujui Owner sebelum eksekusi)**:
+- **Per HARI, bukan per shift** — tidak ada infrastruktur "buka/tutup shift kasir" di codebase ini (`shifts` murni jadwal HR). 1 baris `setorans` = 1 cabang + 1 tanggal (`unique(cabang_id, tanggal)`).
+- **Hybrid dengan modul "Transfer Dana" (`SetoranController`, `setoran.*`) existing**: tabel BARU (`setorans`/`setoran_details`/`setoran_approvals`) untuk konsep "rekonsiliasi harian auto-hitung dari `order_payments`" (beda total dari Transfer Dana yang lump-sum manual) — tapi pergerakan uang saat approve REUSE pola 2-baris `transaksi_keuangans` (kategori `SETORKSR-OUT`/`SETORKSR-IN`, `kode_akun_coa=NULL` sama prinsip `SETOR-IN/OUT`), link via `referensi_type='setoran_kasir'`+`referensi_id` (BUKAN `setoran_pair_id`, supaya tidak nyerempet state machine Transfer Dana). Permission namespace `setoran_kasir.*` (beda dari `setoran.*`) supaya role yang sudah punya akses Transfer Dana tidak otomatis dapat akses modul baru.
+
+**Alur final**:
+1. Kasir buka `/setoran-kasir/create` — sistem auto-hitung breakdown per metode (tunai/transfer/qris/gojek/grab) dari `order_payments` hari itu (via `SetoranKasirService::hitungOtomatis()`)
+2. **Scope sengaja dibatasi ke KAS TUNAI**: metode non-tunai sudah otomatis settle ke kas non-tunai cabang saat order dibuat (`PenjualanService`) — breakdown non-tunai di `setoran_details` murni informasi transparansi ke HO, TIDAK ada uang yang berpindah untuk metode itu lewat fitur ini
+3. Kasir isi "Jumlah Uang Tunai yang Diserahkan" (default = sistem, bisa diedit kalau ada selisih fisik) + bukti foto opsional + catatan → submit → status `menunggu`
+4. **Uang BELUM berpindah sama sekali saat submit** (beda dari Transfer Dana yang langsung potong kas pengirim) — `setorans` sebelum approve murni laporan, `Kas` tidak disentuh
+5. HO (`admin_pusat`, permission `setoran_kasir.approve`/`.reject`) buka `/setoran-kasir` → Approve (kas cabang -X, kas HO +X, dalam 1 `DB::transaction()`) atau Reject (alasan wajib, kasir bisa revise — submit ulang tanggal yang sama meng-UPDATE baris existing in-place, bukan bikin baris baru, supaya tidak bentrok `unique(cabang_id,tanggal)`)
+
+**Status**: `menunggu` 🟡 / `approved` 🟢 / `rejected` 🔴 (`App\Enums\StatusSetoranKasir`)
+
+**Data tercatat**: `setorans` (tanggal, cabang, kasir submit, total sistem, total disetor, selisih, bukti foto, catatan kasir/HO, link ke 2 `TransaksiKeuangan` saat approved), `setoran_details` (breakdown per metode), `setoran_approvals` (audit trail submit/approve/reject — histori lengkap kalau ada revisi berkali-kali).
+
+**Tabel DB baru**: `setorans`, `setoran_details`, `setoran_approvals` (lihat migration `2026_09_15_500001`-`500003`).
+
+### 7.4 Dashboard Owner — ✅ Selesai (2026-09-15)
+
+**Realisasi**: EXTEND `dashboard/pusat.blade.php` existing (bukan halaman baru) — Owner/admin_pusat sudah otomatis diarahkan ke situ, jadi widget baru langsung terlihat tanpa perlu 2 dashboard terpisah yang membingungkan. Semua widget baru di-gate 1 permission `dashboard.owner.view` (default: admin_pusat + Owner bypass).
+
+**Baris 1 — Card Angka Besar** (persis 4 sesuai spesifikasi):
+- Total Penjualan Hari Ini (semua outlet) — `SUM(orders.total_bayar)` hari ini, exclude Dibatalkan
+- Total Penjualan Bulan Ini (sudah ada dari widget lama, dipertahankan apa adanya)
+- Uang Belum Disetor — `SUM(setorans.total_disetor)` utk status `menunggu`+`rejected`. **Keterbatasan didisclose**: hari yang kasirnya BELUM SUBMIT setoran sama sekali tidak ikut terhitung (bukan bug kalkulasi — datanya memang belum ada untuk dihitung, itu soal kepatuhan submit kasir)
+- Kas HO Saat Ini — `SUM(Kas.saldo_sekarang)` untuk cabang bertipe `gudang_pusat`
+
+**Baris 2 — Grafik**: Trend penjualan harian 7 hari (line chart, semua outlet gabungan, widget BARU) + grafik bulanan 6-bulan-per-cabang (SUDAH ADA sebelumnya, dipertahankan — deliver "trend bulanan" dari spesifikasi, walau bukan 12 bulan persis). **Trend mingguan 4-minggu SENGAJA TIDAK dibuat** — dianggap redundant dengan trend harian 7-hari + bulanan 6-bulan yang sudah mencakup rentang pendek dan panjang; bisa ditambah nanti kalau genuinely dibutuhkan.
+
+**Baris 3 — Tabel Alert** (3 tabel sesuai spesifikasi): Setoran Menunggu Approval (link "Proses" ke halaman detail approve/reject, BUKAN quick-action inline — konsisten pola "detail dulu baru aksi" yang sudah dipakai Transfer Dana), Outlet dengan Stok Minimum (item `bahan_baku`/`kemasan`/`produk_jual` di bawah `qty_minimum`, lintas cabang), Selisih Setoran (`ABS(selisih) >= Rp5.000`, threshold arbitrary tapi wajar untuk saring noise pembulatan).
+
+**Filter tanggal/outlet/tipe transaksi dari spesifikasi awal SENGAJA TIDAK diimplementasikan** di widget dashboard (widget tetap fixed "hari ini"/"bulan ini"/real-time) — filter granular lebih cocok di halaman Laporan (`/laporan/setoran-kasir` sudah py filter tanggal+cabang+status) daripada dashboard ringkasan; menambah filter ke dashboard akan signifikan menambah kompleksitas widget tanpa manfaat sepadan untuk use-case "cek cepat kondisi hari ini".
+
+**Bug lama dibersihkan sekalian** (ditemukan pas menyentuh `DashboardController::cabang()` untuk Tahap 6, CLAUDE.md 4.1): card "X order jasa giling hari ini" (hardcode `tipe_order='jasa_giling'`, selalu 0 untuk D'mentai) diganti breakdown **Order per Tipe Transaksi Hari Ini** (Dine-in/Takeaway/Frozen, dari `orders.tipe_transaksi` yang genuinely dipakai Tahap 3) — bukan expand scope, murni cleanup dead-weight widget yang kebetulan ada di file yang sama.
+
+### 7.5 Laporan
+
+**Status per jenis (Tahap 6, 2026-09-15)**:
+1. Laporan Penjualan (harian/per outlet/per produk) — **SUDAH ADA sejak sebelumnya** (`LaporanPenjualanController`), tidak disentuh Tahap 6
+2. **Laporan Setoran Kasir** — ✅ BARU (`/laporan/setoran-kasir`, permission `laporan.setoran_kasir.view`/`.export`) — filter tanggal+cabang+status, export Excel (CSV-as-.xls, pola sama `LaporanSetoranController` existing). **Beda dari `laporan.setoran` existing** yang melaporkan Transfer Dana generik (`SETOR-OUT`), bukan Setoran Kasir
+3. Laporan Selisih — **digabung ke Laporan Setoran Kasir** (kolom `selisih` sudah tampil per baris + widget dashboard "Selisih Setoran vs Sistem"), TIDAK dibuat sebagai laporan/menu terpisah — datanya identik, memecah jadi 2 menu cuma menambah navigasi tanpa manfaat
+4. Laporan Stok — **SUDAH ADA sejak sebelumnya**, tidak disentuh
+5. Laporan Kas — **SUDAH ADA sejak sebelumnya** (`Kelola Kas & Transaksi`), tidak disentuh
+
+**Export Laporan Setoran Kasir**: Excel ✅ (CSV-as-.xls). **PDF SENGAJA TIDAK dibuat** — `LaporanSetoranController` (rujukan pola terdekat, domain setoran yang sama) sendiri juga tidak punya export PDF, cuma Excel; menambahkan PDF khusus laporan ini akan jadi inkonsistensi pola dibanding laporan setoran lain, bukan penghematan scope yang genuinely dibutuhkan sekarang.
+
+### 7.6 Hak Akses (Role-Based)
+
+**Roles yang sudah ada** (dari Berkah Mulyo, tetap dipakai):
+- `admin_pusat` — akses semua
+- `admin_gudang` — HO/gudang
+- `manajer_cabang` — 1 outlet
+- `kasir` — POS + setoran only
+- `operator_produksi` — produksi
+- `helper` — akses terbatas
+
+**Aturan menu**:
+- Menu tampil di sidebar berdasarkan permission user
+- Cek dulu permission sebelum tampilkan menu (`@can`)
+- Jangan hide via CSS (harus di level backend)
+
+### 7.7 Loyalty
+
+**Untuk sekarang (Tahap awal)**:
+- Pakai `event_based` (klaim manual berdasarkan pencapaian yang di-approve admin)
+- `auto_track` DINONAKTIFKAN sementara (karena hardcode ke `jasa_giling`)
+
+**Nanti (bisa di Tahap 6)**:
+- Extend `LoyaltyService::auto_track` supaya support:
+  - Basis "total belanja Rp"
+  - Basis "jumlah transaksi"
+  - Bukan cuma "berat kg" seperti Berkah Mulyo
+
+---
+
+## 8. KONVENSI CODING
+
+### 8.1 Bahasa
+- **Kode**: English (nama variable, function, class)
+- **Comment**: Indonesian atau English (konsisten per file)
+- **UI text**: Bahasa Indonesia (semua label, message, error)
+- **Nama tabel & kolom**: mengikuti pola Berkah Mulyo (Indonesia, snake_case) — misal: `cabangs`, `karyawans`, `stok_masuk`
+
+### 8.2 Naming
+| Item | Convention | Contoh |
+|------|-----------|--------|
+| Model | PascalCase, singular | `Cabang`, `Karyawan`, `Setoran` |
+| Controller | PascalCase + Controller | `PosController`, `SetoranController` |
+| Table | snake_case, plural | `cabangs`, `karyawans`, `setorans` |
+| Column | snake_case | `nama_produk`, `harga_jual` |
+| Route | kebab-case | `/pos/kasir`, `/setoran/approve` |
+| View | dot-notation, snake_case | `pos.kasir`, `setoran.index` |
+
+### 8.3 Konvensi Rename (dari Berkah Mulyo → D'mentai)
+| Kolom lama | Kolom baru | Alasan |
+|-----------|-----------|--------|
+| `qty_per_kg` (di `resep_bumbu_items`) | `qty_per_unit` | ✅ **SELESAI Tahap 4 (2026-09-13)** — kolom (raw `CHANGE COLUMN`, kompat MariaDB 10.4), accessor `getQtyPerUnitDalamKgAttribute()`, validasi, label UI, dan resep_bumbu sekarang terhubung langsung ke `item_id` (bukan cuma `jenis_olahan_id`) supaya POS otomatis temukan resep tanpa kasir pilih manual. |
+| `berat_daging_kg` (di `order_items`) | (biarkan / `qty_pcs`) | Perlu diskusi lebih lanjut saat Tahap 3 |
+| `tipe_order='jasa_giling'` | `tipe_order='penjualan'` | Dimsum tidak ada konsep "jasa giling" |
+| `items.tipe='produk_jadi'` | `items.tipe='produk_jual'` | ✅ **SELESAI Tahap 2.5 (2026-09-14)** — 1:1 rename (extend enum, nilai lama tetap valid di DB tapi tidak dipakai data manapun lagi). `items.tipe='lainnya'` dipecah jadi `tambahan_gratis` (Garpu Plastik) + `produk_tambahan` (Saus Cabai Extra). Semua whitelist tipe yang dipotong-stok-langsung (`PenjualanService`, `Item::bisaDijualDiCabang()`) ikut di-update ke `produk_jual` — kalau lupa, item drink/frozen tanpa resep akan berhenti kepotong stoknya secara silent (bug nyata yang ditemukan & diperbaiki saat development Tahap 2.5). |
+
+### 8.4 Struktur Folder (ikuti Berkah Mulyo)
+```
+app/
+  Http/Controllers/       # semua controller
+  Models/                 # semua model
+  Services/               # business logic
+  Traits/                 # HasAuditLog, HasCabang, FillsDeletedBy
+  Observers/              # 12 observer untuk history/audit
+  Enums/                  # RoleUser, dll
+resources/views/
+  layouts/                # template utama
+  pos/                    # view POS
+  setoran/                # view setoran
+  dashboard/              # view dashboard
+database/
+  migrations/             # migration files
+  seeders/                # seeder files
+```
+
+### 8.5 Pattern Coding yang Dipakai
+- **Observer pattern**: 12 observer terdaftar di `AppServiceProvider` untuk history/audit
+- **Trait `HasAuditLog`**: dipakai di 38 model — verified working
+- **Trait `FillsDeletedBy`**: dipakai di 29 model — verified working
+- **Gate pattern**: permission di-cache 1 jam (`all_permission_names`), delegasi ke `$user->hasPermission()`
+- **DB::transaction()**: WAJIB untuk operasi multi-tabel
+
+---
+
+## 9. TESTING & QUALITY
+
+### 9.1 Sebelum commit/lanjut fitur
+- [ ] Semua migration jalan tanpa error (`php artisan migrate:status`)
+- [ ] Semua seeder jalan tanpa error
+- [ ] Login berhasil pakai user admin
+- [ ] Menu terkait fitur baru tampil di sidebar (kalau permission benar)
+- [ ] Cek `storage/logs/laravel.log` — tidak ada error baru
+- [ ] Manual test alur end-to-end (misal: input transaksi POS → cek stok berkurang → cek masuk laporan)
+- [ ] Filter cabang: pastikan query pakai `where('cabang_id', ...)` (SECURITY!)
+
+### 9.1.1 Aturan Scope & Metode Test (WAJIB, sejak Tahap 2.5 — 2026-09-14)
+
+**Scope — apa yang WAJIB ditest:**
+1. Semua yang dibuat/diedit/diubah di sesi berjalan (controller/model/migration/view baru maupun diubah)
+2. Fitur existing yang **berpotensi terdampak** oleh perubahan struktur (contoh nyata Tahap 2.5: ubah filter `items.tipe` di POS berdampak ke query grid, whitelist potong-stok di `PenjualanService`, bucket persediaan di `NeracaService`, dashboard/laporan Stok — SEMUA itu wajib ditest walau tidak "dibuat baru")
+
+**TIDAK PERLU ditest:** modul yang genuinely tidak terhubung ke perubahan (contoh: ubah POS tidak perlu test menu HR/Aset/Karyawan/Cuti/Penggajian kecuali ada bukti keterkaitan nyata).
+
+**Metode — WAJIB simulasi HTTP request beneran, BUKAN cuma Tinker:**
+- Pakai Laravel Feature Test (`tests/Feature/...`) dengan `actingAs($user)->get(...)`/`post(...)`/`put(...)`/`delete(...)` + assertions (`assertOk`, `assertRedirect`, `assertSessionHasErrors`, `assertDatabaseHas`, `assertSoftDeleted`, dll) — bukan cuma `app()->call([...])` via Tinker (itu skip banyak middleware/pipeline nyata: `ConvertEmptyStringsToNull`, session, dll)
+- Upload file: `UploadedFile::fake()->image(...)` / `->create(...)` + `Storage::fake('public')`
+- Form kompleks (varian/resep terintegrasi): submit multi-field array persis seperti browser beneran akan kirim
+
+**Database test — WAJIB pakai `erp_dimsum_test` (MySQL disposable), BUKAN sqlite in-memory default Laravel:**
+- Codebase ini banyak migration raw MySQL-only (`ALTER TABLE ... MODIFY COLUMN ENUM`, dll) yang **tidak jalan di sqlite** — dikonfirmasi 5/5 test bawaan (`ExampleTest`/`ProfileTest`) sudah gagal total di `phpunit.xml` default sebelum Tahap 2.5 (`SQLSTATE[HY000]: ... near "MODIFY": syntax error`)
+- Setup: `.env.testing` (`DB_CONNECTION=mysql`, `DB_DATABASE=erp_dimsum_test` — **database terpisah dari `erp_dimsum` dev**, dibuat sekali via `CREATE DATABASE erp_dimsum_test`), `phpunit.xml` TIDAK override `DB_CONNECTION`/`DB_DATABASE` lagi (supaya `.env.testing` yang dipakai)
+- Migrate + seed SEKALI ke `erp_dimsum_test` (`APP_ENV=testing php artisan migrate --env=testing --force`, lalu seeder yang relevan) — bukan tiap test run, karena `RefreshDatabase` (migrate ulang tiap test class) lambat & migration DDL MySQL tidak transaction-safe untuk di-toggle bolak-balik
+- Test class pakai trait `Illuminate\Foundation\Testing\DatabaseTransactions` (BUKAN `RefreshDatabase`) — tiap test method dibungkus 1 transaction & auto-rollback, data `erp_dimsum_test` tetap bersih antar test TANPA re-migrate
+- **Reversibilitas migration** diverifikasi TERPISAH secara manual (`migrate` → `migrate:rollback --step=N` → `migrate` lagi, dicek langsung via `SHOW COLUMNS`/`SHOW TABLES`) — BUKAN di dalam automated test, karena DDL (`ALTER`/`CREATE`/`DROP TABLE`) auto-commit di MySQL sehingga tidak terlindungi oleh transaction rollback
+- `UserSeeder` bawaan project py bug pre-existing (`cabang_id` kosong, tidak terkait Tahap 2.5) — test user dibuat langsung via `User::factory()->create(['role'=>...])`, bukan lewat seeder itu
+
+**Kalau ada test FAILED:** STOP, jangan force lanjut ke fitur berikutnya — investigasi dulu apakah itu bug nyata (perbaiki) atau asumsi test yang salah (perbaiki test-nya), baru lanjut.
+
+### 9.2 Bug Berkah Mulyo yang Sudah Difix di erp-dimsum
+- Migration `kategori_transaksis` urutan salah → sudah di-fix (rename ke `000001`)
+- Migration `fix_kas_soft_delete_unique_constraint` step 1 salah cek index → sudah di-fix (cek by name)
+
+### 9.3 Backup Sebelum Perubahan Besar
+Sebelum `migrate:fresh` atau operasi destruktif:
+```bash
+php artisan backup:run --only-db
+```
+
+---
+
+## 10. TROUBLESHOOTING UMUM
+
+### 10.1 Error saat migrate
+- Foreign key gagal → cek urutan file migration, tabel yang dirujuk harus dibuat DULU
+- Index/constraint conflict → cek migration `fix_*_soft_delete_unique_constraint`
+
+### 10.2 Error saat artisan
+- "Table 'cache' doesn't exist" → set `CACHE_STORE=file` di `.env`, jalankan `config:clear`
+- ".env invalid" → biasanya `APP_NAME` yang ada spasi tapi tidak diapit `"..."`
+
+### 10.3 Halaman blank / 500
+- Cek `storage/logs/laravel.log`
+- Cek `APP_DEBUG=true` di `.env` untuk lihat stack trace
+- Cek permission folder `storage/` dan `bootstrap/cache/`
+
+### 10.4 Menu tidak muncul
+- Cek permission user (`users` → `role` → `role_permissions`)
+- Cek blade sidebar (`@can` directive)
+- Clear cache: `php artisan cache:clear`
+
+### 10.5b Foto produk/upload tidak tampil (404) padahal sudah ke-upload
+- Cek apakah `public/storage` beneran SYMLINK ke `storage/app/public` (`ls -la public/ | grep storage` harus tampil `storage -> ...`, bukan folder biasa)
+- Kalau ternyata folder BIASA (bukan symlink) — pernah terjadi di environment ini (2026-09-15), kemungkinan `storage:link` sempat gagal jadi symlink di Windows dan malah bikin folder kosong — cek dulu isinya SAMA dengan `storage/app/public` (jangan asal hapus, pastikan tidak ada data unik yang cuma ada di situ), baru `rm -rf public/storage && php artisan storage:link`
+- Setelah fix, `config:clear`+`view:clear`+`cache:clear`, lalu hard refresh browser (Ctrl+Shift+R) — foto lama sering ke-cache browser
+
+### 10.5 Data cabang lain kelihatan (SECURITY BUG!)
+- Cek query di controller → apakah ada `where('cabang_id', ...)`
+- Jangan pakai `Model::all()` mentah untuk data cabang-spesifik
+- CabangScope DORMANT — filter WAJIB manual
+
+---
+
+## 11. KONTAK & GAYA KOMUNIKASI
+
+### 11.1 Yang Berhak Memutuskan
+- **Owner project**: user (yang chat dengan Claude)
+- Semua keputusan bisnis (fitur, alur, prioritas) harus konfirmasi dulu ke owner
+- Jangan asumsi, tanya kalau ragu
+
+### 11.2 Gaya Komunikasi
+- Bahasa Indonesia (owner lebih nyaman)
+- Step-by-step (owner belum expert developer)
+- Jelaskan konteks setiap perubahan besar
+- Kalau perlu keputusan, kasih opsi + pro/kontra
+- JANGAN langsung eksekusi perubahan besar — konfirmasi dulu
+
+---
+
+## 12. TODO LIST (untuk masa depan)
+
+### 12.1 Cleanup (Tahap 7) — ✅ Selesai (2026-09-14)
+- [x] Hapus dead code Tailwind + Alpine dari `package.json`
+- [x] Hapus `welcome.blade.php` yang tidak dipakai
+- [x] Bersihkan Breeze scaffolding yang tidak dipakai (`layouts/navigation.blade.php`; register/profile dikonfirmasi BUKAN dead code, dibiarkan)
+- [x] Bikin custom error page (403/404/500) dengan branding D'mentai
+
+### 12.2 Perbaikan Bug Terwariskan — ✅ Selesai (2026-09-14)
+- [x] Extend `BepOtomatisService` supaya support `tipe_order='penjualan'` — lihat [[4.12]]
+- [x] Extend `LoyaltyService::auto_track` supaya support basis Rp/transaksi — lihat [[4.12]]
+- [x] Sinkronkan 2 mekanisme logo (dinamis + statis) via `PengaturanUmumObserver` — lihat [[4.12]]
+
+### 12.3 Fitur Baru yang Belum Ada di Berkah Mulyo
+- [x] Struktur varian produk (N-dimensi) — ✅ Tahap 2 (DB+Model) + Tahap 2.5 (UI penuh di form Produk Jual, sync-safe utk histori order)
+- [ ] Sistem shift kasir dengan buka-tutup shift (Setoran Kasir Tahap 5 sengaja per HARI, bukan per shift, karena ini belum ada)
+- [x] Setoran cabang ke HO dengan approval workflow — ✅ Tahap 5 (Setoran Kasir, auto-hitung dari `order_payments`, scope kas tunai)
+- [x] Dashboard owner dengan info setoran belum/sudah — ✅ Tahap 6 (4 card + trend 7 hari + 2 tabel alert di `dashboard/pusat.blade.php`)
+
+### 12.4 Simplifikasi Disengaja di Tahap 2.5 (Kandidat Penyempurnaan Nanti)
+- [ ] Preview kombinasi varian di form Produk Jual masih manual (tombol "Update Preview Kombinasi"), belum live-update tiap keystroke — cukup untuk kebutuhan sekarang, bisa di-upgrade ke reaktif kalau dirasa kurang nyaman dipakai kasir/admin
+- [ ] `ItemVariant` yang di-toggle off lalu di-toggle-on lagi dgn kombinasi PERSIS sama akan membuat row BARU (bukan restore row lama yg soft-deleted) — desain sengaja simple demi keamanan data, efek sampingnya `item_variants` bisa sedikit menumpuk row trashed dari siklus tambah-hapus-tambah atribut yang sama berulang kali (harmless, tidak mengganggu fungsi)
+- [ ] Kalkulator resep (estimasi HPP per N pcs produksi) di form Produk Jual pakai `harga_beli_terakhir` (snapshot terakhir), bukan FIFO batch cost aktual — cukup akurat utk preview kasar sebelum simpan, HPP order sungguhan tetap dihitung FIFO oleh `PenjualanService` seperti biasa
+
+### 12.5 Panduan & Tooltip — ✅ Backfill Selesai (2026-09-16)
+- [x] Panduan Master Bahan Baku, Master Produk Jual, Setoran Kasir, Dashboard Owner, Laporan Setoran Kasir, Pengaturan Umum (Branding) — 6 slug baru
+- [x] Rewrite panduan `item-varian` (hapus "Coming Soon", tulis ulang sesuai UI live)
+- [x] 20 tooltip baru, di-embed ke `<x-tooltip>` di view terkait (bukan cuma masuk DB)
+- [x] Fix bug double-escape di komponen `tooltip.blade.php` (ditemukan saat backfill ini)
+- [x] Embed tombol Cara Pakai (`<x-panduan-button>`) di 13 halaman fitur baru — gap ditemukan test manual SETELAH backfill konten selesai, ditutup di sesi terpisah (2026-09-16)
+- [ ] Panduan untuk sistem shift kasir (belum relevan — fiturnya sendiri belum ada, lihat 12.3)
+
+### 12.6 Bug Fix Ronde 2 — Temuan Test Manual Final — ✅ Selesai (2026-09-15)
+- [x] Bug 1: Dropdown Cabang Aktif — root cause data (pivot cabang_user), bukan CSS — lihat [[4.13]]
+- [x] Bug 2: Bill Tersimpan POS — posisi + batalkan (permission baru) + modal bayar lengkap — lihat [[4.13]]
+- [x] Bug 3 🔴 KRITIS: Data Ghost Produk Jual — root cause nested `<form>` — lihat [[4.13]], [[4.14]]
+- [x] Bug 4: Audit sync menyeluruh (187 route smoke test + guard rail nested-form + Data Terhapus coverage) — lihat [[4.13]]
+- [x] Bug 5 (bonus): nested form di `notifikasi/index.blade.php` (silent failure "Tandai Semua Dibaca") — lihat [[4.13]], [[4.14]]
+- [x] Bug 6 (bonus): crash 500 Laporan Eksekutif kalau cabang/periode tanpa penjualan (`margin_persen` null) — lihat [[4.13]]
+
+**Tidak ada item yang di-DEFER** — ke-6 bug/temuan di ronde ini semuanya selesai difix + ditest di sesi yang sama, 0 TODO baru tersisa dari ronde ini.
+
+### 12.7 Rename Jenis Menu & Master Bumbu Pusat — ✅ Selesai (2026-09-15)
+- [x] Rename label "Jenis Olahan" → "Jenis Menu" (sidebar, halaman, Laporan Laba Rugi, tooltip, panduan) — lihat [[4.15]]
+- [x] Rename label "Resep Bumbu Standar" → "Master Bumbu Pusat" + panduan ditulis ulang total (hapus deskripsi alur jasa-giling lama yang sudah mati) — lihat [[4.15]]
+- [x] Kolom baru "Produk Terhubung" di tabel Master Bumbu Pusat (display-only, eager-load relasi `item` yang sudah ada)
+- [x] Info box modal "Tambah Kategori Baru" (di menu Master Barang Lengkap) — jelaskan aturan visibility kategori di POS
+- [x] ~~TODO: tombol "Import dari Bumbu Pusat" di form Produk Jual~~ — **SELESAI DIKERJAKAN 2026-09-17**, lihat [[4.16]]
+
+### 12.8 Fitur Import dari Bumbu Pusat — ✅ Selesai (2026-09-17)
+- [x] Migration: `resep_bumbu_items.item_id` nullable + kolom baru `resep_bumbu_ref_id` — lihat [[4.16]]
+- [x] Modal picker (search + list Master Bumbu aktif) di form Produk Jual
+- [x] HPP & potong stok live-calculated utk baris linked (auto-update tanpa cache/job)
+- [x] Anti cyclic-reference by construction (1 level kedalaman maksimal)
+- [x] Panduan `produk-jual` + tooltip baru + 21 test (feature+edge case+regresi), 182 test total lintas fase PASS
+
+---
+
+## 13. CHECKLIST SEBELUM MULAI FITUR BARU
+
+Setiap kali mulai kerja fitur baru, Claude Code WAJIB:
+
+- [ ] Baca ulang bagian relevan di file ini
+- [ ] Cek pola serupa di codebase Berkah Mulyo (yang sudah dicopy)
+- [ ] Konfirmasi scope & detail ke user (kalau belum jelas)
+- [ ] Bikin plan (list file yang akan diubah/dibuat)
+- [ ] Cek `AUDIT_SISTEM.md` bagian yang relevan
+- [ ] Eksekusi dengan test bertahap
+- [ ] Update section "Status" di roadmap (bagian 5.4)
+- [ ] Tambah permission + panduan + tooltip untuk fitur baru
+- [ ] Cek filter cabang manual di query (SECURITY!)
+- [ ] Kabari user ketika selesai & minta test
+
+---
+
+## 14. REFERENSI FILE PENTING
+
+| File | Isi |
+|------|-----|
+| `CLAUDE.md` (ini) | Single source of truth — visi, aturan, spesifikasi |
+| `CLAUDE.berkahmulyo.backup.md` | Backup CLAUDE.md dari Berkah Mulyo (jangan dihapus, untuk referensi pola) |
+| `AUDIT_SISTEM.md` | Audit lengkap sistem base (Berkah Mulyo) — modul, alur, gap |
+| `.env` | Config lingkungan (APP_NAME, DB, dll) |
+| `routes/web.php` | 817 baris route — peta URL sistem |
+| `resources/views/layouts/app.blade.php` | Sidebar utama — peta menu sistem |
+| `app/Providers/AppServiceProvider.php` | Observer + Gate + Recurring trigger |
+| `bootstrap/app.php` | Middleware alias + routing config |
+
+---
+
+**🎉 PROJECT READY FOR PRODUCTION — Tahap 7 (Final Polish) selesai 2026-09-14, Bug Fix Ronde 2 selesai 2026-09-15, Rename Jenis Menu/Master Bumbu Pusat + Fitur Import dari Bumbu Pusat selesai 2026-09-17.** Semua 7 tahap roadmap tuntas + 6 bug dari test manual final (termasuk 1 KRITIS: data ghost akibat nested form) sudah difix & diguard-rail + fitur link-resep-antar-produk (anti cyclic by construction, live-calculation tanpa cache/job) sudah dibangun. 182 test lintas fase PASS (0 regresi), smoke test 187 halaman clean, dead code dibersihkan, bug BEP+Loyalty terwariskan sudah difix, error page branded, 4 alur bisnis end-to-end terverifikasi. Siap go-live — lihat panduan test manual final untuk verifikasi terakhir sebelum rilis.
+
+---
+
+**Tahap 1 (Branding) selesai — 2026-09-13.** Nama, warna, logo, dan PWA icon sudah D'mentai. Siap eksekusi Tahap 2 - Master Data. 🚀

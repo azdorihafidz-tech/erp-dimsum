@@ -1,0 +1,193 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Enums\StatusOrder;
+use App\Models\Cabang;
+use App\Models\Order;
+use App\Models\OrderItem;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
+
+class LaporanPenjualanController extends Controller
+{
+    public function index(Request $request)
+    {
+        abort_unless(auth()->user()->can('laporan.view'), 403);
+
+        $user = auth()->user();
+
+        // Default periode: bulan ini
+        $dari = $request->dari
+            ? Carbon::parse($request->dari)->startOfDay()
+            : Carbon::now()->startOfMonth();
+        $sampai = $request->sampai
+            ? Carbon::parse($request->sampai)->endOfDay()
+            : Carbon::now()->endOfDay();
+
+        $query = Order::withoutGlobalScopes()
+            ->with(['cabang', 'pelanggan'])
+            ->whereBetween('tanggal_order', [$dari->toDateString(), $sampai->toDateString()])
+            ->where('status', '!=', StatusOrder::Dibatalkan);
+
+        // Filter cabang
+        $cabangId = $request->cabang_id;
+        if ($cabangId) {
+            $query->where('cabang_id', $cabangId);
+        } elseif (!$user->canAccessAllBranches()) {
+            $activeCabangId = session('active_cabang_id') ?? $user->defaultCabangId();
+            $query->where('cabang_id', $activeCabangId);
+        }
+
+        // Filter tipe order
+        if ($request->tipe_order) {
+            $query->where('tipe_order', $request->tipe_order);
+        }
+
+        // Search multi-field — TAMBAHAN, tidak mengganti filter cabang/tipe/tanggal di atas
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('nomor_order', 'like', "%{$search}%")
+                  ->orWhere('nama_pelanggan', 'like', "%{$search}%")
+                  ->orWhereHas('cabang', fn ($c) => $c->where('nama_cabang', 'like', "%{$search}%"));
+            });
+        }
+
+        // Clone for stats sebelum paginate
+        $statsQuery = clone $query;
+        $totalOmzet = $statsQuery->sum('total_bayar');
+        $totalTransaksi = (clone $query)->count();
+        $rataRata = $totalTransaksi > 0 ? $totalOmzet / $totalTransaksi : 0;
+
+        // Export Excel
+        if ($request->export === 'excel') {
+            $orders = $query->orderByDesc('tanggal_order')->get();
+            return $this->exportExcel($orders);
+        }
+
+        $orders = $query->orderByDesc('tanggal_order')->paginate(20)->withQueryString();
+
+        // Produk terlaris
+        $produkTerlaris = OrderItem::withoutGlobalScopes()
+            ->selectRaw('item_id, nama_item, SUM(qty) as total_qty, SUM(total_harga) as total_omzet')
+            ->whereHas('order', function ($q) use ($dari, $sampai, $cabangId, $user) {
+                $q->whereBetween('tanggal_order', [$dari->toDateString(), $sampai->toDateString()])
+                  ->where('status', '!=', StatusOrder::Dibatalkan);
+                if ($cabangId) {
+                    $q->where('cabang_id', $cabangId);
+                } elseif (!$user->canAccessAllBranches()) {
+                    $activeCabangId = session('active_cabang_id') ?? $user->defaultCabangId();
+                    $q->where('cabang_id', $activeCabangId);
+                }
+            })
+            ->groupBy('item_id', 'nama_item')
+            ->orderByDesc('total_qty')
+            ->limit(10)
+            ->get();
+
+        // Ranking Kasir — mirror pola produk terlaris, join users (kasir_id -> users.id)
+        $rankingKasir = collect();
+        if ($user->can('laporan.ranking_kasir.view')) {
+            $rankingKasirQuery = Order::withoutGlobalScopes()
+                ->join('users', 'orders.kasir_id', '=', 'users.id')
+                ->leftJoin('cabangs', 'orders.cabang_id', '=', 'cabangs.id')
+                ->whereBetween('orders.tanggal_order', [$dari->toDateString(), $sampai->toDateString()])
+                ->where('orders.status', '!=', StatusOrder::Dibatalkan);
+            if ($cabangId) {
+                $rankingKasirQuery->where('orders.cabang_id', $cabangId);
+            } elseif (!$user->canAccessAllBranches()) {
+                $activeCabangId = session('active_cabang_id') ?? $user->defaultCabangId();
+                $rankingKasirQuery->where('orders.cabang_id', $activeCabangId);
+            }
+
+            $rankingKasir = $rankingKasirQuery
+                ->selectRaw('orders.kasir_id, users.name as nama_kasir, cabangs.nama_cabang, COUNT(orders.id) as jumlah_order, SUM(orders.total_bayar) as total_omzet')
+                ->groupBy('orders.kasir_id', 'users.name', 'cabangs.nama_cabang')
+                ->orderByDesc('total_omzet')
+                ->limit(10)
+                ->get();
+        }
+
+        // Grafik trend harian (max 31 hari)
+        $grafikLabels = [];
+        $grafikData = [];
+        $diffDays = $dari->diffInDays($sampai);
+        if ($diffDays <= 31) {
+            // Harian
+            for ($d = clone $dari; $d <= $sampai; $d->addDay()) {
+                $tgl = $d->toDateString();
+                $grafikLabels[] = $d->format('d/m');
+                $grafikData[] = (float) Order::withoutGlobalScopes()
+                    ->where('tanggal_order', $tgl)
+                    ->where('status', '!=', StatusOrder::Dibatalkan)
+                    ->when($cabangId, fn($q) => $q->where('cabang_id', $cabangId))
+                    ->when(!$user->canAccessAllBranches() && !$cabangId, function ($q) use ($user) {
+                        $activeCabangId = session('active_cabang_id') ?? $user->defaultCabangId();
+                        $q->where('cabang_id', $activeCabangId);
+                    })
+                    ->sum('total_bayar');
+            }
+        } else {
+            // Mingguan atau bulanan
+            $current = clone $dari->startOfMonth();
+            while ($current <= $sampai) {
+                $bulan = $current->format('Y-m');
+                $grafikLabels[] = $current->translatedFormat('M Y');
+                $grafikData[] = (float) Order::withoutGlobalScopes()
+                    ->where('tanggal_order', 'like', $bulan . '%')
+                    ->where('status', '!=', StatusOrder::Dibatalkan)
+                    ->when($cabangId, fn($q) => $q->where('cabang_id', $cabangId))
+                    ->when(!$user->canAccessAllBranches() && !$cabangId, function ($q) use ($user) {
+                        $activeCabangId = session('active_cabang_id') ?? $user->defaultCabangId();
+                        $q->where('cabang_id', $activeCabangId);
+                    })
+                    ->sum('total_bayar');
+                $current->addMonth();
+            }
+        }
+
+        $cabangs = Cabang::aktif()->get();
+
+        return view('laporan.penjualan.index', compact(
+            'orders',
+            'totalOmzet',
+            'totalTransaksi',
+            'rataRata',
+            'produkTerlaris',
+            'rankingKasir',
+            'grafikLabels',
+            'grafikData',
+            'cabangs',
+            'dari',
+            'sampai',
+            'cabangId'
+        ));
+    }
+
+    private function exportExcel($orders)
+    {
+        $headers = [
+            'Content-Type' => 'application/vnd.ms-excel; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="laporan-penjualan-' . now()->format('Y-m-d') . '.xls"',
+        ];
+        $callback = function () use ($orders) {
+            $file = fopen('php://output', 'w');
+            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF)); // BOM UTF-8
+            fputcsv($file, ['No. Order', 'Tanggal', 'Cabang', 'Pelanggan', 'Tipe', 'Total Bayar', 'Status'], ';');
+            foreach ($orders as $o) {
+                fputcsv($file, [
+                    $o->nomor_order,
+                    $o->tanggal_order?->format('d/m/Y'),
+                    $o->cabang?->nama_cabang,
+                    $o->nama_pelanggan ?? $o->pelanggan?->nama ?? 'Umum',
+                    $o->tipe_order?->label(),
+                    $o->total_bayar,
+                    $o->status?->label(),
+                ], ';');
+            }
+            fclose($file);
+        };
+        return response()->stream($callback, 200, $headers);
+    }
+}
