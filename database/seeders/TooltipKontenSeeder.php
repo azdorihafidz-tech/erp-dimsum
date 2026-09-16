@@ -688,6 +688,11 @@ class TooltipKontenSeeder extends Seeder
                 'content' => 'Baris ini terlink dari Master Bumbu Pusat, bukan bahan manual. HPP dan potong stok bahan-di-dalamnya dihitung otomatis & selalu ikut komposisi TERBARU di Master Bumbu Pusat — kalau bumbu itu diedit, HPP produk ini ikut berubah tanpa perlu edit di sini.',
             ],
             [
+                'key'     => 'master_produk_jual.harga_master_preview',
+                'title'   => 'Harga Master (Preview)',
+                'content' => 'Harga bahan ini di Master Bahan Baku saat ini — murni tampilan, TIDAK disimpan. Belum ada konversi satuan otomatis (mis. gram vs kg) — kalau angka Subtotal di sebelahnya terlihat aneh, cek satuan & harga bahan itu di Master Bahan Baku.',
+            ],
+            [
                 'key'     => 'master_produk_jual.punya_varian',
                 'title'   => 'Punya Varian?',
                 'content' => 'Aktifkan kalau produk ini punya pilihan seperti Size atau Rasa dengan harga berbeda-beda. Kasir akan melihat modal pilihan ini saat klik produk di POS.',

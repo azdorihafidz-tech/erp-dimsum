@@ -190,24 +190,46 @@ class MasterProdukJualController extends Controller
         abort_unless(auth()->user()->can('master.produk_jual.view'), 403);
 
         $jumlah = max(1, (int) $request->input('jumlah', 1));
-        $produkJual->load('resep.items.item', 'resep.items.resepBumbuRef', 'resep.items.resepBumbuRef.items.item');
+
+        // Bug fix 2026-09-19: tombol "Simulasi Produksi Lengkap" dulu SELALU baca
+        // resep dari DB (data tersimpan), padahal user bisa saja sedang mengedit
+        // form (qty baru) TANPA klik Simpan dulu -- hasilnya server hitung dari
+        // angka lama, beda dari yang ditampilkan form (lihat CLAUDE.md 4.19).
+        // Fix: kalau frontend kirim payload `resep[]` (isi form saat ini), pakai
+        // itu; fallback ke DB kalau kosong (backward compat + Create belum ada
+        // $produkJual tersimpan, walau tombol ini cuma muncul di halaman Edit).
+        $resepInput = $request->input('resep');
+
+        if (is_array($resepInput) && count($resepInput) > 0) {
+            $rows = $this->normalisasiResepDariForm($resepInput);
+        } else {
+            $produkJual->load('resep.items.item', 'resep.items.resepBumbuRef.items.item');
+            $rows = ($produkJual->resep?->items ?? collect())->map(fn ($ri) => [
+                'is_linked'       => $ri->isLinked(),
+                'resep_bumbu_ref' => $ri->resepBumbuRef,
+                'item'            => $ri->item,
+                'qty_per_unit'    => (float) $ri->qty_per_unit,
+                'satuan'          => $ri->satuan,
+            ]);
+        }
 
         $breakdown = [];
         $totalHpp = 0.0;
 
-        foreach ($produkJual->resep?->items ?? [] as $ri) {
-            if ($ri->isLinked()) {
-                if (! $ri->resepBumbuRef) continue;
+        foreach ($rows as $row) {
+            if ($row['is_linked']) {
+                $bumbu = $row['resep_bumbu_ref'];
+                if (! $bumbu) continue;
                 $subtotalBumbu = 0.0;
-                foreach ($ri->resepBumbuRef->items as $inner) {
+                foreach ($bumbu->items as $inner) {
                     if (! $inner->item || $inner->mode_harga !== 'pakai_master') continue;
-                    $qtyInner = $inner->qty_per_unit_dalam_kg * $ri->qty_per_unit * $jumlah;
+                    $qtyInner = $inner->qty_per_unit_dalam_kg * $row['qty_per_unit'] * $jumlah;
                     $subtotalBumbu += $qtyInner * (float) ($inner->item->harga_beli_terakhir ?? 0);
                 }
                 $totalHpp += $subtotalBumbu;
                 $breakdown[] = [
-                    'nama'     => '🧂 ' . $ri->resepBumbuRef->nama . ' (Bumbu Pusat)',
-                    'qty'      => round($ri->qty_per_unit * $jumlah, 3),
+                    'nama'     => '🧂 ' . $bumbu->nama . ' (Bumbu Pusat)',
+                    'qty'      => round($row['qty_per_unit'] * $jumlah, 3),
                     'satuan'   => 'porsi',
                     'hpp_satuan' => null,
                     'subtotal' => $subtotalBumbu,
@@ -216,16 +238,17 @@ class MasterProdukJualController extends Controller
                 continue;
             }
 
-            if (! $ri->item) continue;
-            $qtyDibutuhkan = $ri->qty_per_unit * $jumlah;
-            $hppSatuan = (float) ($ri->item->harga_beli_terakhir ?? 0);
+            $item = $row['item'];
+            if (! $item) continue;
+            $qtyDibutuhkan = $row['qty_per_unit'] * $jumlah;
+            $hppSatuan = (float) ($item->harga_beli_terakhir ?? 0);
             $subtotal = $qtyDibutuhkan * $hppSatuan;
             $totalHpp += $subtotal;
 
             $breakdown[] = [
-                'nama'  => $ri->item->nama_item,
+                'nama'  => $item->nama_item,
                 'qty'   => round($qtyDibutuhkan, 3),
-                'satuan'=> $ri->satuan,
+                'satuan'=> $row['satuan'],
                 'hpp_satuan' => $hppSatuan,
                 'subtotal' => $subtotal,
                 'linked' => false,
@@ -233,6 +256,36 @@ class MasterProdukJualController extends Controller
         }
 
         return response()->json(['jumlah_produksi' => $jumlah, 'breakdown' => $breakdown, 'total_hpp' => $totalHpp]);
+    }
+
+    /**
+     * Normalisasi payload `resep[]` dari form (JS serialize, lihat
+     * hitungKalkulator() di _form.blade.php) jadi bentuk seragam dgn baris
+     * dari DB, supaya loop kalkulatorResep() di atas tidak perlu tahu asal
+     * datanya. Item/ResepBumbu di-batch-load (bukan query per baris) --
+     * jumlah baris resep 1 produk biasanya kecil (<20), tapi tetap dihindari
+     * N+1 sejak awal.
+     */
+    private function normalisasiResepDariForm(array $resepInput): \Illuminate\Support\Collection
+    {
+        $itemIds = collect($resepInput)->pluck('item_id')->filter()->unique()->values();
+        $bumbuIds = collect($resepInput)->pluck('resep_bumbu_ref_id')->filter()->unique()->values();
+
+        $items = Item::whereIn('id', $itemIds)->get()->keyBy('id');
+        $bumbus = ResepBumbu::whereIn('id', $bumbuIds)->with('items.item')->get()->keyBy('id');
+
+        return collect($resepInput)->map(function ($row) use ($items, $bumbus) {
+            $bumbuRefId = $row['resep_bumbu_ref_id'] ?? null;
+            $isLinked = ! empty($bumbuRefId);
+
+            return [
+                'is_linked'       => $isLinked,
+                'resep_bumbu_ref' => $isLinked ? ($bumbus[$bumbuRefId] ?? null) : null,
+                'item'            => ! $isLinked ? ($items[$row['item_id'] ?? null] ?? null) : null,
+                'qty_per_unit'    => (float) ($row['qty_per_unit'] ?? 0),
+                'satuan'          => $row['satuan'] ?? '',
+            ];
+        });
     }
 
     /**

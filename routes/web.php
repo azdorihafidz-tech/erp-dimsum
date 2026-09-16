@@ -178,7 +178,7 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
         Route::get('/{produkJual}/edit', [\App\Http\Controllers\MasterProdukJualController::class, 'edit'])->name('edit')->middleware('can:master.produk_jual.edit');
         Route::put('/{produkJual}', [\App\Http\Controllers\MasterProdukJualController::class, 'update'])->name('update')->middleware('can:master.produk_jual.edit');
         Route::delete('/{produkJual}', [\App\Http\Controllers\MasterProdukJualController::class, 'destroy'])->name('destroy')->middleware('can:master.produk_jual.delete');
-        Route::get('/{produkJual}/kalkulator-resep', [\App\Http\Controllers\MasterProdukJualController::class, 'kalkulatorResep'])->name('kalkulator-resep')->middleware('can:master.produk_jual.view');
+        Route::match(['get', 'post'], '/{produkJual}/kalkulator-resep', [\App\Http\Controllers\MasterProdukJualController::class, 'kalkulatorResep'])->name('kalkulator-resep')->middleware('can:master.produk_jual.view');
     });
 
     // ===== PEMAKAIAN PERLENGKAPAN (Fase 5, Rule #66) — menu BARU, terpisah

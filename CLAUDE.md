@@ -3,9 +3,9 @@
 > **Untuk Claude Code**: File ini adalah **single source of truth** untuk seluruh project. WAJIB dibaca sebelum eksekusi apapun.
 > Isinya: keputusan bisnis, temuan audit, aturan teknis, dan filosofi kerja.
 
-**Versi**: 3.3  
-**Update terakhir**: 2026-09-18  
-**Status**: 🎉 **PROJECT LIVE DI PRODUCTION** (https://erpdimsum.azwacore.com) — Tahap 1-7 SELESAI SEMUA (Branding, Master Data, POS, Rename qty_per_unit, Setoran Cabang→HO, Dashboard & Laporan, Final Polish & Testing) + Bug Fix Ronde 2 + Rename Jenis Menu/Master Bumbu Pusat + Fitur Import dari Bumbu Pusat + Improvement Test Manual Production (rename label, hapus Gojek/Grab) SELESAI.
+**Versi**: 3.5  
+**Update terakhir**: 2026-09-19  
+**Status**: 🎉 **PROJECT LIVE DI PRODUCTION** (https://erpdimsum.azwacore.com) — Tahap 1-7 SELESAI SEMUA (Branding, Master Data, POS, Rename qty_per_unit, Setoran Cabang→HO, Dashboard & Laporan, Final Polish & Testing) + Bug Fix Ronde 2 + Rename Jenis Menu/Master Bumbu Pusat + Fitur Import dari Bumbu Pusat + Improvement Test Manual Production (rename label, hapus Gojek/Grab) + Fix Foto Produk Production + UI Preview Harga Master/Subtotal Resep + Bug Fix Ronde 3 (Simulasi Produksi realtime + Total HPP footer) SELESAI. Sprint 2 (konversi satuan foolproof kalkulator resep) DIDEFER, lihat [[12.12]].
 
 ---
 
@@ -322,6 +322,37 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 **Verifikasi**: `tests/Feature/Tahap7/StorageAssetOverrideTest.php` (11 test) — path rewrite akurat (`storage/` di awal saja, bukan di tengah string), path lain (css/js/images) tidak terpengaruh, URL absolute passthrough, `route()`/`URL::signedRoute()` tetap valid (bukti resolver ter-preserve), route `/asset/{path}` genuinely serve file + 404 utk file tidak ada + tolak path traversal, end-to-end Master Produk Jual & POS render `/asset/...` bukan `/storage/...`. Full regression 205 test lintas fase PASS (0 regresi) — termasuk `SmokeTestSemuaMenuTest` (187 route) yang membuktikan override ini tidak menyebabkan 500 di halaman manapun.
 
 **Deploy production**: script sekali-pakai `public/clear-cache.php` (WAJIB dihapus dari server setelah dijalankan — tidak ada proteksi auth) untuk `config:clear`+`view:clear`+`cache:clear`+`route:clear`+rebuild `config:cache`+`route:cache` via akses browser, karena production tidak punya terminal/SSH.
+
+### 4.19 🟡 UI Preview "Harga Master" & "Subtotal" di Section Resep Produk Jual (2026-09-19)
+
+**Laporan Owner dari production**: bahan "Isian Ayam" 45rb/kg, takaran 35 gram di resep, Total HPP tampil Rp 1.575.000 — kelihatan seperti bug hitung.
+
+**Audit menemukan root cause SEBENARNYA lebih nuanced dari sekadar "bug hitung"**: `MasterProdukJualController::kalkulatorResep()` (dipakai tombol "Simulasi Produksi" di form admin) mengalikan `$ri->qty_per_unit` MENTAH (35, tanpa konversi satuan) dengan `harga_beli_terakhir` (Rp/kg) → 35×45000=Rp1.575.000. **Konversi satuan yang benar SUDAH ADA** di `ResepBumbuItem::getQtyPerUnitDalamKgAttribute()` (gram/ml÷1000, ons÷10) dan **SUDAH DIPAKAI DENGAN BENAR** di `expandKeBahanMentah()` — yaitu jalur yang genuinely dipakai POS checkout ([[4.16]]). **Kesimpulan krusial: HPP transaksi RIIL di POS TIDAK KENA bug ini** — cuma preview "Simulasi Produksi" di form admin yang salah karena skip accessor konversi yang sudah ada.
+
+**Keputusan Owner (Opsi C — Kombinasi, bukan fix penuh)**:
+- **Dikerjakan sekarang**: HANYA UI improvement, TIDAK fix logic konversi satuan `kalkulatorResep()`. Ditambahkan kolom **"Harga Master"** (readonly, live preview dari `harga_beli_terakhir`, format "Rp X / satuan") dan **"Subtotal"** (readonly, `qty × harga`) per baris resep manual — **KEDUANYA MURNI PERKALIAN APA ADANYA, TANPA KONVERSI SATUAN, SENGAJA** (bukan bug, keputusan produk eksplisit: "surface bad data, don't auto-correct" — supaya anomali input seperti "Rp45.000/gram" langsung KETAHUAN user secara visual sebelum Simpan, bukan disembunyikan lewat koreksi otomatis yang justru menutupi kesalahan input data aslinya di Master Bahan Baku). Baris resep ter-link ke Master Bumbu Pusat (badge 🧂) tampilkan placeholder "— (lihat Simulasi Produksi)" di kedua kolom (tidak applicable per-item, karena expand-nya multi-bahan). Info alert `alert-warning` di bawah tabel, link ke Master Bahan Baku. Kolom mode-harga existing di-rename "Harga" → **"Mode Harga"** biar tidak rancu dengan "Harga Master" baru.
+- **Dideferred ke Sprint 2**: fix logic konversi satuan `kalkulatorResep()` itu sendiri (Opsi A, unit-family system) — lihat [[12.12]].
+- **Data anomali "Isian Ayam" di production TIDAK difix oleh kode** — tanggung jawab Owner via UI Master Bahan Baku (cek satuan & harga item itu).
+
+**Bug kedua ditemukan sebagai efek samping audit (BELUM difix, di luar scope eksplisit sesi ini)**: `ResepBumbuItem::getTotalHargaMasterAttribute()` (dipakai kolom "Total /kg" di `master/resep-bumbu/edit.blade.php`) pakai `item->harga_jual` (kosong untuk `bahan_baku`, field itu punyanya `produk_jual`) — harusnya `harga_beli_terakhir`, sehingga kolom itu selalu tampil Rp0 untuk bahan baku manapun.
+
+**Implementasi**: HANYA 1 file view diubah (`resources/views/master/produk-jual/_form.blade.php`) — kalkulasi JS client-side murni, TIDAK ada endpoint AJAX baru (`BAHAN_OPTIONS` array yang sudah ada di JS ditambah field `harga`). **Bug tak terduga saat implementasi**: ekspresi kompleks `@json($bahanOptions->map(fn($b) => [...(float) ($x ?? 0)...]))` langsung di dalam directive `@json(...)` membuat Blade compiler SALAH PARSE argumen (comma-splitter Blade ter-confuse oleh kombinasi cast+null-coalesce+nested-paren di dalam closure), hasil compile PHP terpotong di tengah array literal → `ViewException: Unclosed '['`. **Pelajaran**: JANGAN taruh ekspresi PHP kompleks (cast, null-coalesce, nested function call majemuk) langsung sebagai argumen `@json()`/directive Blade lain — compute dulu di `@php` block jadi variabel sederhana, baru `@json($variabel)`.
+
+**Verifikasi**: `tests/Feature/Tahap7/ResepHargaMasterPreviewTest.php` (12 test) — rendering kolom+alert, data `BAHAN_OPTIONS` (field `harga` benar termasuk kasus 0), placeholder baris linked, regresi (Import Bumbu Pusat, nested-form check, save resep manual/varian/edit resep existing, POS render). Full regression 217 test lintas Tahap 2.5/5/6/7 PASS (0 regresi).
+
+**🔴 Addendum — Bug Fix Ronde 3 (2026-09-19), ditemukan Owner setelah Opsi B deploy**:
+
+**Bug A — Simulasi Produksi baca angka BEDA dari form input**: Owner ubah qty "Isian Ayam" di form dari 35g jadi 0.2g TAPI belum klik Simpan, lalu klik tombol Simulasi Produksi → hasilnya tetap pakai 35g (angka lama). Root cause: `hitungKalkulator()` (JS) melakukan GET-fetch ke `MasterProdukJualController::kalkulatorResep()`, yang query resep **langsung dari DB** (`$produkJual->load('resep.items...')`) — bukan dari state form di browser. Kolom "Subtotal" (Opsi B, client-side) baca `qtyInput.value` langsung dari DOM sehingga benar (0.2g), sedangkan Simulasi Produksi baca snapshot DB lama — **2 sumber data berbeda, bukan salah hitung**. Fix: `hitungKalkulator()` sekarang serialize semua baris `#bodyResep` (fungsi `serializeResepUntukKalkulator()`) dan kirim via **POST** (route `kalkulator-resep` diubah jadi `Route::match(['get','post'], ...)` — GET tetap didukung utk backward compat) ke `kalkulatorResep()`, yang sekarang terima `request->input('resep')` (dinormalisasi via `normalisasiResepDariForm()` — batch-load `Item`/`ResepBumbu` by id, hindari N+1) dan **fallback ke DB kalau payload kosong**. Server tetap yang hitung (perlu expand Bumbu Pusat server-side untuk baris linked, tidak bisa pure-JS) — cuma sumber datanya sekarang form real-time, bukan DB snapshot.
+
+**Bug B — Kolom Subtotal tidak ada Total footer**: ditambah `<tfoot>` di tabel resep dengan baris "Total HPP (Preview Cepat)" — JS `hitungTotalHpp()` sum semua `.subtotalPreview` yang berupa angka, dipanggil tiap `hitungPreviewBaris()` jalan + saat baris ditambah/dihapus (`hapusBarisResep()` baru, ganti inline `this.closest('tr').remove()`). **Baris linked (Bumbu Pusat) SENGAJA di-skip dari sum** (subtotal-nya butuh expand server-side, sama seperti Bug A) — ditandai via class `linkedBumbuMarker` di placeholder cell, memicu warning terpisah (`#warningBarisLinked`, hidden by default, muncul dinamis kalau ada ≥1 baris linked) yang mengarahkan user ke Simulasi Produksi Lengkap untuk total termasuk Bumbu Pusat.
+
+**Konsolidasi 2 area total (Opsi C, disetujui Owner)** — masing-masing punya use case beda, TIDAK dihapus salah satu, dikasih label+caption biar tidak bingung:
+- **"Total HPP (Preview Cepat)"** (footer tabel, caption: "instant, client-side, tanpa konversi satuan otomatis") — quick check per-baris manual, TANPA Bumbu Pusat.
+- **"Simulasi Produksi Lengkap"** (tombol existing, caption: "Server-side, hitung dari isi form saat ini (belum perlu Simpan dulu), expand Bumbu Pusat penuh") — hitungan lengkap termasuk expand Bumbu Pusat, sekarang FIXED baca form real-time (Bug A).
+
+**File yang diedit**: `resources/views/master/produk-jual/_form.blade.php` (footer + JS), `app/Http/Controllers/MasterProdukJualController.php` (`kalkulatorResep()` + `normalisasiResepDariForm()`), `routes/web.php` (`kalkulator-resep` GET→GET+POST).
+
+**Verifikasi**: `tests/Feature/Tahap7/SimulasiProduksiFormRealtimeTest.php` (8 test) — payload form override DB (0.2g bukan 35g → Rp9.000 bukan Rp1.575.000), fallback ke DB kalau payload kosong, expand Bumbu Pusat tetap benar dari payload form, skip baris invalid/kosong, tidak terganggu oleh flag `punya_varian`, label+caption baru tampil, markup footer+warning ada, regresi save produk masih normal. Full regression 225 test lintas Tahap 2.5/5/6/7 PASS (0 regresi).
 
 ---
 
@@ -790,6 +821,27 @@ php artisan backup:run --only-db
 - [x] Script `public/clear-cache.php` utk deploy shared hosting tanpa terminal/SSH
 - [x] 11 test baru, 205 test total lintas fase PASS (0 regresi, termasuk smoke-test 187 route)
 - [ ] **TODO opsional (tidak dikerjakan, di luar scope)**: `.htaccess` bawaan (`RewriteRule ^storage/ - [L,NC]`) masih ada apa adanya — tidak berbahaya (cuma jadi dead-weight di production krn Root Cause B sudah dihindari via `/asset/` bukan `/storage/`), tapi kalau mau benar-benar rapi bisa ditambah `RewriteCond %{REQUEST_FILENAME} -f` di depan rule itu supaya cuma aktif kalau file/symlink beneran ada (self-healing utk kedua environment). Owner declined edit `.htaccess` production langsung (risk lebih tinggi, sulit diverifikasi tanpa akses server) demi solusi Approach B yang murni level aplikasi.
+
+### 12.11 UI Preview "Harga Master" & "Subtotal" di Section Resep Produk Jual — ✅ Selesai (2026-09-19)
+- [x] Kolom "Harga Master" + "Subtotal" (readonly, live JS preview, raw multiply tanpa konversi — sengaja, lihat [[4.19]])
+- [x] Placeholder "— (lihat Simulasi Produksi)" utk baris resep ter-link ke Master Bumbu Pusat
+- [x] Info alert `alert-warning` + link Master Bahan Baku; rename kolom "Harga" → "Mode Harga"
+- [x] Fix bug Blade compile (`@json()` dgn ekspresi kompleks) — dipindah ke `@php` block, lihat [[4.19]]
+- [x] 12 test baru, 217 test total lintas fase PASS (0 regresi)
+- [x] **Bug Fix Ronde 3 (2026-09-19)**: Simulasi Produksi baca DB bukan form real-time (Bug A) + footer Total HPP hilang (Bug B) — lihat addendum [[4.19]]. 8 test baru, 225 test total lintas fase PASS (0 regresi).
+- [ ] **Ditemukan tapi belum difix (di luar scope eksplisit)**: `ResepBumbuItem::getTotalHargaMasterAttribute()` pakai `harga_jual` (harusnya `harga_beli_terakhir`) — kolom "Total /kg" di halaman edit Master Bumbu Pusat selalu Rp0 untuk bahan baku. Perlu keputusan Owner apakah masuk Sprint 2 ([[12.12]]) atau ditangani terpisah.
+
+### 12.12 Sprint 2 (Belum Dikerjakan) — Konversi Satuan Foolproof di Kalkulator Resep
+
+**Root cause** (temuan audit [[4.19]], BELUM difix): `MasterProdukJualController::kalkulatorResep()` mengalikan `qty_per_unit` mentah dgn `harga_beli_terakhir` (Rp/kg) tanpa konversi satuan (gram/ml/ons → kg) — beda dari `expandKeBahanMentah()` (dipakai POS checkout riil) yang SUDAH benar pakai `getQtyPerUnitDalamKgAttribute()`. Root cause fundamentalnya: satuan disimpan sebagai string bebas (`gram`, `ml`, `ons`, `kg`, `pcs`, dst) TANPA konsep "family" — tidak ada cara sistem tahu "gram" itu 1/1000 dari "kg" secara terstruktur, konversi cuma hardcode di 1 accessor.
+
+**Rencana implementasi (Opsi A, ~4 jam estimasi)**:
+1. Kolom baru NULLABLE `items.satuan_family` (enum: `berat`/`volume`/`pcs`/null) — nullable supaya data existing tidak perlu di-backfill paksa, default null = behavior lama (unchanged, backward compat).
+2. Service baru `KonversiSatuanService` (atau extend `ResepBumbuItem` accessor existing) — mapping unit→base-unit per family (`berat`: gram/ons/kg → kg; `volume`: ml/liter → liter) dgn faktor konversi eksplisit, dipakai KEDUA jalur (`kalkulatorResep()` DAN `expandKeBahanMentah()`) supaya konsisten 1 sumber logic, tidak duplikat seperti sekarang.
+3. `kalkulatorResep()` diubah pakai service ini utk hitung qty×harga (bukan raw multiply) — HPP preview jadi akurat sesuai contoh Owner (Isian Ayam 45rb/kg × 35gram = Rp1.575, bukan Rp1.575.000).
+4. UI Master Bahan Baku: dropdown satuan dibatasi ke daftar per family (bukan free-text) utk item baru — data existing free-text tetap jalan apa adanya (tidak retroactive).
+
+**Alasan defer**: data existing masih manageable secara manual (Owner bisa cek+benerin via UI), dan UI improvement Opsi B ([[12.11]]) sudah cukup utk kebutuhan jangka pendek (anomali data langsung kelihatan visual sebelum Simpan). Effort ~4 jam dianggap belum prioritas dibanding fitur/bug lain yang lebih mendesak per 2026-09-19.
 
 ---
 
