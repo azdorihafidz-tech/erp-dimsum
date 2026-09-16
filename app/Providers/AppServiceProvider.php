@@ -61,7 +61,46 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->registerStorageAwareUrlGenerator();
+    }
+
+    /**
+     * Override URL::asset() supaya asset('storage/xxx') generate URL
+     * 'asset/xxx' (bukan 'storage/xxx') — lihat penjelasan lengkap di
+     * App\Support\StorageAwareUrlGenerator. Registrasi ini MEREPLIKASI
+     * PERSIS setup 'url' bawaan Illuminate\Routing\RoutingServiceProvider
+     * (session/key resolver utk signed URL, request+routes rebinding) di
+     * instance BARU (subclass kita) — kalau ini tidak direplikasi, fitur
+     * signed URL (mis. verifikasi email) akan diam-diam rusak.
+     */
+    private function registerStorageAwareUrlGenerator(): void
+    {
+        $this->app->extend('url', function ($urlGenerator, $app) {
+            $generator = new \App\Support\StorageAwareUrlGenerator(
+                $app['router']->getRoutes(),
+                $urlGenerator->getRequest(),
+                $app['config']['app.asset_url']
+            );
+
+            $generator->setSessionResolver(function () use ($app) {
+                return $app['session'] ?? null;
+            });
+
+            $generator->setKeyResolver(function () use ($app) {
+                $config = $app->make('config');
+                return [$config->get('app.key'), ...($config->get('app.previous_keys') ?? [])];
+            });
+
+            $app->rebinding('request', function ($app, $request) use ($generator) {
+                $generator->setRequest($request);
+            });
+
+            $app->rebinding('routes', function ($app, $routes) use ($generator) {
+                $generator->setRoutes($routes);
+            });
+
+            return $generator;
+        });
     }
 
     /**

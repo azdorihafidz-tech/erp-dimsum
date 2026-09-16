@@ -94,6 +94,14 @@ Route::get('/img/{path}', function (string $path) {
     ]);
 })->where('path', '.*')->name('img.serve');
 
+// Serve foto produk dkk. (Storage::disk('public')) — pasangan
+// App\Support\StorageAwareUrlGenerator yang override asset('storage/xxx')
+// jadi asset/xxx. Prinsip sama dgn /img/{path} di atas (bypass rule
+// .htaccess bawaan yg blokir /storage/ di shared hosting tanpa symlink),
+// pola controller dipakai (bukan closure) supaya reusable/testable.
+Route::get('/asset/{path}', [\App\Http\Controllers\StorageAssetController::class, 'show'])
+    ->where('path', '.*')->name('storage.asset');
+
 // ===== PWA — STANDALONE (tanpa auth, bypass layout) =====
 Route::get('/serviceworker.js', function () {
     return response()->file(public_path('serviceworker.js'), [

@@ -301,6 +301,28 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 
 **Verifikasi**: `tests/Feature/Tahap7/HapusGojekGrabTest.php` (12 test) — label baru, tombol Gojek/Grab hilang dari POS, enum cuma 3 value (app+DB), submit order 3 metode valid, submit dgn `gojek`/`grab` ditolak validasi (baik lewat `POST /penjualan` maupun `POST .../charge`), breakdown Setoran Kasir 3 metode, submit setoran total akurat, panduan sudah bersih. 1 test lama (`Tahap5\SetoranKasirHttpTest`) diupdate assertion-nya (`assertCount(5,...)` → `assertCount(3,...)`) krn memang sengaja berubah oleh perubahan ini, bukan regresi tak terduga.
 
+### 4.18 🔴 Foto Produk Tidak Tampil di Production (Rumah Web Shared Hosting) — Root Cause Ganda + Fix Override `asset()`
+
+**Konteks**: Production (`erpdimsum.azwacore.com`, Rumah Web shared hosting cPanel) TIDAK PUNYA terminal/SSH, dan `symlink()` PHP DIBLOKIR provider — `php artisan storage:link` (jalan normal di XAMPP lokal, lihat [[10.5b]]) tidak bisa dipakai sama sekali di production. Foto produk (upload sukses, file genuinely ada di `storage/app/public/produk/`) tidak tampil di UI manapun (Master Produk Jual, POS). 4 percobaan fix awal (proxy `.htaccess`, ubah config `filesystems.php`, tambah route `/storage/{path}`, replace compiled views) SEMUANYA gagal — audit menemukan **2 root cause independen** yang saling menjelaskan kenapa keempatnya gagal:
+
+**Root Cause A — `.htaccess` bawaan blokir `/storage/*` SEBELUM sampai Laravel**: `public/.htaccess` (warisan template Berkah Mulyo, ada sejak initial commit) punya `RewriteRule ^storage/ - [L,NC]` — didesain utk kondisi `public/storage` adalah symlink/junction BENERAN (fast-path: Apache serve langsung tanpa lewat Laravel). Di production, symlink itu TIDAK ADA (diblokir), jadi Apache coba serve file yang tidak ada → 404 Apache → kemungkinan besar Rumah Web punya `ErrorDocument 404` custom yang fallback ke `index.php` → Laravel jalan tapi HANYA menemukan "tidak ada route match", render 404 branded-nya sendiri. **Rule `[L]` ini terminate proses SEBELUM custom `.htaccess` rule ATAU route Laravel `/storage/{path}` manapun sempat dievaluasi** — itu sebabnya Coba 1 (proxy rule) dan Coba 3 (route baru) sama-sama gagal walau masing-masing secara terpisah sudah benar.
+
+**Root Cause B — URL foto di-hardcode `asset('storage/'.$item->foto)`, TIDAK baca config apapun**: tidak ada accessor `getFotoUrlAttribute()` di `Item.php`. 7 titik hardcode tersebar (`master/produk-jual/index.blade.php`, `_form.blade.php`, `penjualan/pos.blade.php`, `face-registration/index.blade.php`, `setoran-kasir/show.blade.php`, `FaceAttendanceController.php`, `FaceRegistrationController.php`). `asset()` Laravel HANYA menempelkan `APP_URL` — TIDAK PERNAH membaca `config('filesystems.disks.public.url')` (config itu cuma dipakai `Storage::url()`, yang justru dipakai 2 view LAIN — `karyawan/edit.blade.php`, `karyawan/show.blade.php` — inkonsistensi pola lama, bukan bug baru). Ini sebabnya Coba 2 (ubah config `url` ke `/asset`) 0 efek, dan Coba 4 (replace compiled views) 0 file diubah (URL bukan string statis di compiled view, tapi hasil `asset()` yang resolve saat runtime).
+
+**Temuan tambahan penting**: codebase SUDAH PUNYA pola serupa yang battle-tested — route `Route::get('/img/{path}', ...)` (nama route `img.serve`, di `routes/web.php`) sudah lama dipakai utk foto absensi/face-attendance/bukti-transaksi/logo (>10 titik pemakaian, lihat `url('/img/'.$path)`). Route ini TIDAK kena blokir Root Cause A krn prefix-nya bukan `/storage/`. Ini validasi kuat bahwa strategi "serve dari `storage/app/public/` lewat route Laravel dgn prefix BUKAN `/storage/`" memang sudah proven jalan di environment production yang sama.
+
+**Fix (Approach B, dipilih Owner)**: override `asset()` secara GLOBAL, bukan edit 7 view satu-satu:
+- `app/Support/StorageAwareUrlGenerator.php` — subclass `Illuminate\Routing\UrlGenerator`, override `asset()`: path yang literal diawali `storage/` di-rewrite jadi `asset/` sebelum diteruskan ke `parent::asset()`. Path lain (css/js/images, URL absolute, atau `storage` yang cuma kebetulan ada di tengah string) TIDAK disentuh.
+- `AppServiceProvider::register()` — daftarkan subclass ini via `$this->app->extend('url', ...)`, **MEREPLIKASI PERSIS** setup resolver yang dilakukan `Illuminate\Routing\RoutingServiceProvider` bawaan (session resolver, key resolver utk signed URL, `rebinding('request', ...)`, `rebinding('routes', ...)`) — kalau tidak direplikasi, fitur signed URL (mis. verifikasi email) akan diam-diam rusak. Diverifikasi eksplisit via test: `URL::signedRoute()` tetap generate signature valid (`hasValidSignature()` true).
+- `app/Http/Controllers/StorageAssetController.php` + route baru `Route::get('/asset/{path}', ...)->name('storage.asset')` — stream file dari `Storage::disk('public')` (bukan filesystem langsung), ada guard path-traversal (`str_contains($path,'..')` → 404).
+- **TIDAK edit `.htaccess` production** (lebih berisiko, sulit diverifikasi tanpa akses server) — pendekatan ini sepenuhnya di level aplikasi Laravel, deploy via git push seperti biasa.
+
+**Kenapa override di level `UrlGenerator` (bukan edit 7 view)**: 1 file berubah scope-nya (`AppServiceProvider`), otomatis berlaku ke SEMUA pemanggilan `asset('storage/...)` — termasuk view baru di masa depan yang belum ditulis — tanpa perlu diingat "jangan lupa pakai helper khusus". Reversibel: kalau pindah hosting yang symlink-nya jalan normal, cukup hapus registrasi di `register()`.
+
+**Verifikasi**: `tests/Feature/Tahap7/StorageAssetOverrideTest.php` (11 test) — path rewrite akurat (`storage/` di awal saja, bukan di tengah string), path lain (css/js/images) tidak terpengaruh, URL absolute passthrough, `route()`/`URL::signedRoute()` tetap valid (bukti resolver ter-preserve), route `/asset/{path}` genuinely serve file + 404 utk file tidak ada + tolak path traversal, end-to-end Master Produk Jual & POS render `/asset/...` bukan `/storage/...`. Full regression 205 test lintas fase PASS (0 regresi) — termasuk `SmokeTestSemuaMenuTest` (187 route) yang membuktikan override ini tidak menyebabkan 500 di halaman manapun.
+
+**Deploy production**: script sekali-pakai `public/clear-cache.php` (WAJIB dihapus dari server setelah dijalankan — tidak ada proteksi auth) untuk `config:clear`+`view:clear`+`cache:clear`+`route:clear`+rebuild `config:cache`+`route:cache` via akses browser, karena production tidak punya terminal/SSH.
+
 ---
 
 ## 5. STRATEGI PENGEMBANGAN
@@ -760,6 +782,14 @@ php artisan backup:run --only-db
 - [x] Hapus `Gojek`/`Grab` dari `TipePembayaran` enum + migration incremental reversible (data-migrate + alter enum) — lihat [[4.17]]
 - [x] Update validasi, breakdown Setoran Kasir, UI POS (~10 titik), UI Setoran Kasir, panduan (6 lokasi)
 - [x] 12 test baru + 1 assertion test lama diupdate (perubahan disengaja), 194 test total lintas fase PASS
+
+### 12.10 Fix Foto Produk Tidak Tampil di Production (Rumah Web) — ✅ Selesai (2026-09-16)
+- [x] Root cause audit: `.htaccess` bawaan blokir `/storage/*` + URL foto hardcode `asset('storage/...)` — lihat [[4.18]]
+- [x] Override `asset()` global via `App\Support\StorageAwareUrlGenerator` + `AppServiceProvider::register()`
+- [x] Route baru `/asset/{path}` (`StorageAssetController`) stream file dari `storage/app/public/`
+- [x] Script `public/clear-cache.php` utk deploy shared hosting tanpa terminal/SSH
+- [x] 11 test baru, 205 test total lintas fase PASS (0 regresi, termasuk smoke-test 187 route)
+- [ ] **TODO opsional (tidak dikerjakan, di luar scope)**: `.htaccess` bawaan (`RewriteRule ^storage/ - [L,NC]`) masih ada apa adanya — tidak berbahaya (cuma jadi dead-weight di production krn Root Cause B sudah dihindari via `/asset/` bukan `/storage/`), tapi kalau mau benar-benar rapi bisa ditambah `RewriteCond %{REQUEST_FILENAME} -f` di depan rule itu supaya cuma aktif kalau file/symlink beneran ada (self-healing utk kedua environment). Owner declined edit `.htaccess` production langsung (risk lebih tinggi, sulit diverifikasi tanpa akses server) demi solusi Approach B yang murni level aplikasi.
 
 ---
 
