@@ -354,6 +354,15 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 
 **Verifikasi**: `tests/Feature/Tahap7/SimulasiProduksiFormRealtimeTest.php` (8 test) — payload form override DB (0.2g bukan 35g → Rp9.000 bukan Rp1.575.000), fallback ke DB kalau payload kosong, expand Bumbu Pusat tetap benar dari payload form, skip baris invalid/kosong, tidak terganggu oleh flag `punya_varian`, label+caption baru tampil, markup footer+warning ada, regresi save produk masih normal. Full regression 225 test lintas Tahap 2.5/5/6/7 PASS (0 regresi).
 
+**🟡 Addendum kedua — Simplifikasi Ronde 4 (2026-09-19), 2 fix simpel diminta Owner**:
+
+1. **Format qty rancu ("1.000" terbaca "seribu")**: kolom DB `qty_per_unit` DECIMAL(10,3) + Eloquent cast `'decimal:3'` balikin STRING fixed-3-desimal ("1.000", "0.200") yang ditaruh mentah ke `value=""` input — buat Indonesia (titik = pemisah ribuan) angka "1.000" terbaca seperti "seribu" padahal cuma 1 pcs. Fix: fungsi JS baru `formatQtyInput()` (`parseFloat` lalu `String()`, buang trailing zero) dipakai di kedua tempat qty di-render ke `value=` (baris manual & baris linked Bumbu Pusat) — berlaku SAMA rata semua satuan (owner minta simpel, tidak usah beda-beda per family satuan).
+2. **Konsolidasi 2 mode Total HPP jadi 1**: tombol "Simulasi Produksi Lengkap" + `jumlahProduksi`/`hasilKalkulator` **DIHAPUS total** dari view (bukan disembunyikan). Footer "Total HPP" sekarang jadi SATU-SATUNYA total, dan sekarang BENAR untuk baris linked juga — baris Bumbu Pusat (🧂) hitung subtotal-nya sendiri via AJAX otomatis (`hitungSubtotalLinkedBaris()`, debounce 400ms, POST ke `kalkulatorResep()` yang sama, `jumlah=1` krn qty di baris linked sudah representasi "per 1 unit produk") begitu baris ditambah / qty diubah — hasilnya masuk ke cell `.subtotalPreview` yang sama dengan baris manual, jadi otomatis ke-total oleh `hitungTotalHpp()` tanpa logic skip/warning terpisah lagi (elemen `#warningBarisLinked` & class `linkedBumbuMarker` dihapus, sudah tidak relevan). Backend `kalkulatorResep()`/`normalisasiResepDariForm()`/route tidak berubah (sudah cukup fleksibel dari fix Ronde 3).
+
+**File yang diedit**: HANYA `resources/views/master/produk-jual/_form.blade.php` — 0 perubahan controller/route/migration.
+
+**Verifikasi**: 2 test lama diupdate assertion-nya (placeholder statis → "Menghitung..."+AJAX; label+warning lama → footer tunggal + tombol lama sudah hilang) + 2 test baru (`formatQtyInput` dipakai di kedua tempat, qty desimal tersimpan tetap render normal). Full regression 227 test lintas Tahap 2.5/5/6/7 PASS (0 regresi).
+
 ---
 
 ## 5. STRATEGI PENGEMBANGAN

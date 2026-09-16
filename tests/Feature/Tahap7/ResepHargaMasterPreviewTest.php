@@ -100,9 +100,13 @@ class ResepHargaMasterPreviewTest extends TestCase
         $response->assertSee('"harga":0', false);
     }
 
-    // ===== Baris Bumbu Pusat terlink: placeholder, bukan angka =====
+    // ===== Baris Bumbu Pusat terlink: subtotal via AJAX (bukan placeholder statis) =====
+    // Ronde 3 (2026-09-19): dulu placeholder statis "— (lihat Simulasi Produksi)"
+    // krn ada mode kalkulator terpisah; sekarang mode itu dihapus (konsolidasi 1
+    // Total HPP), baris linked hitung subtotal-nya sendiri via AJAX ke endpoint
+    // kalkulator-resep (fungsi JS hitungSubtotalLinkedBaris) -- lihat CLAUDE.md.
 
-    public function test_baris_bumbu_terlink_tampil_placeholder_bukan_angka(): void
+    public function test_baris_bumbu_terlink_tampil_menghitung_bukan_placeholder_statis(): void
     {
         $admin = $this->buatUser('admin_pusat');
         $bahan = Item::create(['kode_item' => 'BB-HM-003', 'nama_item' => 'Bahan Bumbu HM', 'tipe' => 'bahan_baku', 'satuan' => 'gram', 'harga_beli_terakhir' => 5000, 'is_active' => true]);
@@ -116,7 +120,9 @@ class ResepHargaMasterPreviewTest extends TestCase
         $response = $this->actingAs($admin)->get("/master/produk-jual/{$item->id}/edit");
 
         $response->assertOk();
-        $response->assertSee('— (lihat Simulasi Produksi)', false);
+        $response->assertSee('Menghitung...', false);
+        $response->assertSee('function hitungSubtotalLinkedBaris', false);
+        $response->assertDontSee('— (lihat Simulasi Produksi)', false);
     }
 
     // ===== Regresi: Import Bumbu Pusat, Varian, Save =====

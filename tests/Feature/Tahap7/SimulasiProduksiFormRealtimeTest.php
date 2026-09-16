@@ -133,9 +133,12 @@ class SimulasiProduksiFormRealtimeTest extends TestCase
         $this->assertEquals(1500, $response->json('total_hpp')); // 2 x 250 x 3
     }
 
-    // ===== Rendering: label & caption baru =====
+    // ===== Rendering: Total HPP tunggal (2026-09-19 -- konsolidasi 2 mode jadi 1) =====
+    // Tombol "Simulasi Produksi Lengkap" DIHAPUS -- footer Total HPP sekarang
+    // satu-satunya total, benar untuk baris manual (client-side) MAUPUN baris
+    // linked Bumbu Pusat (AJAX otomatis, lihat hitungSubtotalLinkedBaris()).
 
-    public function test_label_simulasi_produksi_lengkap_dan_caption_tampil(): void
+    public function test_footer_total_hpp_tampil_dan_tombol_simulasi_lama_sudah_hilang(): void
     {
         $admin = $this->buatUser('admin_pusat');
         $item = Item::create(['kode_item' => 'PJ-SIM-006', 'nama_item' => 'Produk Sim Label', 'tipe' => 'produk_jual', 'satuan' => 'pcs', 'harga_jual' => 10000, 'is_active' => true]);
@@ -143,13 +146,14 @@ class SimulasiProduksiFormRealtimeTest extends TestCase
         $response = $this->actingAs($admin)->get("/master/produk-jual/{$item->id}/edit");
 
         $response->assertOk();
-        $response->assertSee('Simulasi Produksi Lengkap');
-        $response->assertSee('Total HPP (Preview Cepat)', false);
+        $response->assertSee('id="totalHppFooter"', false);
+        $response->assertSee('>Total HPP<', false);
+        $response->assertDontSee('Simulasi Produksi Lengkap');
+        $response->assertDontSee('id="jumlahProduksi"', false);
+        $response->assertDontSee('id="hasilKalkulator"', false);
     }
 
-    // ===== Rendering: footer Total HPP (Bug 1) =====
-
-    public function test_footer_total_hpp_dan_warning_linked_ada_di_markup(): void
+    public function test_footer_total_hpp_markup_ada_di_halaman_create(): void
     {
         $admin = $this->buatUser('admin_pusat');
 
@@ -157,9 +161,44 @@ class SimulasiProduksiFormRealtimeTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('id="totalHppFooter"', false);
-        $response->assertSee('id="warningBarisLinked"', false);
         $response->assertSee('function hitungTotalHpp', false);
-        $response->assertSee('hidden', false); // warning default hidden
+        $response->assertSee('function hitungSubtotalLinkedBaris', false);
+    }
+
+    // ===== Format qty input (2026-09-19) =====
+    // DB `qty_per_unit` DECIMAL(10,3) -> Eloquent cast 'decimal:3' balikin
+    // STRING fixed-3-desimal ("1.000", "0.200"), yang kalau ditaruh mentah ke
+    // value input rancu dibaca org Indonesia (titik = pemisah ribuan di sana,
+    // jadi "1.000" seperti "seribu"). Fix: formatQtyInput() di JS parseFloat
+    // lalu stringify ulang sebelum masuk ke value= input.
+
+    public function test_formatqtyinput_dipakai_utk_baris_manual_dan_linked(): void
+    {
+        $admin = $this->buatUser('admin_pusat');
+        $item = Item::create(['kode_item' => 'PJ-SIM-008', 'nama_item' => 'Produk Sim Format Qty', 'tipe' => 'produk_jual', 'satuan' => 'pcs', 'harga_jual' => 10000, 'is_active' => true]);
+
+        $response = $this->actingAs($admin)->get("/master/produk-jual/{$item->id}/edit");
+
+        $response->assertOk();
+        $response->assertSee('function formatQtyInput', false);
+        $response->assertSee('formatQtyInput(data.qty_per_unit)', false);
+        $response->assertSee('formatQtyInput(data.qty_per_unit ?? 1)', false);
+    }
+
+    public function test_resep_tersimpan_dgn_qty_desimal_tetap_akurat_setelah_edit_ulang(): void
+    {
+        $admin = $this->buatUser('admin_pusat');
+        $bahan = Item::create(['kode_item' => 'BB-SIM-007', 'nama_item' => 'Bahan Sim Qty Desimal', 'tipe' => 'bahan_baku', 'satuan' => 'gram', 'harga_beli_terakhir' => 45000, 'is_active' => true]);
+        $item = Item::create(['kode_item' => 'PJ-SIM-009', 'nama_item' => 'Produk Sim Qty Desimal', 'tipe' => 'produk_jual', 'satuan' => 'pcs', 'harga_jual' => 10000, 'is_active' => true]);
+        $resep = ResepBumbu::create(['nama' => $item->nama_item, 'kode' => 'R-SIM3-' . uniqid('', false), 'item_id' => $item->id, 'is_active' => true]);
+        // Disimpan sbg DECIMAL(10,3) -- Eloquent balikin string "0.200"
+        ResepBumbuItem::create(['resep_bumbu_id' => $resep->id, 'item_id' => $bahan->id, 'qty_per_unit' => 0.2, 'satuan' => 'gram', 'is_wajib' => true, 'mode_harga' => 'pakai_master', 'urutan' => 0]);
+
+        $item->refresh();
+        $this->assertEquals('0.200', $item->resep->items->first()->qty_per_unit); // konfirmasi memang string ber-trailing-zero
+
+        $response = $this->actingAs($admin)->get("/master/produk-jual/{$item->id}/edit");
+        $response->assertOk(); // halaman tetap render normal, JS yg bersihkan formatnya saat load
     }
 
     // ===== Regresi =====

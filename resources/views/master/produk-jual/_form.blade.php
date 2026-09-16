@@ -132,34 +132,18 @@
                     <tbody id="bodyResep"></tbody>
                     <tfoot>
                         <tr>
-                            <td colspan="4" class="text-end fw-semibold">Total HPP (Preview Cepat)</td>
+                            <td colspan="4" class="text-end fw-semibold">Total HPP</td>
                             <td class="fw-semibold" id="totalHppFooter">Rp 0</td>
                             <td colspan="2"></td>
                         </tr>
                     </tfoot>
                 </table>
-                <div class="small text-muted mb-1">Preview Cepat: instant, client-side, tanpa konversi satuan otomatis.</div>
-                <div class="alert alert-warning py-2 small mb-2" id="warningBarisLinked" hidden>
-                    <i class="bi bi-exclamation-triangle me-1"></i>
-                    Total di atas belum termasuk baris Bumbu Pusat (🧂) — klik <strong>Simulasi Produksi Lengkap</strong> di bawah untuk total termasuk Bumbu Pusat.
-                </div>
                 <div class="alert alert-warning py-2 small mb-2">
                     <i class="bi bi-exclamation-triangle me-1"></i>
                     Harga Master &amp; Subtotal murni preview live dari Master Bahan Baku (belum ada konversi satuan otomatis —
                     kalau angka terlihat aneh, mis. "Rp 45.000/gram", cek &amp; perbaiki harga/satuan bahan itu di menu
                     <a href="{{ route('master.bahan-baku.index') }}" target="_blank">Master Bahan Baku</a>.
                 </div>
-                @if($isEdit)
-                <div class="border-top pt-2 mt-2">
-                    <div class="input-group input-group-sm" style="max-width:320px">
-                        <span class="input-group-text">Simulasi Produksi Lengkap <x-tooltip key="master_produk_jual.kalkulator" /></span>
-                        <input type="number" id="jumlahProduksi" class="form-control" value="1" min="1">
-                        <button type="button" class="btn btn-outline-secondary" onclick="hitungKalkulator()">Hitung</button>
-                    </div>
-                    <div class="small text-muted mt-1">Server-side, hitung dari isi form saat ini (belum perlu Simpan dulu), expand Bumbu Pusat penuh.</div>
-                    <div id="hasilKalkulator" class="small text-muted mt-2"></div>
-                </div>
-                @endif
             </div>
         </div>
 
@@ -302,6 +286,16 @@ const KALKULATOR_URL = @json(route('master.produk-jual.kalkulator-resep', $item)
 @endif
 const BUMBU_PUSAT_LIST_URL = @json(route('master.produk-jual.bumbu-pusat.list'));
 
+// Format qty jadi angka bersih tanpa trailing zero -- kolom DB DECIMAL(10,3)
+// bikin Eloquent balikin string "1.000"/"0.200" (bukan angka), yang kalau
+// ditaruh langsung ke value input terlihat rancu (Indonesia baca "." sbg
+// pemisah ribuan, jadi "1.000" terbaca seperti "seribu" padahal cuma 1 pcs).
+function formatQtyInput(v) {
+    if (v === null || v === undefined || v === '') return '';
+    const n = parseFloat(v);
+    return isNaN(n) ? '' : String(n);
+}
+
 let resepIdx = 0;
 function tambahBarisResep(data) {
     data = data || {};
@@ -316,7 +310,7 @@ function tambahBarisResep(data) {
         <td><select name="resep[${idx}][item_id]" class="form-select form-select-sm" onchange="onBahanResepBerubah(this)">
             <option value="">— Pilih Bahan —</option>${opsi}
         </select></td>
-        <td><input type="number" step="0.001" min="0.001" name="resep[${idx}][qty_per_unit]" class="form-control form-control-sm qtyResep" value="${data.qty_per_unit ?? ''}" oninput="hitungPreviewBaris(this.closest('tr'))"></td>
+        <td><input type="number" step="0.001" min="0.001" name="resep[${idx}][qty_per_unit]" class="form-control form-control-sm qtyResep" value="${formatQtyInput(data.qty_per_unit)}" oninput="hitungPreviewBaris(this.closest('tr'))"></td>
         <td><input type="text" name="resep[${idx}][satuan]" class="form-control form-control-sm satuanResep" value="${data.satuan ?? ''}"></td>
         <td class="text-center"><input type="checkbox" name="resep[${idx}][is_wajib]" value="1" ${(data.is_wajib ?? true) ? 'checked' : ''}></td>
         <td class="small hargaMasterPreview text-muted">—</td>
@@ -385,23 +379,18 @@ function hitungPreviewBaris(tr) {
     hitungTotalHpp();
 }
 
-// Total HPP footer (Preview Cepat) -- sum subtotalPreview baris manual saja;
-// baris linked (Bumbu Pusat) di-skip (butuh expand server-side, lihat
-// hitungKalkulator/Simulasi Produksi Lengkap) & memicu warning terpisah.
+// Total HPP -- sum SEMUA .subtotalPreview (baris manual: instant client-side;
+// baris linked Bumbu Pusat: hasil AJAX hitungSubtotalLinkedBaris(), lihat di
+// bawah). Cell yang masih "Menghitung..."/"—" diabaikan (NaN) sampai
+// nilainya siap, lalu otomatis ikut ke-total begitu AJAX selesai.
 function hitungTotalHpp() {
     let total = 0;
-    let adaLinked = false;
-    document.querySelectorAll('#bodyResep tr').forEach(tr => {
-        if (tr.querySelector('.linkedBumbuMarker')) { adaLinked = true; return; }
-        const cell = tr.querySelector('.subtotalPreview');
-        if (!cell) return;
+    document.querySelectorAll('#bodyResep .subtotalPreview').forEach(cell => {
         const angka = parseFloat((cell.textContent || '').replace(/[^0-9.-]/g, ''));
         if (!isNaN(angka)) total += angka;
     });
     const footer = document.getElementById('totalHppFooter');
     if (footer) footer.textContent = formatRupiahPreview(total);
-    const warning = document.getElementById('warningBarisLinked');
-    if (warning) warning.hidden = !adaLinked;
 }
 
 // ===== Fitur Import dari Bumbu Pusat (2026-09-17) =====
@@ -419,16 +408,60 @@ function tambahBarisResepLinked(bumbuId, bumbuNama, data) {
             <div class="small fw-semibold">${bumbuNama}</div>
             <input type="hidden" name="resep[${idx}][resep_bumbu_ref_id]" value="${bumbuId}">
         </td>
-        <td><input type="number" step="0.001" min="0.001" name="resep[${idx}][qty_per_unit]" class="form-control form-control-sm" value="${data.qty_per_unit ?? 1}" title="Jumlah porsi bumbu per 1 unit produk"></td>
+        <td><input type="number" step="0.001" min="0.001" name="resep[${idx}][qty_per_unit]" class="form-control form-control-sm" value="${formatQtyInput(data.qty_per_unit ?? 1)}" title="Jumlah porsi bumbu per 1 unit produk" oninput="hitungSubtotalLinkedBaris(this.closest('tr'))"></td>
         <td class="text-muted small">porsi</td>
         <td class="text-center"><input type="checkbox" name="resep[${idx}][is_wajib]" value="1" ${(data.is_wajib ?? true) ? 'checked' : ''}></td>
-        <td class="text-muted small linkedBumbuMarker">— (lihat Simulasi Produksi)</td>
-        <td class="text-muted small">— (lihat Simulasi Produksi)</td>
+        <td class="text-muted small">—</td>
+        <td class="small subtotalPreview fw-semibold text-muted">Menghitung...</td>
         <td class="text-muted small">Ikut Bumbu Pusat <x-tooltip key="master_produk_jual.baris_linked" /></td>
         <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="hapusBarisResep(this)"><i class="bi bi-x"></i></button></td>
     `;
     document.getElementById('bodyResep').appendChild(tr);
-    hitungTotalHpp();
+    hitungSubtotalLinkedBaris(tr);
+}
+
+// Total 1-mode (2026-09-19): baris linked butuh expand Bumbu Pusat
+// server-side (kalkulator dulu punya mode terpisah utk ini, sekarang
+// dikonsolidasi jadi 1 Total HPP) -- jadi subtotal-nya diambil via AJAX otomatis tiap kali
+// baris ditambah/qty diubah (debounce 400ms), 1 baris = 1 kalkulator call
+// jumlah=1 (qty_per_unit di baris linked sudah representasi "per 1 unit
+// produk" itu sendiri). Hasil disuntik ke .subtotalPreview yang sama dgn
+// baris manual, sehingga otomatis ikut ke-total oleh hitungTotalHpp() tanpa
+// perlu logic terpisah.
+let linkedRowSeq = 0;
+const linkedSubtotalTimeout = {};
+function hitungSubtotalLinkedBaris(tr) {
+    const refInput = tr.querySelector('input[name*="[resep_bumbu_ref_id]"]');
+    const qtyInput = tr.querySelector('input[name*="[qty_per_unit]"]');
+    const cell = tr.querySelector('.subtotalPreview');
+    if (!refInput || !cell) return;
+
+    if (typeof KALKULATOR_URL === 'undefined') {
+        cell.textContent = '—'; // halaman Create belum ada $item, endpoint butuh id produk
+        hitungTotalHpp();
+        return;
+    }
+    const bumbuId = refInput.value;
+    if (!bumbuId) { cell.textContent = '-'; hitungTotalHpp(); return; }
+
+    const rowKey = tr.dataset.rowKey || (tr.dataset.rowKey = 'row' + (linkedRowSeq++));
+    clearTimeout(linkedSubtotalTimeout[rowKey]);
+    cell.textContent = 'Menghitung...';
+    linkedSubtotalTimeout[rowKey] = setTimeout(() => {
+        const qty = qtyInput ? qtyInput.value : 1;
+        const token = document.querySelector('#formProdukJual input[name="_token"]').value;
+        fetch(KALKULATOR_URL + '?jumlah=1', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
+            body: JSON.stringify({ resep: [{ resep_bumbu_ref_id: bumbuId, qty_per_unit: qty, is_wajib: 1 }] }),
+        })
+            .then(r => r.json())
+            .then(data => {
+                cell.textContent = formatRupiahPreview(data.total_hpp || 0);
+                hitungTotalHpp();
+            })
+            .catch(() => { cell.textContent = '—'; hitungTotalHpp(); });
+    }, 400);
 }
 
 function bukaModalImportBumbu() {
@@ -464,60 +497,6 @@ function cariBumbuPusat(search) {
 function pilihBumbuPusat(id, nama) {
     tambahBarisResepLinked(id, nama, { qty_per_unit: 1 });
     bootstrap.Modal.getInstance(document.getElementById('modalImportBumbu')).hide();
-}
-
-// Bug fix 2026-09-19: dulu Simulasi Produksi selalu GET dari DB (data
-// tersimpan) -- kalau form sedang diedit belum Simpan, hasilnya beda dari
-// yang ditampilkan form (lihat CLAUDE.md 4.19). Fix: serialize isi form
-// #bodyResep saat ini, kirim via POST, server tetap yang hitung (perlu expand
-// Bumbu Pusat server-side).
-function serializeResepUntukKalkulator() {
-    const rows = [];
-    document.querySelectorAll('#bodyResep tr').forEach(tr => {
-        const refInput = tr.querySelector('input[name*="[resep_bumbu_ref_id]"]');
-        const qtyInput = tr.querySelector('input[name*="[qty_per_unit]"]');
-        const wajibInput = tr.querySelector('input[name*="[is_wajib]"]');
-        if (refInput) {
-            if (!refInput.value) return;
-            rows.push({
-                resep_bumbu_ref_id: refInput.value,
-                qty_per_unit: qtyInput ? qtyInput.value : 0,
-                is_wajib: wajibInput && wajibInput.checked ? 1 : 0,
-            });
-            return;
-        }
-        const itemSelect = tr.querySelector('select[name*="[item_id]"]');
-        if (!itemSelect || !itemSelect.value) return;
-        const satuanInput = tr.querySelector('.satuanResep');
-        const modeSelect = tr.querySelector('select[name*="[mode_harga]"]');
-        rows.push({
-            item_id: itemSelect.value,
-            qty_per_unit: qtyInput ? qtyInput.value : 0,
-            satuan: satuanInput ? satuanInput.value : '',
-            is_wajib: wajibInput && wajibInput.checked ? 1 : 0,
-            mode_harga: modeSelect ? modeSelect.value : 'gratis',
-        });
-    });
-    return rows;
-}
-
-function hitungKalkulator() {
-    const jumlah = document.getElementById('jumlahProduksi').value || 1;
-    const token = document.querySelector('#formProdukJual input[name="_token"]').value;
-    fetch(KALKULATOR_URL + '?jumlah=' + jumlah, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
-        body: JSON.stringify({ resep: serializeResepUntukKalkulator() }),
-    })
-        .then(r => r.json())
-        .then(data => {
-            let html = `<strong>Total HPP: Rp ${Math.round(data.total_hpp).toLocaleString('id-ID')}</strong><ul class="mb-0 mt-1">`;
-            data.breakdown.forEach(b => {
-                html += `<li>${b.nama}: ${b.qty} ${b.satuan} (Rp ${Math.round(b.subtotal).toLocaleString('id-ID')})</li>`;
-            });
-            html += '</ul>';
-            document.getElementById('hasilKalkulator').innerHTML = data.breakdown.length ? html : '<em>Belum ada resep di form saat ini.</em>';
-        });
 }
 
 // ===== Varian =====
