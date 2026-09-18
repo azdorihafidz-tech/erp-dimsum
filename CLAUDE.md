@@ -3,9 +3,9 @@
 > **Untuk Claude Code**: File ini adalah **single source of truth** untuk seluruh project. WAJIB dibaca sebelum eksekusi apapun.
 > Isinya: keputusan bisnis, temuan audit, aturan teknis, dan filosofi kerja.
 
-**Versi**: 3.6  
+**Versi**: 3.7  
 **Update terakhir**: 2026-09-19  
-**Status**: 🎉 **PROJECT LIVE DI PRODUCTION** (https://erpdimsum.azwacore.com) — Tahap 1-7 SELESAI SEMUA (Branding, Master Data, POS, Rename qty_per_unit, Setoran Cabang→HO, Dashboard & Laporan, Final Polish & Testing) + Bug Fix Ronde 2 + Rename Jenis Menu/Master Bumbu Pusat + Fitur Import dari Bumbu Pusat + Improvement Test Manual Production (rename label, hapus Gojek/Grab) + Fix Foto Produk Production + UI Preview Harga Master/Subtotal Resep + Bug Fix Ronde 3 (Simulasi Produksi realtime + Total HPP footer) + Ronde 4 (format qty + konsolidasi Total HPP) + Ronde 5 (preview subtotal Bumbu Pusat decoupled dari produk + fix parse angka ribuan) SELESAI. Sprint 2 (konversi satuan foolproof kalkulator resep) DIDEFER, lihat [[12.12]].
+**Status**: 🎉 **PROJECT LIVE DI PRODUCTION** (https://erpdimsum.azwacore.com) — Tahap 1-7 SELESAI SEMUA (Branding, Master Data, POS, Rename qty_per_unit, Setoran Cabang→HO, Dashboard & Laporan, Final Polish & Testing) + Bug Fix Ronde 2 + Rename Jenis Menu/Master Bumbu Pusat + Fitur Import dari Bumbu Pusat + Improvement Test Manual Production (rename label, hapus Gojek/Grab) + Fix Foto Produk Production + UI Preview Harga Master/Subtotal Resep + Bug Fix Ronde 3 (Simulasi Produksi realtime + Total HPP footer) + Ronde 4 (format qty + konsolidasi Total HPP) + Ronde 5 (preview subtotal Bumbu Pusat decoupled dari produk + fix parse angka ribuan) + Auto-isi Satuan Master Bumbu Pusat SELESAI. Sprint 2 (konversi satuan foolproof kalkulator resep) DIDEFER, lihat [[12.12]].
 
 ---
 
@@ -373,6 +373,10 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 **File yang diedit**: `app/Http/Controllers/MasterProdukJualController.php` (extract method + endpoint baru), `routes/web.php` (route baru, static path di atas `{produkJual}` sesuai pola `bumbu-pusat/list`), `resources/views/master/produk-jual/_form.blade.php` (const baru + `hitungSubtotalLinkedBaris()` + fix regex).
 
 **Verifikasi**: `tests/Feature/Tahap7/PreviewBumbuDanTotalHppParseTest.php` (8 test) — regex fix ada di markup, endpoint preview-bumbu hitung benar TANPA produk tersimpan (skenario Bug 1 asli), skip bahan mode gratis, tolak tanpa login (401)/tanpa permission (403), form Create pakai endpoint baru (bukan bergantung `KALKULATOR_URL`), regresi save produk dgn bumbu linked. Full regression 235 test lintas Tahap 2.5/5/6/7 PASS (0 regresi).
+
+**🟢 Addendum keempat — Auto-isi Satuan di Master Bumbu Pusat (2026-09-19)**: form "Tambah Bahan" (`resources/views/master/resep-bumbu/edit.blade.php`) dulu dropdown "Satuan" SELALU default ke opsi pertama ("kg") apapun bahan yang dipilih — user harus ingat ganti manual sesuai satuan asli bahan (mis. Kulit Dimsum = pcs), rawan salah pilih tanpa disadari (beda dari section Resep Produk Jual yang sudah auto-isi satuan sejak fitur Import Bumbu Pusat, [[4.16]]). Fix: opsi `<select id="itemIdSelect">` ditambah `data-satuan="{{ $b->satuan }}"`, JS baru `autoisiSatuan()` (listener `change` di `itemSelect`, terdaftar SEBELUM listener `updatePreview()` yang sudah ada, supaya `satuanEl.value` sudah ter-update duluan saat preview dihitung) meng-set dropdown Satuan begitu bahan dipilih. Karena dropdown Satuan cuma 4 opsi baku (`kg`/`g`/`ons`/`pcs`) sedangkan `Item.satuan` bebas teks ("gram", "ml", "buah", dst), ditambah `normalisasiSatuan()` yang memetakan variasi teks umum ke 4 opsi itu — **kalau satuan bahan tidak dikenali** (mis. "liter"/"ml", belum ada opsi volume di dropdown ini) fungsi return `null` dan dropdown DIBIARKAN apa adanya, tidak dipaksa ke nilai yang salah. Murni 1 file view, 0 perubahan controller/route/migration.
+
+**Verifikasi**: `tests/Feature/Tahap7/AutoSatuanResepBumbuTest.php` (4 test) — `data-satuan` ada di markup, JS `autoisiSatuan()`/`normalisasiSatuan()` ter-render, variasi teks "gram"/"kg" ter-normalisasi, satuan tak dikenal ("liter") tidak dipaksa, regresi simpan bahan masih normal. Full regression 239 test lintas Tahap 2.5/5/6/7 PASS (0 regresi).
 
 ---
 

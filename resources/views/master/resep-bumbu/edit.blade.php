@@ -166,7 +166,7 @@
                             <select name="item_id" id="itemIdSelect" class="form-select form-select-sm" required>
                                 <option value="">-- Pilih Bahan --</option>
                                 @foreach($bahanBakuItems as $b)
-                                <option value="{{ $b->id }}" data-harga-jual="{{ $b->harga_jual ?? 0 }}">{{ $b->nama_item }} ({{ $b->kode_item }})</option>
+                                <option value="{{ $b->id }}" data-harga-jual="{{ $b->harga_jual ?? 0 }}" data-satuan="{{ $b->satuan }}">{{ $b->nama_item }} ({{ $b->kode_item }})</option>
                                 @endforeach
                             </select>
                         </div>
@@ -229,6 +229,30 @@
         if (satuan === 'ons') return qty / 10;
         return qty; // 'kg'
     }
+
+    // Auto-isi Satuan sesuai satuan asli bahan (Master Bahan Baku/Kemasan)
+    // begitu bahan dipilih -- dropdown Satuan cuma punya 4 opsi baku
+    // (kg/g/ons/pcs), sedangkan Item.satuan bebas teks ("gram", "ml", "buah",
+    // dst), jadi dinormalisasi dulu ke salah satu dari 4 opsi itu. Kalau
+    // satuan bahan tidak dikenali (mis. "liter"/"ml" -- belum ada opsi
+    // volume di sini), dropdown DIBIARKAN apa adanya supaya user pilih
+    // manual sendiri, bukan dipaksa ke nilai yang salah.
+    function normalisasiSatuan(raw) {
+        const s = (raw || '').toLowerCase().trim();
+        if (['kg', 'kilogram'].includes(s)) return 'kg';
+        if (['g', 'gr', 'gram'].includes(s)) return 'g';
+        if (['ons'].includes(s)) return 'ons';
+        if (['pcs', 'pc', 'buah', 'porsi', 'biji', 'lembar'].includes(s)) return 'pcs';
+        return null;
+    }
+
+    function autoisiSatuan() {
+        const opt = itemSelect.selectedOptions[0];
+        if (!opt) return;
+        const satuanNormal = normalisasiSatuan(opt.dataset.satuan);
+        if (satuanNormal) satuanEl.value = satuanNormal;
+    }
+    itemSelect.addEventListener('change', autoisiSatuan);
 
     function updatePreview() {
         const opt = itemSelect.selectedOptions[0];
