@@ -220,12 +220,7 @@ class MasterProdukJualController extends Controller
             if ($row['is_linked']) {
                 $bumbu = $row['resep_bumbu_ref'];
                 if (! $bumbu) continue;
-                $subtotalBumbu = 0.0;
-                foreach ($bumbu->items as $inner) {
-                    if (! $inner->item || $inner->mode_harga !== 'pakai_master') continue;
-                    $qtyInner = $inner->qty_per_unit_dalam_kg * $row['qty_per_unit'] * $jumlah;
-                    $subtotalBumbu += $qtyInner * (float) ($inner->item->harga_beli_terakhir ?? 0);
-                }
+                $subtotalBumbu = $this->hitungSubtotalBumbuTunggal($bumbu, $row['qty_per_unit'], $jumlah);
                 $totalHpp += $subtotalBumbu;
                 $breakdown[] = [
                     'nama'     => '🧂 ' . $bumbu->nama . ' (Bumbu Pusat)',
@@ -256,6 +251,48 @@ class MasterProdukJualController extends Controller
         }
 
         return response()->json(['jumlah_produksi' => $jumlah, 'breakdown' => $breakdown, 'total_hpp' => $totalHpp]);
+    }
+
+    /**
+     * Expand 1 baris Bumbu Pusat (linked) jadi subtotal Rp -- dipakai kedua
+     * endpoint kalkulator (kalkulatorResep() utk resep 1 produk penuh, DAN
+     * previewSubtotalBumbu() utk preview 1 bumbu berdiri sendiri) supaya
+     * logic-nya 1 sumber, tidak duplikat.
+     */
+    private function hitungSubtotalBumbuTunggal(ResepBumbu $bumbu, float $qtyPerUnit, int $jumlah): float
+    {
+        $subtotal = 0.0;
+        foreach ($bumbu->items as $inner) {
+            if (! $inner->item || $inner->mode_harga !== 'pakai_master') continue;
+            $qtyInner = $inner->qty_per_unit_dalam_kg * $qtyPerUnit * $jumlah;
+            $subtotal += $qtyInner * (float) ($inner->item->harga_beli_terakhir ?? 0);
+        }
+
+        return $subtotal;
+    }
+
+    /**
+     * Bug fix 2026-09-19: hitungSubtotalLinkedBaris() (JS, preview live baris
+     * Bumbu Pusat di section Resep) dulu pakai kalkulatorResep() yang route-nya
+     * `/{produkJual}/kalkulator-resep` -- butuh Item YANG SUDAH TERSIMPAN. Di
+     * halaman Create belum ada $item sama sekali, jadi endpoint itu genuinely
+     * tidak bisa dipanggil -- subtotal Bumbu Pusat selalu "—"/Rp0 di Create
+     * (lihat CLAUDE.md 4.19). Padahal subtotal 1 bumbu TIDAK butuh produk sama
+     * sekali (cuma butuh: bumbu apa + qty berapa porsi) -- endpoint ini
+     * decouple dari Item, di-bind langsung ke ResepBumbu, jadi jalan di Create
+     * MAUPUN Edit tanpa syarat produk tersimpan.
+     */
+    public function previewSubtotalBumbu(Request $request, ResepBumbu $bumbu)
+    {
+        abort_unless(auth()->user()->can('master.produk_jual.edit'), 403);
+
+        $jumlah = max(1, (int) $request->input('jumlah', 1));
+        $qtyPerUnit = (float) $request->input('qty_per_unit', 1);
+        $bumbu->load('items.item');
+
+        return response()->json([
+            'subtotal' => $this->hitungSubtotalBumbuTunggal($bumbu, $qtyPerUnit, $jumlah),
+        ]);
     }
 
     /**

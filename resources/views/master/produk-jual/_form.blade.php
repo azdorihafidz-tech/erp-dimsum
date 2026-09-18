@@ -285,6 +285,11 @@ const VARIANT_AWAL = @json($variantAwal);
 const KALKULATOR_URL = @json(route('master.produk-jual.kalkulator-resep', $item));
 @endif
 const BUMBU_PUSAT_LIST_URL = @json(route('master.produk-jual.bumbu-pusat.list'));
+// SELALU ada, tidak bersyarat isEdit -- preview subtotal 1 Bumbu Pusat
+// tidak butuh produk tersimpan, jadi harus jalan di Create maupun Edit
+// (bug fix 2026-09-19, lihat CLAUDE.md 4.19). '__ID__' diganti id bumbu asli
+// saat dipakai (route butuh {bumbu}, belum diketahui saat halaman di-load).
+const PREVIEW_BUMBU_URL_BASE = @json(route('master.produk-jual.preview-bumbu', ['bumbu' => '__ID__']));
 
 // Format qty jadi angka bersih tanpa trailing zero -- kolom DB DECIMAL(10,3)
 // bikin Eloquent balikin string "1.000"/"0.200" (bukan angka), yang kalau
@@ -386,7 +391,12 @@ function hitungPreviewBaris(tr) {
 function hitungTotalHpp() {
     let total = 0;
     document.querySelectorAll('#bodyResep .subtotalPreview').forEach(cell => {
-        const angka = parseFloat((cell.textContent || '').replace(/[^0-9.-]/g, ''));
+        // Bug fix 2026-09-19: formatRupiahPreview() selalu Math.round() (tidak
+        // pernah ada desimal asli), jadi titik di teks SELALU pemisah ribuan
+        // ("Rp 1.200") -- regex lama menyisakan titik utk "jaga-jaga desimal"
+        // malah bikin parseFloat("1.200")=1.2 bukan 1200. Buang SEMUA
+        // non-digit, jangan sisakan titik/minus.
+        const angka = parseFloat((cell.textContent || '').replace(/[^0-9]/g, ''));
         if (!isNaN(angka)) total += angka;
     });
     const footer = document.getElementById('totalHppFooter');
@@ -436,11 +446,6 @@ function hitungSubtotalLinkedBaris(tr) {
     const cell = tr.querySelector('.subtotalPreview');
     if (!refInput || !cell) return;
 
-    if (typeof KALKULATOR_URL === 'undefined') {
-        cell.textContent = '—'; // halaman Create belum ada $item, endpoint butuh id produk
-        hitungTotalHpp();
-        return;
-    }
     const bumbuId = refInput.value;
     if (!bumbuId) { cell.textContent = '-'; hitungTotalHpp(); return; }
 
@@ -450,14 +455,16 @@ function hitungSubtotalLinkedBaris(tr) {
     linkedSubtotalTimeout[rowKey] = setTimeout(() => {
         const qty = qtyInput ? qtyInput.value : 1;
         const token = document.querySelector('#formProdukJual input[name="_token"]').value;
-        fetch(KALKULATOR_URL + '?jumlah=1', {
+        // Endpoint decoupled dari Item (lihat PREVIEW_BUMBU_URL_BASE) --
+        // jalan di halaman Create maupun Edit, bug fix 2026-09-19.
+        fetch(PREVIEW_BUMBU_URL_BASE.replace('__ID__', bumbuId) + '?jumlah=1', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
-            body: JSON.stringify({ resep: [{ resep_bumbu_ref_id: bumbuId, qty_per_unit: qty, is_wajib: 1 }] }),
+            body: JSON.stringify({ qty_per_unit: qty }),
         })
             .then(r => r.json())
             .then(data => {
-                cell.textContent = formatRupiahPreview(data.total_hpp || 0);
+                cell.textContent = formatRupiahPreview(data.subtotal || 0);
                 hitungTotalHpp();
             })
             .catch(() => { cell.textContent = '—'; hitungTotalHpp(); });

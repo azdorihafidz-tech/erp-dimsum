@@ -173,6 +173,10 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
         // Wajib di atas '/create' & '/{produkJual}/edit' -- static path 'bumbu-pusat'
         // supaya tidak ketangkep route model binding {produkJual}.
         Route::get('/bumbu-pusat/list', [\App\Http\Controllers\MasterProdukJualController::class, 'listBumbuPusat'])->name('bumbu-pusat.list')->middleware('can:master.produk_jual.edit');
+        // Preview subtotal 1 Bumbu Pusat -- BUKAN bind ke {produkJual} (bug fix
+        // 2026-09-19: subtotal 1 bumbu tidak butuh produk tersimpan, lihat
+        // CLAUDE.md 4.19), jadi jalan di halaman Create maupun Edit.
+        Route::post('/preview-bumbu/{bumbu}', [\App\Http\Controllers\MasterProdukJualController::class, 'previewSubtotalBumbu'])->name('preview-bumbu')->middleware('can:master.produk_jual.edit');
         Route::get('/create', [\App\Http\Controllers\MasterProdukJualController::class, 'create'])->name('create')->middleware('can:master.produk_jual.create');
         Route::post('/', [\App\Http\Controllers\MasterProdukJualController::class, 'store'])->name('store')->middleware('can:master.produk_jual.create');
         Route::get('/{produkJual}/edit', [\App\Http\Controllers\MasterProdukJualController::class, 'edit'])->name('edit')->middleware('can:master.produk_jual.edit');

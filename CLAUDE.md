@@ -3,9 +3,9 @@
 > **Untuk Claude Code**: File ini adalah **single source of truth** untuk seluruh project. WAJIB dibaca sebelum eksekusi apapun.
 > Isinya: keputusan bisnis, temuan audit, aturan teknis, dan filosofi kerja.
 
-**Versi**: 3.5  
+**Versi**: 3.6  
 **Update terakhir**: 2026-09-19  
-**Status**: 🎉 **PROJECT LIVE DI PRODUCTION** (https://erpdimsum.azwacore.com) — Tahap 1-7 SELESAI SEMUA (Branding, Master Data, POS, Rename qty_per_unit, Setoran Cabang→HO, Dashboard & Laporan, Final Polish & Testing) + Bug Fix Ronde 2 + Rename Jenis Menu/Master Bumbu Pusat + Fitur Import dari Bumbu Pusat + Improvement Test Manual Production (rename label, hapus Gojek/Grab) + Fix Foto Produk Production + UI Preview Harga Master/Subtotal Resep + Bug Fix Ronde 3 (Simulasi Produksi realtime + Total HPP footer) SELESAI. Sprint 2 (konversi satuan foolproof kalkulator resep) DIDEFER, lihat [[12.12]].
+**Status**: 🎉 **PROJECT LIVE DI PRODUCTION** (https://erpdimsum.azwacore.com) — Tahap 1-7 SELESAI SEMUA (Branding, Master Data, POS, Rename qty_per_unit, Setoran Cabang→HO, Dashboard & Laporan, Final Polish & Testing) + Bug Fix Ronde 2 + Rename Jenis Menu/Master Bumbu Pusat + Fitur Import dari Bumbu Pusat + Improvement Test Manual Production (rename label, hapus Gojek/Grab) + Fix Foto Produk Production + UI Preview Harga Master/Subtotal Resep + Bug Fix Ronde 3 (Simulasi Produksi realtime + Total HPP footer) + Ronde 4 (format qty + konsolidasi Total HPP) + Ronde 5 (preview subtotal Bumbu Pusat decoupled dari produk + fix parse angka ribuan) SELESAI. Sprint 2 (konversi satuan foolproof kalkulator resep) DIDEFER, lihat [[12.12]].
 
 ---
 
@@ -362,6 +362,17 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 **File yang diedit**: HANYA `resources/views/master/produk-jual/_form.blade.php` — 0 perubahan controller/route/migration.
 
 **Verifikasi**: 2 test lama diupdate assertion-nya (placeholder statis → "Menghitung..."+AJAX; label+warning lama → footer tunggal + tombol lama sudah hilang) + 2 test baru (`formatQtyInput` dipakai di kedua tempat, qty desimal tersimpan tetap render normal). Full regression 227 test lintas Tahap 2.5/5/6/7 PASS (0 regresi).
+
+**🔴 Addendum ketiga — Bug Fix Ronde 5 (2026-09-19), 2 bug ditemukan Owner setelah Ronde 4 deploy**:
+
+1. **Subtotal Bumbu Pusat selalu "—"/Rp0**: root cause — `hitungSubtotalLinkedBaris()` (JS) pakai `KALKULATOR_URL`, yang route-nya `/{produkJual}/kalkulator-resep` **butuh `Item` yang sudah tersimpan**. Di halaman **Create** belum ada `$item` sama sekali, jadi const `KALKULATOR_URL` bahkan tidak didefinisikan (dibungkus `@if($isEdit)`) — fungsi langsung short-circuit ke "—" tanpa pernah coba AJAX. Padahal subtotal 1 Bumbu Pusat TIDAK butuh produk sama sekali (cuma butuh: bumbu apa + qty berapa porsi). Fix: endpoint BARU `POST /master/produk-jual/preview-bumbu/{bumbu}` (`previewSubtotalBumbu()`) di-bind langsung ke `ResepBumbu` (bukan `Item`) — jalan di Create MAUPUN Edit tanpa syarat produk tersimpan. Logic expand-nya di-extract jadi `private hitungSubtotalBumbuTunggal(ResepBumbu $bumbu, float $qtyPerUnit, int $jumlah): float`, dipakai ULANG di `kalkulatorResep()` (branch linked, existing) supaya tidak duplikat logic. JS const baru `PREVIEW_BUMBU_URL_BASE` (template URL dgn placeholder `__ID__`, SELALU ada tidak bersyarat `$isEdit`) — `KALKULATOR_URL` dibiarkan apa adanya utk proses lain di halaman Edit.
+2. **Total HPP salah jumlah** (contoh Owner: 1.200+2.250+200+800 → tampil 1.003, seharusnya 4.450): root cause — `hitungTotalHpp()` parse teks `"Rp 1.200"` pakai regex `[^0-9.-]` yang MENYISAKAN titik "jaga-jaga kalau ada desimal", padahal `formatRupiahPreview()` SELALU `Math.round()` sebelum format (tidak pernah ada desimal asli) — titik yang muncul SELALU pemisah ribuan Indonesia. `parseFloat("1.200")` dibaca JS sebagai `1.2` (titik = decimal separator di JS), bukan 1200 — persis match bukti Owner (`1.2+2.25+200+800=1003.45`→round→`1.003`). Fix: buang SEMUA karakter non-digit sebelum parse (`replace(/[^0-9]/g, '')`), bukan cuma sebagian.
+
+**Bug tak terduga saat implementasi (ditemukan sendiri sebelum sempat mengganggu Owner)**: comment JS baru sempat menulis literal teks `@if($isEdit)` di dalam `//` comment sebagai penjelasan — Blade compiler MEMPARSE `@if(...)` di MANA SAJA di file (termasuk di dalam text yang secara visual "cuma komentar JS"), bukan JS-aware, sehingga `@if`/`@endif` count jadi tidak seimbang → `ViewException: unexpected end of file, expecting endif`. Fix: reword comment supaya tidak mengandung pola literal `@directive(...)`. **Pelajaran baru**: hindari menulis pola `@kata(...)` apapun (bahkan sekadar contoh/referensi) di dalam comment blade manapun — Blade tidak tahu bedanya "kode nyata" vs "teks yang kebetulan mirip directive".
+
+**File yang diedit**: `app/Http/Controllers/MasterProdukJualController.php` (extract method + endpoint baru), `routes/web.php` (route baru, static path di atas `{produkJual}` sesuai pola `bumbu-pusat/list`), `resources/views/master/produk-jual/_form.blade.php` (const baru + `hitungSubtotalLinkedBaris()` + fix regex).
+
+**Verifikasi**: `tests/Feature/Tahap7/PreviewBumbuDanTotalHppParseTest.php` (8 test) — regex fix ada di markup, endpoint preview-bumbu hitung benar TANPA produk tersimpan (skenario Bug 1 asli), skip bahan mode gratis, tolak tanpa login (401)/tanpa permission (403), form Create pakai endpoint baru (bukan bergantung `KALKULATOR_URL`), regresi save produk dgn bumbu linked. Full regression 235 test lintas Tahap 2.5/5/6/7 PASS (0 regresi).
 
 ---
 
@@ -838,6 +849,8 @@ php artisan backup:run --only-db
 - [x] Fix bug Blade compile (`@json()` dgn ekspresi kompleks) — dipindah ke `@php` block, lihat [[4.19]]
 - [x] 12 test baru, 217 test total lintas fase PASS (0 regresi)
 - [x] **Bug Fix Ronde 3 (2026-09-19)**: Simulasi Produksi baca DB bukan form real-time (Bug A) + footer Total HPP hilang (Bug B) — lihat addendum [[4.19]]. 8 test baru, 225 test total lintas fase PASS (0 regresi).
+- [x] **Simplifikasi Ronde 4 (2026-09-19)**: format qty tanpa titik-ribuan (`formatQtyInput`) + konsolidasi 2 mode Total HPP jadi 1 — lihat addendum kedua [[4.19]]. 4 test diupdate/ditambah, 227 test total lintas fase PASS.
+- [x] **Bug Fix Ronde 5 (2026-09-19)**: subtotal Bumbu Pusat selalu "—" di halaman Create (endpoint `kalkulator-resep` butuh produk tersimpan, fix: endpoint baru `preview-bumbu/{bumbu}` decoupled dari Item) + Total HPP salah jumlah (`parseFloat("1.200")` dibaca 1.2 bukan 1200, fix: buang semua non-digit sebelum parse) — lihat addendum ketiga [[4.19]]. 8 test baru, 235 test total lintas fase PASS (0 regresi).
 - [ ] **Ditemukan tapi belum difix (di luar scope eksplisit)**: `ResepBumbuItem::getTotalHargaMasterAttribute()` pakai `harga_jual` (harusnya `harga_beli_terakhir`) — kolom "Total /kg" di halaman edit Master Bumbu Pusat selalu Rp0 untuk bahan baku. Perlu keputusan Owner apakah masuk Sprint 2 ([[12.12]]) atau ditangani terpisah.
 
 ### 12.12 Sprint 2 (Belum Dikerjakan) — Konversi Satuan Foolproof di Kalkulator Resep
