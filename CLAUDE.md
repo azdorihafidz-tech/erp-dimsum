@@ -3,9 +3,9 @@
 > **Untuk Claude Code**: File ini adalah **single source of truth** untuk seluruh project. WAJIB dibaca sebelum eksekusi apapun.
 > Isinya: keputusan bisnis, temuan audit, aturan teknis, dan filosofi kerja.
 
-**Versi**: 3.8  
+**Versi**: 3.9  
 **Update terakhir**: 2026-09-19  
-**Status**: 🎉 **PROJECT LIVE DI PRODUCTION** (https://erpdimsum.azwacore.com) — Tahap 1-7 SELESAI SEMUA (Branding, Master Data, POS, Rename qty_per_unit, Setoran Cabang→HO, Dashboard & Laporan, Final Polish & Testing) + Bug Fix Ronde 2 + Rename Jenis Menu/Master Bumbu Pusat + Fitur Import dari Bumbu Pusat + Improvement Test Manual Production (rename label, hapus Gojek/Grab) + Fix Foto Produk Production + UI Preview Harga Master/Subtotal Resep + Bug Fix Ronde 3 (Simulasi Produksi realtime + Total HPP footer) + Ronde 4 (format qty + konsolidasi Total HPP) + Ronde 5 (preview subtotal Bumbu Pusat decoupled dari produk + fix parse angka ribuan) + Auto-isi Satuan Master Bumbu Pusat + Fix ENUM kategori Saldo Awal (Keuangan) SELESAI. Sprint 2 (konversi satuan foolproof kalkulator resep) DIDEFER, lihat [[12.12]].
+**Status**: 🎉 **PROJECT LIVE DI PRODUCTION** (https://erpdimsum.azwacore.com) — Tahap 1-7 SELESAI SEMUA (Branding, Master Data, POS, Rename qty_per_unit, Setoran Cabang→HO, Dashboard & Laporan, Final Polish & Testing) + Bug Fix Ronde 2 + Rename Jenis Menu/Master Bumbu Pusat + Fitur Import dari Bumbu Pusat + Improvement Test Manual Production (rename label, hapus Gojek/Grab) + Fix Foto Produk Production + UI Preview Harga Master/Subtotal Resep + Bug Fix Ronde 3 (Simulasi Produksi realtime + Total HPP footer) + Ronde 4 (format qty + konsolidasi Total HPP) + Ronde 5 (preview subtotal Bumbu Pusat decoupled dari produk + fix parse angka ribuan) + Auto-isi Satuan Master Bumbu Pusat + Fix ENUM kategori Saldo Awal (Keuangan) + Fix label Kode Kategori wajib SELESAI. Sprint 2 (konversi satuan foolproof kalkulator resep) DIDEFER, lihat [[12.12]].
 
 ---
 
@@ -387,6 +387,16 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 **Fix**: migration `2026_09_19_800001_widen_kategori_enum_in_transaksi_keuangans_table` — `ALTER TABLE ... MODIFY kategori ENUM(...9 value lama..., 'saldo_awal')`, pola sama seperti widen enum sebelumnya ([[4.17]] Gojek/Grab, migration loyalty `sumber_data`). Reversibel (`down()` migrasi data `saldo_awal`→`lainnya` dulu baru shrink ENUM, diverifikasi manual `migrate`→`rollback`→`migrate`). **Hanya 1 value yang kurang** — dikonfirmasi dari `KategoriTransaksi::toEnumValue()` (`app/Models/KategoriTransaksi.php`) yang memetakan PERSIS 9 kode lama + `SALDO`→`saldo_awal`, `default` jatuh ke `'lainnya'` untuk kode manapun di luar itu — jadi tidak ada kategori lain yang berpotensi kena bug serupa.
 
 **Verifikasi**: `tests/Feature/Tahap7/KategoriSaldoAwalEnumFixTest.php` (4 test) — kolom DB benar sudah terima `'saldo_awal'`, submit manual "Tambah Transaksi" kategori Saldo Awal berhasil (reproduksi persis skenario Owner), jalur create-Kas otomatis dengan saldo awal tetap normal (regresi), kategori lama (operasional) masih bisa disimpan. Full regression 243 test lintas Tahap 2.5/5/6/7 PASS (0 regresi).
+
+### 4.21 🟢 Modal "Tambah Kategori Baru" — Field "Kode Kategori" Frontend Bilang Opsional, Backend Sudah Wajib (2026-09-19)
+
+**Laporan Owner**: modal "Tambah Kategori Baru" (menu Master Barang → Tambah Item) — field "Kode Kategori" tampil placeholder "(opsional)" tanpa tanda wajib, padahal harus diisi supaya kategori itu tampil di pilihan.
+
+**Root cause**: `ItemController::storeKategori()` SUDAH LAMA mewajibkan `kode_kategori` (`'required|string|max:20|unique:...'`) — backend tidak pernah longgar. Yang salah murni UI: `item/create.blade.php` & `item/edit.blade.php` (2 file, modal sama persis dikopi ke keduanya) menampilkan placeholder "(opsional)" dan TIDAK ada atribut `required`/tanda bintang merah — front-end dan back-end tidak sinkron. Efeknya: user submit tanpa isi Kode, form redirect balik dengan error validasi yang membingungkan karena UI-nya bilang boleh dikosongkan.
+
+**Fix**: murni UI, samakan pola dengan field "Nama Kategori" di sebelahnya (yang sudah benar) — tambah `<span class="text-danger">*</span>` di label + atribut `required` di input + ganti placeholder jadi cth: "CAT-001" (tanpa "(opsional)"), di KEDUA file. 0 perubahan controller/route/migration.
+
+**Verifikasi**: `tests/Feature/Tahap7/KodeKategoriWajibTest.php` (4 test) — label+placeholder baru tampil di form Create & Edit, backend tetap menolak kode kosong (regresi validasi existing), kategori dengan kode lengkap tetap bisa disimpan. Full regression 247 test lintas Tahap 2.5/5/6/7 PASS (0 regresi).
 
 ---
 

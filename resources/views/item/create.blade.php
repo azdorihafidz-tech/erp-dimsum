@@ -323,10 +323,12 @@
                             required autofocus>
                     </div>
                     <div class="mb-0">
-                        <label class="form-label fw-semibold" style="font-size:0.85rem">Kode Kategori</label>
+                        <label class="form-label fw-semibold" style="font-size:0.85rem">
+                            Kode Kategori <span class="text-danger">*</span>
+                        </label>
                         <input type="text" name="kode_kategori" class="form-control"
-                            placeholder="cth: CAT-001 (opsional)"
-                            style="text-transform:uppercase">
+                            placeholder="cth: CAT-001"
+                            style="text-transform:uppercase" required>
                     </div>
                 </div>
                 <div class="modal-footer">
