@@ -3,9 +3,9 @@
 > **Untuk Claude Code**: File ini adalah **single source of truth** untuk seluruh project. WAJIB dibaca sebelum eksekusi apapun.
 > Isinya: keputusan bisnis, temuan audit, aturan teknis, dan filosofi kerja.
 
-**Versi**: 4.0  
+**Versi**: 4.1  
 **Update terakhir**: 2026-09-21  
-**Status**: 🎉 **PROJECT LIVE DI PRODUCTION** (https://erpdimsum.azwacore.com) — Tahap 1-7 SELESAI SEMUA (Branding, Master Data, POS, Rename qty_per_unit, Setoran Cabang→HO, Dashboard & Laporan, Final Polish & Testing) + Bug Fix Ronde 2 + Rename Jenis Menu/Master Bumbu Pusat + Fitur Import dari Bumbu Pusat + Improvement Test Manual Production (rename label, hapus Gojek/Grab) + Fix Foto Produk Production + UI Preview Harga Master/Subtotal Resep + Bug Fix Ronde 3 (Simulasi Produksi realtime + Total HPP footer) + Ronde 4 (format qty + konsolidasi Total HPP) + Ronde 5 (preview subtotal Bumbu Pusat decoupled dari produk + fix parse angka ribuan) + Auto-isi Satuan Master Bumbu Pusat + Fix ENUM kategori Saldo Awal (Keuangan) + Fix label Kode Kategori wajib + Default Basis Program Loyalty ke Rp SELESAI. Sprint 2 (konversi satuan foolproof kalkulator resep) DIDEFER, lihat [[12.12]].
+**Status**: 🎉 **PROJECT LIVE DI PRODUCTION** (https://erpdimsum.azwacore.com) — Tahap 1-7 SELESAI SEMUA (Branding, Master Data, POS, Rename qty_per_unit, Setoran Cabang→HO, Dashboard & Laporan, Final Polish & Testing) + Bug Fix Ronde 2 + Rename Jenis Menu/Master Bumbu Pusat + Fitur Import dari Bumbu Pusat + Improvement Test Manual Production (rename label, hapus Gojek/Grab) + Fix Foto Produk Production + UI Preview Harga Master/Subtotal Resep + Bug Fix Ronde 3 (Simulasi Produksi realtime + Total HPP footer) + Ronde 4 (format qty + konsolidasi Total HPP) + Ronde 5 (preview subtotal Bumbu Pusat decoupled dari produk + fix parse angka ribuan) + Auto-isi Satuan Master Bumbu Pusat + Fix ENUM kategori Saldo Awal (Keuangan) + Fix label Kode Kategori wajib + Default Basis Program Loyalty ke Rp + Widget Total Kg Giling → Total Pembelian di Detail Pelanggan SELESAI. Sprint 2 (konversi satuan foolproof kalkulator resep) DIDEFER, lihat [[12.12]].
 
 ---
 
@@ -420,6 +420,16 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 **File yang diedit**: migration baru, `LoyaltyProgramController.php`, `loyalty-program/{create,edit,show}.blade.php`, `ProgramLoyaltySeeder.php`.
 
 **Verifikasi**: `tests/Feature/Tahap7/LoyaltyDefaultBasisRpTest.php` (8 test) — DB default sekarang Rp, submit tanpa `sumber_data` fallback ke Rp bukan kg, label create/edit tidak sebut "kg giling" lagi, show basis Rp tidak tampilkan teks "berat gilingan", show basis kg (legacy, kalau ada program lama) tetap tampil teks kg yang benar, regresi submit eksplisit basis kg & Rp keduanya tetap normal. Full regression 255 test lintas Tahap 2.5/5/6/7 PASS (0 regresi).
+
+**🟢 Lanjutan — Widget "Total Kg Giling" di Detail Pelanggan Diganti "Total Pembelian" (2026-09-21)**: temuan bonus dari audit [[4.22]] di atas — halaman detail pelanggan (menu Pelanggan → klik 1 pelanggan) punya 2 widget beda definisi: "Total Belanja" (`$pelanggan->orders()->sum('total_bayar')`, TANPA filter status/tanggal) dan "Total Kg Giling" (SELALU 0 utk semua pelanggan D'mentai — dead-weight display warisan Berkah Mulyo, tidak ada order jasa giling sama sekali). **Keputusan Owner: selaraskan jadi SATU widget** "Total Pembelian" (bukan tambah widget ke-3) — alasan: order POS D'mentai langsung lunas saat itu juga (tidak ada konsep "pending lama" yang butuh dibedakan dari "Total Belanja" kasar), 1 angka lebih jelas & maintainable.
+
+- **Accessor baru** `Pelanggan::getTotalPembelianAttribute()` — `orders()->where('status','selesai')->whereDate('tanggal_order','<', hari_ini)->sum('total_bayar')`. Dipakai controller (`$pelanggan->total_pembelian`) menggantikan 2 query lama (`$totalBelanja` unfiltered + `$totalKgGiling` DB::table query) — `use Illuminate\Support\Facades\DB` di `PelangganController` ikut dihapus (sudah tidak dipakai lagi di controller itu).
+- **View**: widget "Total Belanja"+"Total Kg Giling" (2 card) jadi 1 card "Total Pembelian" (icon `bi-cash-coin`, tetap warna hijau `border-success` existing). Widget "Rata-rata / Order" ikut pakai angka `$totalPembelian` yang baru (sengaja disederhanakan, bukan dipertahankan sbg 2 basis beda — konsisten keputusan "1 angka lebih jelas").
+- **Bonus fix ditemukan saat audit "elemen lain masih pakai kg"**: section "Program Loyalty" di halaman yang SAMA (`pelanggan/show.blade.php:160`, terpisah dari `loyalty-program/show.blade.php`) ternyata PUNYA COPY TEKS hardcode "belum ada data berat gilingan (dihitung 0 kg)" yang SAMA PERSIS bug-nya dengan yang sudah difix di [[4.22]] tapi lolos karena beda file — sekarang ikut dibuat dinamis (`$progress['program']->sumber_data`/`satuan_qty`).
+
+**File yang diedit**: `app/Models/Pelanggan.php` (accessor baru), `app/Http/Controllers/PelangganController.php` (pakai accessor, hapus 2 query lama + import `DB` tak terpakai), `resources/views/pelanggan/show.blade.php` (widget + teks loyalty dinamis). 0 migration (murni query+view).
+
+**Verifikasi**: `tests/Feature/Tahap7/TotalPembelianPelangganTest.php` (9 test) — accessor: 0 tanpa transaksi, sum benar 3 transaksi, skip order pending-hari-ini (cuma hitung status selesai + tanggal<hari ini), skip order dibatalkan; rendering: widget baru tampil nilai benar, widget lama (Total Kg Giling/Total Belanja) sudah tidak ada, Rp 0 utk pelanggan baru, teks loyalty tidak hardcode "berat gilingan" utk basis Rp, regresi widget lain (Total Order/Order Terakhir/Rata-rata) masih normal. Full regression 264 test lintas Tahap 2.5/5/6/7 PASS (0 regresi).
 
 ---
 

@@ -95,8 +95,10 @@
             <div class="col-6 col-lg-4">
                 <div class="card text-center h-100 border-success border-opacity-50">
                     <div class="card-body">
-                        <div class="fs-5 fw-bold text-success">Rp {{ number_format($totalBelanja, 0, ',', '.') }}</div>
-                        <div class="text-muted small">Total Belanja</div>
+                        <div class="fs-5 fw-bold text-success">
+                            <i class="bi bi-cash-coin me-1"></i>Rp {{ number_format($totalPembelian, 0, ',', '.') }}
+                        </div>
+                        <div class="text-muted small">Total Pembelian</div>
                     </div>
                 </div>
             </div>
@@ -115,20 +117,12 @@
                     <div class="card-body">
                         <div class="fs-5 fw-bold">
                             @if($pelanggan->orders_count > 0)
-                                Rp {{ number_format($totalBelanja / $pelanggan->orders_count, 0, ',', '.') }}
+                                Rp {{ number_format($totalPembelian / $pelanggan->orders_count, 0, ',', '.') }}
                             @else
                                 Rp 0
                             @endif
                         </div>
                         <div class="text-muted small">Rata-rata / Order</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-6 col-lg-4">
-                <div class="card text-center h-100 border-warning border-opacity-50">
-                    <div class="card-body">
-                        <div class="fs-5 fw-bold text-warning-emphasis">{{ number_format($totalKgGiling, 1) }} kg</div>
-                        <div class="text-muted small">Total Kg Giling</div>
                     </div>
                 </div>
             </div>
@@ -162,8 +156,16 @@
                 <small class="text-nowrap">{{ number_format($progress['total_kg'], 1) }} / {{ number_format($progress['target_kg'], 0) }} {{ $progress['program']->satuan_qty }} ({{ $progress['persen_progress'] }}%)</small>
             </div>
             @if($progress['jumlah_order_tanpa_data'] > 0)
+            @php
+                // Bug fix 2026-09-21: teks ini dulu hardcode "berat gilingan"/
+                // "kg" apapun basis program-nya — sama seperti bug yang sudah
+                // difix di loyalty-program/show.blade.php (lihat CLAUDE.md).
+                $tanpaDataLabelPelanggan = $progress['program']->sumber_data === 'orders.berat_daging_kg'
+                    ? 'belum ada data berat gilingan'
+                    : 'nilai basis-nya kosong/nol';
+            @endphp
             <small class="text-warning-emphasis">
-                <i class="bi bi-exclamation-triangle me-1"></i>{{ $progress['jumlah_order_tanpa_data'] }} order belum ada data berat gilingan (dihitung 0 kg)
+                <i class="bi bi-exclamation-triangle me-1"></i>{{ $progress['jumlah_order_tanpa_data'] }} order {{ $tanpaDataLabelPelanggan }} (dihitung 0 {{ $progress['program']->satuan_qty }})
             </small>
             @endif
             @can('loyalty.manage')

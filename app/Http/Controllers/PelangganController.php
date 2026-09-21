@@ -8,7 +8,6 @@ use App\Models\Pelanggan;
 use App\Services\CascadeDeleteService;
 use App\Services\LoyaltyService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class PelangganController extends Controller
 {
@@ -79,18 +78,13 @@ class PelangganController extends Controller
 
         $orders = $ordersQuery->paginate(10)->withQueryString();
 
-        $totalBelanja   = $pelanggan->orders()->sum('total_bayar');
+        // Bug fix 2026-09-21: dulu ada 2 widget beda definisi ("Total
+        // Belanja" tanpa filter status/tanggal, vs "Total Kg Giling" yang
+        // selalu 0 krn D'mentai tidak pernah pakai basis kg) -- diselaraskan
+        // jadi 1 angka via accessor Pelanggan::getTotalPembelianAttribute()
+        // (order status selesai + tanggal < hari ini).
+        $totalPembelian = $pelanggan->total_pembelian;
         $orderTerakhir  = $pelanggan->orders()->orderByDesc('tanggal_order')->value('tanggal_order');
-
-        // Total kg giling — SELALU dari orders.berat_daging_kg (kolom
-        // level-order), BUKAN SUM(order_items.qty) yang mencampur
-        // bumbu+kemasan+daging jadi angka salah (lihat catatan LoyaltyService).
-        $totalKgGiling = DB::table('orders')
-            ->where('pelanggan_id', $pelanggan->id)
-            ->where('tipe_order', 'jasa_giling')
-            ->where('status', '!=', 'dibatalkan')
-            ->whereNull('deleted_at')
-            ->sum('berat_daging_kg');
 
         $loyaltyProgress = collect();
         $loyaltyKlaims = collect();
@@ -112,8 +106,8 @@ class PelangganController extends Controller
         $statuses = \App\Enums\StatusOrder::cases();
 
         return view('pelanggan.show', compact(
-            'pelanggan', 'orders', 'totalBelanja', 'orderTerakhir', 'statuses',
-            'totalKgGiling', 'loyaltyProgress', 'loyaltyKlaims'
+            'pelanggan', 'orders', 'totalPembelian', 'orderTerakhir', 'statuses',
+            'loyaltyProgress', 'loyaltyKlaims'
         ));
     }
 
