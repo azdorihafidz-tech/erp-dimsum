@@ -3,9 +3,9 @@
 > **Untuk Claude Code**: File ini adalah **single source of truth** untuk seluruh project. WAJIB dibaca sebelum eksekusi apapun.
 > Isinya: keputusan bisnis, temuan audit, aturan teknis, dan filosofi kerja.
 
-**Versi**: 4.1  
+**Versi**: 4.2  
 **Update terakhir**: 2026-09-21  
-**Status**: 🎉 **PROJECT LIVE DI PRODUCTION** (https://erpdimsum.azwacore.com) — Tahap 1-7 SELESAI SEMUA (Branding, Master Data, POS, Rename qty_per_unit, Setoran Cabang→HO, Dashboard & Laporan, Final Polish & Testing) + Bug Fix Ronde 2 + Rename Jenis Menu/Master Bumbu Pusat + Fitur Import dari Bumbu Pusat + Improvement Test Manual Production (rename label, hapus Gojek/Grab) + Fix Foto Produk Production + UI Preview Harga Master/Subtotal Resep + Bug Fix Ronde 3 (Simulasi Produksi realtime + Total HPP footer) + Ronde 4 (format qty + konsolidasi Total HPP) + Ronde 5 (preview subtotal Bumbu Pusat decoupled dari produk + fix parse angka ribuan) + Auto-isi Satuan Master Bumbu Pusat + Fix ENUM kategori Saldo Awal (Keuangan) + Fix label Kode Kategori wajib + Default Basis Program Loyalty ke Rp + Widget Total Kg Giling → Total Pembelian di Detail Pelanggan SELESAI. Sprint 2 (konversi satuan foolproof kalkulator resep) DIDEFER, lihat [[12.12]].
+**Status**: 🎉 **PROJECT LIVE DI PRODUCTION** (https://erpdimsum.azwacore.com) — Tahap 1-7 SELESAI SEMUA (Branding, Master Data, POS, Rename qty_per_unit, Setoran Cabang→HO, Dashboard & Laporan, Final Polish & Testing) + Bug Fix Ronde 2 + Rename Jenis Menu/Master Bumbu Pusat + Fitur Import dari Bumbu Pusat + Improvement Test Manual Production (rename label, hapus Gojek/Grab) + Fix Foto Produk Production + UI Preview Harga Master/Subtotal Resep + Bug Fix Ronde 3 (Simulasi Produksi realtime + Total HPP footer) + Ronde 4 (format qty + konsolidasi Total HPP) + Ronde 5 (preview subtotal Bumbu Pusat decoupled dari produk + fix parse angka ribuan) + Auto-isi Satuan Master Bumbu Pusat + Fix ENUM kategori Saldo Awal (Keuangan) + Fix label Kode Kategori wajib + Default Basis Program Loyalty ke Rp + Widget Total Kg Giling → Total Pembelian di Detail Pelanggan + Fix Error Export Excel Laporan Keuangan SELESAI. Sprint 2 (konversi satuan resep) DIDEFER [[12.12]], Sprint 3 (rapikan Excel + tambah PDF di 20+ menu Laporan) DIDEFER [[12.13]].
 
 ---
 
@@ -430,6 +430,22 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 **File yang diedit**: `app/Models/Pelanggan.php` (accessor baru), `app/Http/Controllers/PelangganController.php` (pakai accessor, hapus 2 query lama + import `DB` tak terpakai), `resources/views/pelanggan/show.blade.php` (widget + teks loyalty dinamis). 0 migration (murni query+view).
 
 **Verifikasi**: `tests/Feature/Tahap7/TotalPembelianPelangganTest.php` (9 test) — accessor: 0 tanpa transaksi, sum benar 3 transaksi, skip order pending-hari-ini (cuma hitung status selesai + tanggal<hari ini), skip order dibatalkan; rendering: widget baru tampil nilai benar, widget lama (Total Kg Giling/Total Belanja) sudah tidak ada, Rp 0 utk pelanggan baru, teks loyalty tidak hardcode "berat gilingan" utk basis Rp, regresi widget lain (Total Order/Order Terakhir/Rata-rata) masih normal. Full regression 264 test lintas Tahap 2.5/5/6/7 PASS (0 regresi).
+
+### 4.23 🔴 Error 500 Export Excel "Laporan → Keuangan" — Enum Object-to-String + Excel Palsu (CSV Bertopeng .xls) (2026-09-21)
+
+**Laporan Owner**: menu Laporan → Keuangan (`laporan.keuangan.laba-rugi`, BEDA dari "Kelola Kas & Transaksi → Laporan Keuangan" `keuangan.laporan` yang terpisah) — klik Export Excel **error**. Juga keluhan umum lintas banyak menu Laporan lain: "1 kolom excel banyak isi" saat dibuka.
+
+**Root cause 1 (crash, spesifik Laporan Keuangan)**: `LaporanKeuanganController::labaRugi()`/`arusKas()` export manual pakai `fputcsv()` — data `$pemasukan`/`$pengeluaran` didapat dari `TransaksiKeuangan::selectRaw('kategori, SUM(jumlah) as total')->groupBy('kategori')->get()`. Eloquent **TETAP menerapkan cast model** (`'kategori' => App\Enums\KategoriTransaksi::class`) ke atribut `kategori` MESKIPUN datang dari `selectRaw()` (bukan select kolom biasa) — jadi `$p->kategori` adalah OBJEK enum PHP, bukan string. `fputcsv($file, [$p->kategori, ...])` mencoba string-cast objek itu → **fatal error** `Object of class App\Enums\KategoriTransaksi could not be converted to string`. Ini bug NYATA, direproduksi persis via test (bukan cuma "kurang rapi").
+
+**Root cause 2 (keluhan "1 kolom banyak isi", pola sama di export-export lain)**: file yang di-generate SEBENARNYA teks CSV plain (`fputcsv` dgn delimiter `;`) yang dikasih ekstensi `.xls` + header `Content-Type: application/vnd.ms-excel` — BUKAN file Excel biner/xlsx sungguhan. Excel coba buka sbg file native, gagal, fallback parse sbg teks — kalau regional setting Windows si user pakai KOMA sbg list separator (bukan titik-koma), SEMUA kolom yang dipisah `;` gagal terdeteksi dan collapse jadi 1 kolom utuh. Pola "CSV-as-.xls" ini historically dipilih (lihat [[7.5]]) krn simpel tanpa dependency — tapi codebase SUDAH PUNYA solusi lebih baik yang proven jalan: `app/Exports/TransaksiKeuanganExport.php` (dipakai "Kelola Kas & Transaksi") pakai **maatwebsite/excel** (sudah ada di `composer.json`, dependency existing bukan baru) — xlsx biner sungguhan, universal dibuka Excel apapun localenya.
+
+**Fix**: 2 Export class BARU (`app/Exports/LaporanLabaRugiExport.php`, `app/Exports/LaporanArusKasExport.php`), pola sama `TransaksiKeuanganExport` (`WithStyles` utk header bold+warna+auto-size kolom, kategori dipanggil `->label()`/`label_kategori` bukan objek mentah) — `LaporanKeuanganController` diubah pakai `Excel::download(...)`, 2 method private CSV manual (`exportLabaRugiExcel()`/`exportArusKasExcel()`) DIHAPUS total.
+
+**Scope sesi ini SENGAJA dibatasi ke "Laporan → Keuangan" saja** (yang genuinely error) — Owner melaporkan daftar panjang 20+ menu Laporan lain dgn keluhan serupa ("Excel belum rapi"/"belum ada PDF"), TAPI itu backlog terpisah yang jauh lebih besar (each menu beda struktur data, sebagian belum py export sama sekali) — didaftarkan sbg TODO Sprint 3 ([[12.13]]), bukan dikerjakan sekaligus tanpa scoping/prioritas dari Owner.
+
+**File yang diedit**: `app/Http/Controllers/LaporanKeuanganController.php` (pakai Excel facade, hapus 2 method CSV manual), 2 file baru di `app/Exports/`.
+
+**Verifikasi**: `tests/Feature/Tahap7/LaporanKeuanganExcelFixTest.php` (7 test) — HTML render normal (laba-rugi & arus-kas), export Excel dgn kategori enum asli TIDAK CRASH (reproduksi persis bug Owner), export dgn kategori `saldo_awal` tidak regresi, Content-Type xlsx sungguhan (`spreadsheetml`), tolak tanpa permission (403), alias `harian()`/`pengeluaran()` masih normal. Full regression 271 test lintas Tahap 2.5/5/6/7 PASS (0 regresi).
 
 ---
 
@@ -921,6 +937,41 @@ php artisan backup:run --only-db
 4. UI Master Bahan Baku: dropdown satuan dibatasi ke daftar per family (bukan free-text) utk item baru — data existing free-text tetap jalan apa adanya (tidak retroactive).
 
 **Alasan defer**: data existing masih manageable secara manual (Owner bisa cek+benerin via UI), dan UI improvement Opsi B ([[12.11]]) sudah cukup utk kebutuhan jangka pendek (anomali data langsung kelihatan visual sebelum Simpan). Effort ~4 jam dianggap belum prioritas dibanding fitur/bug lain yang lebih mendesak per 2026-09-19.
+
+### 12.13 Sprint 3 (Belum Dikerjakan) — Rapikan Export Excel + Tambah Export PDF di 20+ Menu Laporan
+
+**Latar belakang** (laporan Owner 2026-09-21, lihat [[4.23]] utk 1 item yang SUDAH difix — "Laporan → Keuangan"): audit menyeluruh menu Laporan menemukan pola export Excel yang TIDAK KONSISTEN di seluruh project — sebagian pakai `Excel::download()` (maatwebsite/excel, xlsx sungguhan, RAPI), sebagian pakai `fputcsv()` manual dgn ekstensi `.xls` (CSV bertopeng, "1 kolom banyak isi" kalau locale Excel beda — root cause persis sama dgn [[4.23]]), dan banyak yang BELUM PUNYA export PDF sama sekali walau `barryvdh/laravel-dompdf` sudah jadi dependency project.
+
+**Daftar lengkap dari Owner** (22 menu, per 2026-09-21):
+| Menu | Excel | PDF |
+|------|-------|-----|
+| Penjualan | belum rapi | belum ada |
+| Stok | belum rapi | belum ada |
+| Keuangan (`laporan.keuangan.*`) | ✅ **SUDAH DIFIX** [[4.23]] | belum ada |
+| HR / SDM | belum rapi | belum ada |
+| Aset | belum rapi | belum ada |
+| BEP | belum ada | belum ada |
+| BEP Otomatis | belum ada | ✅ sudah baik |
+| Transfer/Perpindahan Dana | belum rapi | belum ada |
+| Per Kategori | belum rapi | belum ada |
+| Audit Bukti | belum rapi | belum ada |
+| Saldo Kas | belum rapi | belum ada |
+| Setoran Harian | belum rapi | belum ada |
+| Komisi Sales | belum rapi | belum ada |
+| Laba Rugi (`laporan.laba-rugi.*`, BEDA dari Keuangan) | belum rapi | belum ada |
+| Laba Rugi Formal | belum ada | ✅ sudah baik |
+| Neraca | belum ada | ✅ sudah baik |
+| Buku Besar | belum ada | belum ada |
+| Laporan Eksekutif | belum ada | ✅ sudah baik |
+| Simulator BEP | belum ada | belum ada |
+| Analisa Jam Ramai | belum ada | belum ada |
+| Pemakaian Perlengkapan | belum ada | belum ada |
+| Laporan Setoran Kasir | belum rapi | belum ada |
+| Cabang vs Cabang | belum rapi | belum ada |
+
+**Kenapa DIDEFER (bukan dikerjakan sekaligus)**: scope terlalu besar utk 1 sesi (22 menu × 2 kemungkinan kerjaan = puluhan file controller+Export class+view baru), tiap menu struktur datanya beda (sebagian tabular sederhana cocok `WithMapping` biasa, sebagian multi-section kayak Laba Rugi butuh custom `FromArray` seperti [[4.23]], sebagian py grafik yang tidak relevan di Excel/PDF). **Rencana kerja**: pola yang SUDAH proven dari [[4.23]] (`TransaksiKeuanganExport`/`LaporanLabaRugiExport` sbg referensi) dipakai ulang per menu, dikerjakan bertahap per-batch (mis. per kelompok "Keuangan" dulu, lalu "Operasional", dst) dgn approval Owner tiap batch — BUKAN big-bang 1 commit raksasa yang susah di-review/di-test.
+
+**Effort awal (rough estimate, perlu di-refine per batch)**: rata-rata ~30-45 menit/menu utk rapikan Excel (kalau struktur data mirip yang sudah ada), ~20-30 menit/menu tambahan utk PDF (kalau ada view print-friendly yang bisa direuse via `dompdf`) — total kasar 15-25 jam utk semua 22 menu, TIDAK termasuk waktu test tiap menu.
 
 ---
 

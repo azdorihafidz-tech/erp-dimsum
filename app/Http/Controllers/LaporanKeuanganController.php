@@ -3,11 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Enums\TipeTransaksiKeuangan;
+use App\Exports\LaporanArusKasExport;
+use App\Exports\LaporanLabaRugiExport;
 use App\Models\Cabang;
 use App\Models\Scopes\CabangScope;
 use App\Models\TransaksiKeuangan;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 class LaporanKeuanganController extends Controller
 {
@@ -81,7 +84,13 @@ class LaporanKeuanganController extends Controller
         }
 
         if ($request->export === 'excel') {
-            return $this->exportLabaRugiExcel($pemasukan, $pengeluaran, $totalPemasukan, $totalPengeluaran, $labaRugi, $dari->toDateString() . '_' . $sampai->toDateString());
+            $periodeLabel = $dari->format('d/m/Y') . ' — ' . $sampai->format('d/m/Y');
+            $filename = 'laporan-laba-rugi_' . $dari->toDateString() . '_sampai_' . $sampai->toDateString() . '.xlsx';
+
+            return Excel::download(
+                new LaporanLabaRugiExport($pemasukan, $pengeluaran, $totalPemasukan, $totalPengeluaran, $labaRugi, $periodeLabel),
+                $filename
+            );
         }
 
         return view('laporan.keuangan.laba-rugi', compact(
@@ -106,7 +115,7 @@ class LaporanKeuanganController extends Controller
         }
 
         $query = TransaksiKeuangan::withoutGlobalScope(CabangScope::class)
-            ->with(['cabang'])
+            ->with(['cabang', 'kategoriDinamis'])
             ->whereBetween('tanggal_transaksi', [$dari->toDateString(), $sampai->toDateString()]);
         if ($cabangId) $query->where('cabang_id', $cabangId);
 
@@ -116,7 +125,9 @@ class LaporanKeuanganController extends Controller
 
         if ($request->export === 'excel') {
             $transaksis = $query->orderBy('tanggal_transaksi')->get();
-            return $this->exportArusKasExcel($transaksis);
+            $filename = 'laporan-arus-kas_' . $dari->toDateString() . '_sampai_' . $sampai->toDateString() . '.xlsx';
+
+            return Excel::download(new LaporanArusKasExport($transaksis), $filename);
         }
 
         $transaksis = $query->orderBy('tanggal_transaksi')->paginate(30)->withQueryString();
@@ -137,60 +148,4 @@ class LaporanKeuanganController extends Controller
         return $this->labaRugi($request);
     }
 
-    private function exportLabaRugiExcel($pemasukan, $pengeluaran, $totalPemasukan, $totalPengeluaran, $labaRugi, $periode)
-    {
-        $headers = [
-            'Content-Type' => 'application/vnd.ms-excel; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="laporan-laba-rugi-' . $periode . '.xls"',
-        ];
-        $callback = function () use ($pemasukan, $pengeluaran, $totalPemasukan, $totalPengeluaran, $labaRugi) {
-            $file = fopen('php://output', 'w');
-            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
-            fputcsv($file, ['LAPORAN LABA RUGI'], ';');
-            fputcsv($file, [], ';');
-            fputcsv($file, ['PEMASUKAN'], ';');
-            fputcsv($file, ['Kategori', 'Total'], ';');
-            foreach ($pemasukan as $p) {
-                fputcsv($file, [$p->kategori, $p->total], ';');
-            }
-            fputcsv($file, ['Total Pemasukan', $totalPemasukan], ';');
-            fputcsv($file, [], ';');
-            fputcsv($file, ['PENGELUARAN'], ';');
-            fputcsv($file, ['Kategori', 'Total'], ';');
-            foreach ($pengeluaran as $p) {
-                fputcsv($file, [$p->kategori, $p->total], ';');
-            }
-            fputcsv($file, ['Total Pengeluaran', $totalPengeluaran], ';');
-            fputcsv($file, [], ';');
-            fputcsv($file, ['LABA / RUGI', $labaRugi], ';');
-            fclose($file);
-        };
-        return response()->stream($callback, 200, $headers);
-    }
-
-    private function exportArusKasExcel($transaksis)
-    {
-        $headers = [
-            'Content-Type' => 'application/vnd.ms-excel; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="laporan-arus-kas-' . now()->format('Y-m-d') . '.xls"',
-        ];
-        $callback = function () use ($transaksis) {
-            $file = fopen('php://output', 'w');
-            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
-            fputcsv($file, ['Tanggal', 'No. Transaksi', 'Tipe', 'Kategori', 'Keterangan', 'Jumlah', 'Cabang'], ';');
-            foreach ($transaksis as $t) {
-                fputcsv($file, [
-                    $t->tanggal_transaksi?->format('d/m/Y'),
-                    $t->nomor_transaksi,
-                    $t->tipe?->label(),
-                    $t->kategori?->label(),
-                    $t->keterangan,
-                    $t->jumlah,
-                    $t->cabang?->nama_cabang,
-                ], ';');
-            }
-            fclose($file);
-        };
-        return response()->stream($callback, 200, $headers);
-    }
 }
