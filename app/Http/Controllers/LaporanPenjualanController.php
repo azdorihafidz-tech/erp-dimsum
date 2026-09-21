@@ -3,11 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Enums\StatusOrder;
+use App\Exports\LaporanPenjualanExport;
 use App\Models\Cabang;
 use App\Models\Order;
 use App\Models\OrderItem;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 class LaporanPenjualanController extends Controller
 {
@@ -63,7 +66,29 @@ class LaporanPenjualanController extends Controller
         // Export Excel
         if ($request->export === 'excel') {
             $orders = $query->orderByDesc('tanggal_order')->get();
-            return $this->exportExcel($orders);
+            $filename = 'Laporan-Penjualan-' . now()->format('Y-m-d') . '.xlsx';
+
+            return Excel::download(new LaporanPenjualanExport($orders, $user->name), $filename);
+        }
+
+        // Export PDF
+        if ($request->export === 'pdf') {
+            $orders = $query->orderByDesc('tanggal_order')->get();
+            $cabangNamaFilter = $cabangId ? Cabang::find($cabangId)?->nama_cabang : 'Semua Cabang';
+            $filename = 'Laporan-Penjualan-' . now()->format('Y-m-d') . '.pdf';
+
+            $pdf = Pdf::loadView('laporan.penjualan.pdf', [
+                'orders' => $orders,
+                'totalOmzet' => $totalOmzet,
+                'judulLaporan' => 'Laporan Penjualan',
+                'filterInfo' => [
+                    'Periode' => $dari->format('d/m/Y') . ' — ' . $sampai->format('d/m/Y'),
+                    'Cabang' => $cabangNamaFilter,
+                ],
+                'footerDicetak' => 'Dicetak oleh: ' . $user->name . ' pada ' . now()->translatedFormat('d F Y, H:i') . ' WIB',
+            ])->setPaper('a4', 'portrait');
+
+            return $pdf->download($filename);
         }
 
         $orders = $query->orderByDesc('tanggal_order')->paginate(20)->withQueryString();
@@ -165,29 +190,4 @@ class LaporanPenjualanController extends Controller
         ));
     }
 
-    private function exportExcel($orders)
-    {
-        $headers = [
-            'Content-Type' => 'application/vnd.ms-excel; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="laporan-penjualan-' . now()->format('Y-m-d') . '.xls"',
-        ];
-        $callback = function () use ($orders) {
-            $file = fopen('php://output', 'w');
-            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF)); // BOM UTF-8
-            fputcsv($file, ['No. Order', 'Tanggal', 'Cabang', 'Pelanggan', 'Tipe', 'Total Bayar', 'Status'], ';');
-            foreach ($orders as $o) {
-                fputcsv($file, [
-                    $o->nomor_order,
-                    $o->tanggal_order?->format('d/m/Y'),
-                    $o->cabang?->nama_cabang,
-                    $o->nama_pelanggan ?? $o->pelanggan?->nama ?? 'Umum',
-                    $o->tipe_order?->label(),
-                    $o->total_bayar,
-                    $o->status?->label(),
-                ], ';');
-            }
-            fclose($file);
-        };
-        return response()->stream($callback, 200, $headers);
-    }
 }

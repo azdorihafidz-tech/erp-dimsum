@@ -3,9 +3,9 @@
 > **Untuk Claude Code**: File ini adalah **single source of truth** untuk seluruh project. WAJIB dibaca sebelum eksekusi apapun.
 > Isinya: keputusan bisnis, temuan audit, aturan teknis, dan filosofi kerja.
 
-**Versi**: 4.2  
+**Versi**: 4.3  
 **Update terakhir**: 2026-09-21  
-**Status**: 🎉 **PROJECT LIVE DI PRODUCTION** (https://erpdimsum.azwacore.com) — Tahap 1-7 SELESAI SEMUA (Branding, Master Data, POS, Rename qty_per_unit, Setoran Cabang→HO, Dashboard & Laporan, Final Polish & Testing) + Bug Fix Ronde 2 + Rename Jenis Menu/Master Bumbu Pusat + Fitur Import dari Bumbu Pusat + Improvement Test Manual Production (rename label, hapus Gojek/Grab) + Fix Foto Produk Production + UI Preview Harga Master/Subtotal Resep + Bug Fix Ronde 3 (Simulasi Produksi realtime + Total HPP footer) + Ronde 4 (format qty + konsolidasi Total HPP) + Ronde 5 (preview subtotal Bumbu Pusat decoupled dari produk + fix parse angka ribuan) + Auto-isi Satuan Master Bumbu Pusat + Fix ENUM kategori Saldo Awal (Keuangan) + Fix label Kode Kategori wajib + Default Basis Program Loyalty ke Rp + Widget Total Kg Giling → Total Pembelian di Detail Pelanggan + Fix Error Export Excel Laporan Keuangan SELESAI. Sprint 2 (konversi satuan resep) DIDEFER [[12.12]], Sprint 3 (rapikan Excel + tambah PDF di 20+ menu Laporan) DIDEFER [[12.13]].
+**Status**: 🎉 **PROJECT LIVE DI PRODUCTION** (https://erpdimsum.azwacore.com) — Tahap 1-7 SELESAI SEMUA + rangkaian bug fix & improvement lintas sesi (lihat section 4 utk detail lengkap tiap item): Bug Fix Ronde 2, Rename Jenis Menu/Master Bumbu Pusat, Fitur Import dari Bumbu Pusat, Rename Label & Hapus Gojek/Grab, Fix Foto Produk Production, UI Preview Harga Master/Subtotal Resep (Ronde 3-5), Auto-isi Satuan Master Bumbu Pusat, Fix ENUM Kategori Saldo Awal, Fix Label Kode Kategori Wajib, Default Basis Program Loyalty ke Rp, Widget Total Pembelian Pelanggan, Fix Export Excel Laporan Keuangan. **Sprint 3 Batch 1a SELESAI** (Excel rapi + PDF baru utk Laporan Penjualan & Setoran Kasir, lihat [[4.24]]) — Sprint 2 (konversi satuan resep) DIDEFER [[12.12]], Sprint 3 Batch 1b/1c (Setoran Harian, Stok, Laba Rugi Produksi) + 17 menu Laporan lain MENYUSUL [[12.13]].
 
 ---
 
@@ -446,6 +446,24 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 **File yang diedit**: `app/Http/Controllers/LaporanKeuanganController.php` (pakai Excel facade, hapus 2 method CSV manual), 2 file baru di `app/Exports/`.
 
 **Verifikasi**: `tests/Feature/Tahap7/LaporanKeuanganExcelFixTest.php` (7 test) — HTML render normal (laba-rugi & arus-kas), export Excel dgn kategori enum asli TIDAK CRASH (reproduksi persis bug Owner), export dgn kategori `saldo_awal` tidak regresi, Content-Type xlsx sungguhan (`spreadsheetml`), tolak tanpa permission (403), alias `harian()`/`pengeluaran()` masih normal. Full regression 271 test lintas Tahap 2.5/5/6/7 PASS (0 regresi).
+
+### 4.24 🟢 Sprint 3 Batch 1a — Rapikan Excel + Tambah PDF: Laporan Penjualan & Setoran Kasir (2026-09-21)
+
+**Konteks**: lanjutan [[12.13]] — 2 dari 5 menu Prioritas 1 ("dipakai harian"). Owner minta pattern KONSISTEN lintas semua menu Sprint 3 ke depan (bukan cuma 2 ini): Excel header bold+fill krim brand, auto-width, format Rupiah/tanggal Indonesia, footer "Dicetak oleh"; PDF logo D'mentai, judul besar, info filter, tabel border+zebra-stripe, footer nomor halaman.
+
+**Foundation BARU (dipakai SEMUA menu Sprint 3 ke depan, bukan cuma 2 ini)**:
+- `app/Exports/Concerns/HasLaporanStyles.php` (trait) — `styleHeaderRow()` (bold+fill `#FFF8E7`), `autoSizeAllColumns()`, `styleRupiahColumn()` (number-format mask `"Rp" #,##0` — angka TETAP numerik asli, cuma DITAMPILKAN dgn prefix, supaya kolom tetap bisa di-SUM/sort normal di Excel, BUKAN string manual), `footerDicetakOleh()`.
+- `resources/views/laporan/pdf/layout.blade.php` — layout Blade `@extends`-able, header logo+judul+info-filter (pola sama `laporan/pdf/neraca.blade.php` yang sudah proven), CSS zebra-stripe + border tipis siap pakai (class `table.data`), footer nomor halaman via **CSS `position:fixed` + `counter(page)`/`counter(pages)`** (BUKAN teknik `<script type="text/php">` dompdf yang butuh `config/dompdf.php` `enable_php=true` — project SENGAJA `enable_php=false` demi keamanan, jadi dipilih pendekatan CSS murni yang tidak butuh ubah config sama sekali).
+
+**Per menu**:
+1. **Laporan Penjualan**: `LaporanPenjualanExport` (ganti `fputcsv()` manual) + `laporan/penjualan/pdf.blade.php` (portrait) + tombol Export PDF baru di view. Method private `exportExcel()` lama DIHAPUS.
+2. **Laporan Setoran Kasir**: `LaporanSetoranKasirExport` + `laporan/setoran-kasir-pdf.blade.php` (portrait, row selisih≠0 di-highlight kuning/merah tipis sesuai tanda selisih) — PDF dipicu via query param BARU `?format=pdf` pada route `export` yang SAMA (bukan route terpisah), Excel tetap default kalau `format` tidak diisi.
+
+**Bug regresi ditemukan & difix sekalian**: 1 test lama (`Tahap6\DashboardOwnerHttpTest::test_export_laporan_setoran_kasir_berhasil`) assert `Content-Type: application/vnd.ms-excel; charset=UTF-8` (header CSV lama) — di-update ke `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` (xlsx asli), krn memang sengaja berubah oleh fix ini, bukan regresi tak terduga.
+
+**File yang diedit**: `app/Exports/Concerns/HasLaporanStyles.php` (baru), `app/Exports/LaporanPenjualanExport.php` (baru), `app/Exports/LaporanSetoranKasirExport.php` (baru), `resources/views/laporan/pdf/layout.blade.php` (baru), `resources/views/laporan/penjualan/pdf.blade.php` (baru), `resources/views/laporan/setoran-kasir-pdf.blade.php` (baru), `LaporanPenjualanController.php`, `LaporanSetoranKasirController.php`, `laporan/penjualan/index.blade.php`, `laporan/setoran-kasir.blade.php`.
+
+**Verifikasi**: `tests/Feature/Tahap7/LaporanBatch1aExportTest.php` (10 test) — Excel xlsx valid (`spreadsheetml`), PDF valid (`application/pdf`), filter tanggal+cabang+status sesuai, data kosong tetap generate tanpa error, tolak tanpa permission (403), regresi HTML kedua halaman masih normal. Full regression 281 test lintas Tahap 2.5/5/6/7 PASS (0 regresi, 1 assertion lama diupdate krn perubahan disengaja).
 
 ---
 
@@ -972,6 +990,8 @@ php artisan backup:run --only-db
 **Kenapa DIDEFER (bukan dikerjakan sekaligus)**: scope terlalu besar utk 1 sesi (22 menu × 2 kemungkinan kerjaan = puluhan file controller+Export class+view baru), tiap menu struktur datanya beda (sebagian tabular sederhana cocok `WithMapping` biasa, sebagian multi-section kayak Laba Rugi butuh custom `FromArray` seperti [[4.23]], sebagian py grafik yang tidak relevan di Excel/PDF). **Rencana kerja**: pola yang SUDAH proven dari [[4.23]] (`TransaksiKeuanganExport`/`LaporanLabaRugiExport` sbg referensi) dipakai ulang per menu, dikerjakan bertahap per-batch (mis. per kelompok "Keuangan" dulu, lalu "Operasional", dst) dgn approval Owner tiap batch — BUKAN big-bang 1 commit raksasa yang susah di-review/di-test.
 
 **Effort awal (rough estimate, perlu di-refine per batch)**: rata-rata ~30-45 menit/menu utk rapikan Excel (kalau struktur data mirip yang sudah ada), ~20-30 menit/menu tambahan utk PDF (kalau ada view print-friendly yang bisa direuse via `dompdf`) — total kasar 15-25 jam utk semua 22 menu, TIDAK termasuk waktu test tiap menu.
+
+**✅ Batch 1a Selesai (2026-09-21)** — Penjualan + Setoran Kasir (2 dari 5 menu Prioritas 1), lihat [[4.24]]. Sisa Batch 1b (Setoran Harian + Stok) dan Batch 1c (Laba Rugi Produksi) MENYUSUL di sesi terpisah.
 
 ---
 

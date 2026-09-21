@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\LaporanSetoranKasirExport;
 use App\Models\Cabang;
 use App\Models\Setoran;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * Tahap 6 D'mentai — Laporan Setoran Kasir (BEDA dari LaporanSetoranController
@@ -67,23 +70,32 @@ class LaporanSetoranKasirController extends Controller
 
         $rows = $query->orderByDesc('tanggal')->get();
 
-        $headers = [
-            'Content-Type' => 'application/vnd.ms-excel; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="laporan-setoran-kasir-' . $dari->format('Ymd') . '-' . $sampai->format('Ymd') . '.xls"',
-        ];
-        $callback = function () use ($rows) {
-            $file = fopen('php://output', 'w');
-            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
-            fputcsv($file, ['Tanggal', 'Cabang', 'Total Sistem', 'Total Disetor', 'Selisih', 'Status'], ';');
-            foreach ($rows as $r) {
-                fputcsv($file, [
-                    $r->tanggal->format('d/m/Y'), $r->cabang?->nama_cabang,
-                    $r->total_penjualan_sistem, $r->total_disetor, $r->selisih, $r->status->value,
-                ], ';');
-            }
-            fclose($file);
-        };
+        if ($request->format === 'pdf') {
+            $stats = [
+                'total_sistem' => $rows->sum('total_penjualan_sistem'),
+                'total_disetor' => $rows->sum('total_disetor'),
+                'total_selisih' => $rows->sum('selisih'),
+            ];
+            $cabangNamaFilter = $cabangId ? Cabang::find($cabangId)?->nama_cabang : 'Semua Cabang';
+            $filename = 'Laporan-Setoran-Kasir-' . now()->format('Y-m-d') . '.pdf';
 
-        return response()->stream($callback, 200, $headers);
+            $pdf = Pdf::loadView('laporan.setoran-kasir-pdf', [
+                'setorans' => $rows,
+                'stats' => $stats,
+                'judulLaporan' => 'Laporan Setoran Kasir',
+                'filterInfo' => [
+                    'Periode' => $dari->format('d/m/Y') . ' — ' . $sampai->format('d/m/Y'),
+                    'Cabang' => $cabangNamaFilter,
+                    'Status' => $request->filled('status') ? ucfirst($request->status) : 'Semua Status',
+                ],
+                'footerDicetak' => 'Dicetak oleh: ' . $user->name . ' pada ' . now()->translatedFormat('d F Y, H:i') . ' WIB',
+            ])->setPaper('a4', 'portrait');
+
+            return $pdf->download($filename);
+        }
+
+        $filename = 'Laporan-Setoran-Kasir-' . now()->format('Y-m-d') . '.xlsx';
+
+        return Excel::download(new LaporanSetoranKasirExport($rows, $user->name), $filename);
     }
 }

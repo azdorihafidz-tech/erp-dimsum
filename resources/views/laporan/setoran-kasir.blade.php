@@ -11,6 +11,9 @@
         <a href="{{ route('laporan.setoran-kasir.export', request()->query()) }}" class="btn btn-outline-success btn-sm">
             <i class="bi bi-file-earmark-excel me-1"></i>Export Excel
         </a>
+        <a href="{{ route('laporan.setoran-kasir.export', array_merge(request()->query(), ['format' => 'pdf'])) }}" class="btn btn-outline-danger btn-sm">
+            <i class="bi bi-file-earmark-pdf me-1"></i>Export PDF
+        </a>
         @endcan
         <x-panduan-button slug="laporan-setoran-kasir" />
     </div>

@@ -140,11 +140,15 @@ class DashboardOwnerHttpTest extends TestCase
 
     public function test_export_laporan_setoran_kasir_berhasil(): void
     {
+        // Bug fix Sprint 3 Batch 1a (2026-09-21): export ganti dari CSV
+        // manual (fputcsv, .xls palsu) jadi xlsx sungguhan via
+        // maatwebsite/excel -- Content-Type ikut berubah sesuai spesifikasi
+        // xlsx asli (lihat CLAUDE.md, perubahan disengaja bukan regresi).
         $admin = $this->buatUser('admin_pusat');
         $response = $this->actingAs($admin)->get('/laporan/setoran-kasir/export');
 
         $response->assertOk();
-        $response->assertHeader('content-type', 'application/vnd.ms-excel; charset=UTF-8');
+        $response->assertHeader('content-type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     }
 
     public function test_manajer_cabang_tidak_lihat_widget_dashboard_owner(): void
