@@ -17,6 +17,12 @@
         <button type="button" id="btnExportLabaRugi" class="btn btn-success btn-sm">
             <i class="bi bi-file-earmark-excel me-1"></i><span class="d-none d-sm-inline">Export Excel</span>
         </button>
+        <button type="button" id="btnExportLabaRugiPdfRingkas" class="btn btn-outline-danger btn-sm" title="PDF ringkas 1 halaman (tanpa breakdown/detail)">
+            <i class="bi bi-file-earmark-pdf me-1"></i><span class="d-none d-sm-inline">PDF Ringkas</span>
+        </button>
+        <button type="button" id="btnExportLabaRugiPdfDetail" class="btn btn-danger btn-sm" title="PDF lengkap dgn breakdown + detail transaksi (landscape)">
+            <i class="bi bi-file-earmark-pdf me-1"></i><span class="d-none d-sm-inline">PDF Detail</span>
+        </button>
         @endcan
         <x-panduan-button slug="laporan-laba-rugi" />
     </div>
@@ -384,6 +390,28 @@
         btnExport.addEventListener('click', async function() {
             if (!(await konfirmasiRangePanjang())) return;
             var params = new URLSearchParams(window.location.search);
+            window.location.href = '{{ route('laporan.laba-rugi.export') }}?' + params.toString();
+        });
+    }
+
+    var btnPdfRingkas = document.getElementById('btnExportLabaRugiPdfRingkas');
+    if (btnPdfRingkas) {
+        btnPdfRingkas.addEventListener('click', async function() {
+            if (!(await konfirmasiRangePanjang())) return;
+            var params = new URLSearchParams(window.location.search);
+            params.set('format', 'pdf');
+            params.set('varian', 'ringkas');
+            window.location.href = '{{ route('laporan.laba-rugi.export') }}?' + params.toString();
+        });
+    }
+
+    var btnPdfDetail = document.getElementById('btnExportLabaRugiPdfDetail');
+    if (btnPdfDetail) {
+        btnPdfDetail.addEventListener('click', async function() {
+            if (!(await konfirmasiRangePanjang())) return;
+            var params = new URLSearchParams(window.location.search);
+            params.set('format', 'pdf');
+            params.set('varian', 'detail');
             window.location.href = '{{ route('laporan.laba-rugi.export') }}?' + params.toString();
         });
     }

@@ -3,9 +3,9 @@
 > **Untuk Claude Code**: File ini adalah **single source of truth** untuk seluruh project. WAJIB dibaca sebelum eksekusi apapun.
 > Isinya: keputusan bisnis, temuan audit, aturan teknis, dan filosofi kerja.
 
-**Versi**: 4.3  
+**Versi**: 4.4  
 **Update terakhir**: 2026-09-21  
-**Status**: 🎉 **PROJECT LIVE DI PRODUCTION** (https://erpdimsum.azwacore.com) — Tahap 1-7 SELESAI SEMUA + rangkaian bug fix & improvement lintas sesi (lihat section 4 utk detail lengkap tiap item): Bug Fix Ronde 2, Rename Jenis Menu/Master Bumbu Pusat, Fitur Import dari Bumbu Pusat, Rename Label & Hapus Gojek/Grab, Fix Foto Produk Production, UI Preview Harga Master/Subtotal Resep (Ronde 3-5), Auto-isi Satuan Master Bumbu Pusat, Fix ENUM Kategori Saldo Awal, Fix Label Kode Kategori Wajib, Default Basis Program Loyalty ke Rp, Widget Total Pembelian Pelanggan, Fix Export Excel Laporan Keuangan. **Sprint 3 Batch 1a SELESAI** (Excel rapi + PDF baru utk Laporan Penjualan & Setoran Kasir, lihat [[4.24]]) — Sprint 2 (konversi satuan resep) DIDEFER [[12.12]], Sprint 3 Batch 1b/1c (Setoran Harian, Stok, Laba Rugi Produksi) + 17 menu Laporan lain MENYUSUL [[12.13]].
+**Status**: 🎉 **PROJECT LIVE DI PRODUCTION** (https://erpdimsum.azwacore.com) — Tahap 1-7 SELESAI SEMUA + rangkaian bug fix & improvement lintas sesi (lihat section 4 utk detail lengkap tiap item): Bug Fix Ronde 2, Rename Jenis Menu/Master Bumbu Pusat, Fitur Import dari Bumbu Pusat, Rename Label & Hapus Gojek/Grab, Fix Foto Produk Production, UI Preview Harga Master/Subtotal Resep (Ronde 3-5), Auto-isi Satuan Master Bumbu Pusat, Fix ENUM Kategori Saldo Awal, Fix Label Kode Kategori Wajib, Default Basis Program Loyalty ke Rp, Widget Total Pembelian Pelanggan, Fix Export Excel Laporan Keuangan. **Sprint 3 Batch 1 SELESAI SEMUA** (5 menu Prioritas 1 — Penjualan, Setoran Kasir, Setoran Harian/Rekap, Stok 3 sub-view, Laba Rugi Produksi — lihat [[4.24]], [[4.25]]) — Sprint 2 (konversi satuan resep) DIDEFER [[12.12]], Sprint 3 Batch 2/3 (17 menu Laporan Prioritas 2/3) + TODO tracking stock movement [[12.14]] MENYUSUL [[12.13]].
 
 ---
 
@@ -464,6 +464,29 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 **File yang diedit**: `app/Exports/Concerns/HasLaporanStyles.php` (baru), `app/Exports/LaporanPenjualanExport.php` (baru), `app/Exports/LaporanSetoranKasirExport.php` (baru), `resources/views/laporan/pdf/layout.blade.php` (baru), `resources/views/laporan/penjualan/pdf.blade.php` (baru), `resources/views/laporan/setoran-kasir-pdf.blade.php` (baru), `LaporanPenjualanController.php`, `LaporanSetoranKasirController.php`, `laporan/penjualan/index.blade.php`, `laporan/setoran-kasir.blade.php`.
 
 **Verifikasi**: `tests/Feature/Tahap7/LaporanBatch1aExportTest.php` (10 test) — Excel xlsx valid (`spreadsheetml`), PDF valid (`application/pdf`), filter tanggal+cabang+status sesuai, data kosong tetap generate tanpa error, tolak tanpa permission (403), regresi HTML kedua halaman masih normal. Full regression 281 test lintas Tahap 2.5/5/6/7 PASS (0 regresi, 1 assertion lama diupdate krn perubahan disengaja).
+
+### 4.25 🟢 Sprint 3 Batch 1b+1c — Rapikan Excel + Tambah PDF: Setoran Harian, Stok (3 sub-view), Laba Rugi Produksi (2026-09-21)
+
+**Konteks**: lanjutan [[4.24]] — sisa 3 dari 5 menu Prioritas 1. **2 blocker genuine ditemukan saat audit, DIKONFIRMASI ke Owner sebelum eksekusi** (bukan diasumsikan sendiri):
+
+**Blocker 1 — Laporan Setoran Harian**: struktur data asli (`SetoranHarianService`) adalah Ringkasan+Breakdown+Detail utk 1 cabang/1 periode, BUKAN 1 baris per Tanggal+Cabang. Owner minta format export BARU yang lebih ringkas. **Keputusan Owner**: bangun agregasi BARU (1 baris per Tanggal+Cabang: Total Order, Total Pemasukan, Total Pengeluaran, Kas Bersih) **KHUSUS UNTUK EXPORT** — halaman `index()`/`print()` (dipakai closing kas harian) **SENGAJA TIDAK DIUBAH**, tetap multi-section seperti semula, karena kebutuhan export (rekap ringkas lintas hari/cabang) genuinely beda dari kebutuhan tampilan harian (detail 1 hari). Kolom **SENGAJA TIDAK dinamai "Total Setoran Kasir"** (rawan rancu dgn menu Laporan Setoran Kasir yang beda sumber data, [[4.24]]) — tombol export di-label ulang "Export Rekap (Excel/PDF)" biar jelas beda dari tampilan detail di halaman yang sama.
+
+**Anti-double-count**: `Total Pemasukan` = `SUM(orders.total_bayar)` + `SUM(transaksi_keuangans WHERE tipe=pemasukan AND referensi_type != 'order')` — order OTOMATIS bikin `TransaksiKeuangan` ber-`referensi_type='order'` (`PenjualanService::buatOrder()`), jadi kalau di-SUM mentah dari `transaksi_keuangans` tanpa filter itu, omzet order ke-hitung DUA KALI. Diverifikasi eksplisit via test.
+
+**Blocker 2 — Laporan Pergerakan Stok**: Owner minta kolom "Sisa Stok" (running balance) & "Referensi" (link ke order/adjustment/PO asal) — KEDUANYA belum ditrack sistem sama sekali (`stock_movements` cuma simpan qty movement itu sendiri + `catatan` freeform, tidak ada running-balance atau `referensi_type`/`referensi_id` terstruktur). **Keputusan Owner**: SKIP 2 kolom itu (bukan fitur export, tapi fitur tracking baru genuinely) — export pakai kolom yang SUDAH ada (Tanggal, Kode, Bahan, Cabang, Tipe, Qty, Satuan, Catatan), PDF dikasih info alert "Untuk stok saat ini, lihat Laporan Stok (Index)". Dicatat sbg TODO Sprint terpisah — lihat [[12.14]].
+
+**Per menu**:
+1. **Setoran Harian**: `LaporanRekapHarianExport` (FromCollection) + `laporan/setoran-harian/pdf.blade.php` (portrait, row Kas Bersih negatif = highlight merah). Method private `exportCsv()` lama DIHAPUS, diganti `buildRekapHarian()` (agregasi baru, private).
+2. **Stok Index**: `LaporanStokExport` + `laporan/stok/pdf-index.blade.php` (portrait, row Habis=merah/Minim=kuning). Kolom Kode ditambah (`item->kode_item`, sebelumnya tidak ada di export lama).
+3. **Stok Pergerakan**: `LaporanStokPergerakanExport` + `laporan/stok/pdf-pergerakan.blade.php` (**landscape**, kolom>7).
+4. **Stok Minimum**: `LaporanStokMinimumExport` + `laporan/stok/pdf-minimum.blade.php` — menu ini SEBELUMNYA **tidak punya export sama sekali**, sekarang lengkap Excel+PDF dgn kolom BARU "Rekomendasi Beli" (`(qty_minimum - qty) × 1.2`, dibulatkan ke atas — dipakai bikin PO).
+5. **Laba Rugi Produksi** (`LaporanLabaRugiController`, dikonfirmasi ULANG BEDA dari `LaporanKeuanganController::labaRugi()` [[4.24]] — beda sumber data, beda service, beda permission): `LaporanLabaRugiProduksiExport` (nama class SENGAJA dibedakan dari `LaporanLabaRugiExport` yang sudah dipakai controller Keuangan, utk hindari collision) — kolom dinamis 4 level (item/kategori/jenis_olahan/order), pola sama `LaporanLabaRugiExport` (`FromArray`, multi-section: Ringkasan+Breakdown+Detail). **2 varian PDF** sesuai request Owner: `pdf-ringkas.blade.php` (portrait, cuma Ringkasan — "biaya operasional"/"laba bersih" YANG DIMINTA OWNER TIDAK ADA di data source ini krn domain-nya murni produksi, bukan cash flow; diganti "Laba Kotor" + catatan eksplisit di PDF mengarahkan ke Laporan Keuangan utk biaya operasional) dan `pdf-detail.blade.php` (**landscape**, Breakdown+Detail lengkap).
+
+**File yang diedit**: 5 Export class baru, 6 PDF view baru, `LaporanLabaRugiController.php`, `LaporanStokController.php`, `SetoranHarianController.php`, 5 index view (tombol export baru).
+
+**Verifikasi**: `tests/Feature/Tahap7/LaporanBatch1bc1cExportTest.php` (20 test) — semua 5 menu Excel xlsx valid + PDF valid, filter periode/cabang diterapkan, anti-double-count pemasukan order (skenario eksplisit), data kosong tetap generate, 4 level breakdown Laba Rugi semua tidak crash (item/kategori/jenis_olahan/order × excel+pdf), konfirmasi 2 controller Laba Rugi genuinely beda, regresi HTML 5 halaman + tolak tanpa permission. Full regression 301 test lintas Tahap 2.5/5/6/7 PASS (0 regresi).
+
+**Batch 1 (5 menu Prioritas 1) SELESAI SEMUA** — sisa 17 menu Laporan lain di [[12.13]] menyusul sbg Batch 2/3 terpisah.
 
 ---
 
@@ -991,7 +1014,21 @@ php artisan backup:run --only-db
 
 **Effort awal (rough estimate, perlu di-refine per batch)**: rata-rata ~30-45 menit/menu utk rapikan Excel (kalau struktur data mirip yang sudah ada), ~20-30 menit/menu tambahan utk PDF (kalau ada view print-friendly yang bisa direuse via `dompdf`) — total kasar 15-25 jam utk semua 22 menu, TIDAK termasuk waktu test tiap menu.
 
-**✅ Batch 1a Selesai (2026-09-21)** — Penjualan + Setoran Kasir (2 dari 5 menu Prioritas 1), lihat [[4.24]]. Sisa Batch 1b (Setoran Harian + Stok) dan Batch 1c (Laba Rugi Produksi) MENYUSUL di sesi terpisah.
+**✅ Batch 1 SELESAI SEMUA (2026-09-21)** — 5 dari 5 menu Prioritas 1 (Penjualan, Setoran Kasir [[4.24]]; Setoran Harian/Rekap, Stok 3 sub-view, Laba Rugi Produksi [[4.25]]). Sisa 17 menu Laporan lain (Prioritas 2/3) MENYUSUL sbg Batch 2/3 di sesi terpisah.
+
+---
+
+### 12.14 TODO Terpisah — Tracking Running-Balance & Referensi di `stock_movements`
+
+**Latar belakang** (ditemukan saat Sprint 3 Batch 1b/1c, [[4.25]] Blocker 2): Owner minta kolom "Sisa Stok" (running balance setelah tiap movement) dan "Referensi" (link balik ke order/adjustment/PO yang menyebabkan movement itu) di Laporan Pergerakan Stok — KEDUANYA belum ditrack sistem. **SENGAJA DISKIP** dari Sprint 3 (bukan cuma rapikan export, tapi fitur tracking baru genuinely).
+
+**Rencana implementasi (kalau nanti dikerjakan)**:
+1. Migration tambah kolom `stock_movements.stok_sesudah` (snapshot qty SETELAH movement itu diterapkan — dicatat SEKALI saat movement dibuat, bukan dihitung ulang tiap kali dibaca, supaya histori tidak berubah kalau ada koreksi data lampau) + `referensi_type`/`referensi_id` (polymorphic, pola sama `transaksi_keuangans.referensi_type/id` yang sudah ada).
+2. Backfill data historis: hitung running balance mundur dari `stocks.qty` SAAT INI dikurangi/ditambah tiap movement secara kronologis terbalik — perlu hati-hati kalau ada data movement yang hilang/tidak lengkap (kemungkinan besar ADA krn fitur ini baru ditambah belakangan).
+3. Titik-titik yang perlu diisi `referensi_type`/`referensi_id` saat create movement: checkout POS (referensi ke `order`), penerimaan PO (`purchase_order`), adjustment manual (`stock_adjustment` kalau ada modelnya, atau `null` utk manual murni).
+4. Update `LaporanStokPergerakanExport`/`pdf-pergerakan.blade.php` tambah 2 kolom ini setelah data tersedia.
+
+**Alasan defer**: effort backfill data historis tidak trivial (tergantung kelengkapan data movement lama), dan Laporan Stok Index sudah cukup utk cek "stok sekarang" (Owner declined tambah kompleksitas di Sprint 3, cukup kasih info alert pengarah ke situ).
 
 ---
 

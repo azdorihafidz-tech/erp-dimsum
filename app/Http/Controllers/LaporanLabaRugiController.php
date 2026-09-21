@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\LaporanLabaRugiProduksiExport;
 use App\Models\Cabang;
 use App\Services\LaporanLabaRugiService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * Laporan Laba Rugi — analisis gross profit (omzet vs HPP bahan) per item,
@@ -41,9 +44,41 @@ class LaporanLabaRugiController extends Controller
     {
         abort_unless(auth()->user()->can('laporan.laba_rugi.export'), 403);
 
+        $user = auth()->user();
         $data = $this->buildData($request);
+        $labelLevel = [
+            'item' => 'Item', 'kategori' => 'Kategori', 'jenis_olahan' => 'Jenis Menu', 'order' => 'Order',
+        ][$data['level']] ?? 'Item';
+        $cabangNamaFilter = $data['cabangTerpilih']->nama_cabang ?? 'Semua Cabang';
 
-        return $this->exportCsv($data);
+        if ($request->format === 'pdf') {
+            $varian = $request->get('varian') === 'ringkas' ? 'ringkas' : 'detail';
+            $filename = 'Laporan-Laba-Rugi-Produksi-' . $varian . '-' . now()->format('Y-m-d') . '.pdf';
+
+            $pdf = Pdf::loadView('laporan.laba-rugi.pdf-' . $varian, [
+                'ringkasan' => $data['ringkasan'],
+                'breakdownPenuh' => $data['breakdownPenuh'],
+                'detail' => $data['detail'],
+                'level' => $data['level'],
+                'labelLevel' => $labelLevel,
+                'judulLaporan' => 'Laporan Laba Rugi Produksi' . ($varian === 'ringkas' ? ' (Ringkas)' : ' (Detail)'),
+                'filterInfo' => [
+                    'Periode' => $data['dari']->format('d/m/Y') . ' — ' . $data['sampai']->format('d/m/Y'),
+                    'Cabang' => $cabangNamaFilter,
+                    'Level Breakdown' => $labelLevel,
+                ],
+                'footerDicetak' => 'Dicetak oleh: ' . $user->name . ' pada ' . now()->translatedFormat('d F Y, H:i') . ' WIB',
+            ])->setPaper('a4', $varian === 'ringkas' ? 'portrait' : 'landscape');
+
+            return $pdf->download($filename);
+        }
+
+        $filename = 'Laporan-Laba-Rugi-Produksi-' . $data['level'] . '-' . now()->format('Y-m-d') . '.xlsx';
+
+        return Excel::download(
+            new LaporanLabaRugiProduksiExport($data['ringkasan'], $data['breakdownPenuh'], $data['level'], $labelLevel, $data['detail'], $user->name),
+            $filename
+        );
     }
 
     /**
@@ -129,98 +164,5 @@ class LaporanLabaRugiController extends Controller
                 'query' => $request->except('page'),
             ]
         );
-    }
-
-    private function exportCsv(array $data)
-    {
-        $dari   = $data['dari'];
-        $sampai = $data['sampai'];
-        $level  = $data['level'];
-        $filename = 'laba-rugi-' . $level . '-' . $dari->toDateString() . '_' . $sampai->toDateString() . '.xls';
-
-        $headers = [
-            'Content-Type' => 'application/vnd.ms-excel; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-        ];
-
-        $labelLevel = [
-            'item' => 'Item', 'kategori' => 'Kategori', 'jenis_olahan' => 'Jenis Menu', 'order' => 'Order',
-        ][$level] ?? 'Item';
-
-        $callback = function () use ($data, $dari, $sampai, $level, $labelLevel) {
-            $file = fopen('php://output', 'w');
-            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF)); // BOM UTF-8
-
-            fputcsv($file, ['LAPORAN LABA RUGI'], ';');
-            fputcsv($file, ['Periode', $dari->format('d/m/Y') . ' - ' . $sampai->format('d/m/Y')], ';');
-            fputcsv($file, ['Cabang', $data['cabangTerpilih']->nama_cabang ?? 'Semua Cabang'], ';');
-            fputcsv($file, ['Level Breakdown', $labelLevel], ';');
-            fputcsv($file, [], ';');
-
-            fputcsv($file, ['RINGKASAN'], ';');
-            fputcsv($file, ['Total Order', $data['ringkasan']['total_order']], ';');
-            fputcsv($file, ['Total Omzet', $data['ringkasan']['total_omzet']], ';');
-            fputcsv($file, ['Total HPP', $data['ringkasan']['total_hpp']], ';');
-            fputcsv($file, ['Total Untung', $data['ringkasan']['total_untung']], ';');
-            fputcsv($file, ['Margin', $data['ringkasan']['margin'] !== null ? $data['ringkasan']['margin'] . '%' : '-'], ';');
-            fputcsv($file, [], ';');
-
-            fputcsv($file, ['BREAKDOWN PER ' . strtoupper($labelLevel)], ';');
-            if ($level === 'order') {
-                fputcsv($file, ['No Order', 'Tanggal', 'Pelanggan', 'Kasir', 'Omzet', 'HPP', 'Untung', 'Margin'], ';');
-                foreach ($data['breakdownPenuh'] as $b) {
-                    fputcsv($file, [
-                        $b->nomor_order, \Carbon\Carbon::parse($b->tanggal_order)->format('d/m/Y'),
-                        $b->nama_pelanggan ?? 'Umum', $b->kasir_nama ?? '-',
-                        $b->total_omzet, $b->total_hpp, $b->total_untung,
-                        $b->margin !== null ? $b->margin . '%' : '-',
-                    ], ';');
-                }
-            } elseif ($level === 'kategori') {
-                fputcsv($file, ['Kategori', 'Omzet', 'HPP', 'Untung', 'Margin'], ';');
-                foreach ($data['breakdownPenuh'] as $b) {
-                    fputcsv($file, [ucfirst($b->kategori), $b->total_omzet, $b->total_hpp, $b->total_untung, $b->margin !== null ? $b->margin . '%' : '-'], ';');
-                }
-            } elseif ($level === 'jenis_olahan') {
-                fputcsv($file, ['Jenis Menu', 'Omzet', 'HPP', 'Untung', 'Margin'], ';');
-                foreach ($data['breakdownPenuh'] as $b) {
-                    fputcsv($file, [ucfirst($b->jenis_olahan), $b->total_omzet, $b->total_hpp, $b->total_untung, $b->margin !== null ? $b->margin . '%' : '-'], ';');
-                }
-            } else {
-                fputcsv($file, ['Item', 'Tipe', 'Qty', 'Satuan', 'Omzet', 'HPP', 'Untung', 'Margin'], ';');
-                foreach ($data['breakdownPenuh'] as $b) {
-                    fputcsv($file, [
-                        $b->nama_item, $b->tipe, $b->total_qty, $b->satuan,
-                        $b->total_omzet, $b->total_hpp, $b->total_untung,
-                        $b->margin !== null ? $b->margin . '%' : '-',
-                    ], ';');
-                }
-            }
-            fputcsv($file, [], ';');
-
-            fputcsv($file, ['DETAIL TRANSAKSI'], ';');
-            fputcsv($file, ['Tanggal', 'Waktu', 'No Order', 'Kategori', 'Item', 'Qty', 'Satuan', 'Omzet', 'HPP', 'Untung', 'Kasir'], ';');
-            foreach ($data['detail'] as $tanggal => $rows) {
-                foreach ($rows as $r) {
-                    fputcsv($file, [
-                        $tanggal,
-                        \Carbon\Carbon::parse($r->order_created_at)->format('H:i'),
-                        $r->nomor_order,
-                        ucfirst($r->kategori),
-                        $r->nama_item,
-                        $r->qty,
-                        $r->satuan,
-                        $r->omzet,
-                        $r->hpp,
-                        $r->untung,
-                        $r->kasir_nama ?? '-',
-                    ], ';');
-                }
-            }
-
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
     }
 }

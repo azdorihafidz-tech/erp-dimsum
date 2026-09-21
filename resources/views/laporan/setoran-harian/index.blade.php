@@ -14,8 +14,11 @@
         </button>
         @endcan
         @can('laporan.setoran_harian.export')
-        <button type="button" id="btnExportSetoran" class="btn btn-success btn-sm">
-            <i class="bi bi-file-earmark-excel me-1"></i><span class="d-none d-sm-inline">Export Excel</span>
+        <button type="button" id="btnExportSetoran" class="btn btn-success btn-sm" title="Export rekap ringkas per Tanggal+Cabang (beda dari tampilan detail di halaman ini)">
+            <i class="bi bi-file-earmark-excel me-1"></i><span class="d-none d-sm-inline">Export Rekap (Excel)</span>
+        </button>
+        <button type="button" id="btnExportSetoranPdf" class="btn btn-danger btn-sm" title="Export rekap ringkas per Tanggal+Cabang (beda dari tampilan detail di halaman ini)">
+            <i class="bi bi-file-earmark-pdf me-1"></i><span class="d-none d-sm-inline">Export Rekap (PDF)</span>
         </button>
         @endcan
         <x-panduan-button slug="setoran-harian" />
@@ -255,6 +258,16 @@
         btnExport.addEventListener('click', async function() {
             if (!(await konfirmasiRangePanjang())) return;
             var params = new URLSearchParams(window.location.search);
+            window.location.href = '{{ route('laporan.setoran-harian.export') }}?' + params.toString();
+        });
+    }
+
+    var btnExportPdf = document.getElementById('btnExportSetoranPdf');
+    if (btnExportPdf) {
+        btnExportPdf.addEventListener('click', async function() {
+            if (!(await konfirmasiRangePanjang())) return;
+            var params = new URLSearchParams(window.location.search);
+            params.set('format', 'pdf');
             window.location.href = '{{ route('laporan.setoran-harian.export') }}?' + params.toString();
         });
     }

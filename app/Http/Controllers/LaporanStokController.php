@@ -2,12 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\LaporanStokExport;
+use App\Exports\LaporanStokMinimumExport;
+use App\Exports\LaporanStokPergerakanExport;
 use App\Models\Cabang;
 use App\Models\Stock;
 use App\Models\StockMovement;
 use App\Models\StockTransfer;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 class LaporanStokController extends Controller
 {
@@ -34,7 +39,23 @@ class LaporanStokController extends Controller
         // Export
         if ($request->export === 'excel') {
             $stocks = $query->get();
-            return $this->exportExcel($stocks);
+            $filename = 'Laporan-Stok-' . now()->format('Y-m-d') . '.xlsx';
+
+            return Excel::download(new LaporanStokExport($stocks, $user->name), $filename);
+        }
+        if ($request->export === 'pdf') {
+            $stocks = $query->get();
+            $cabangNamaFilter = $lokasiId ? (Cabang::find($lokasiId)?->nama_cabang ?? '-') : 'Semua Cabang';
+            $filename = 'Laporan-Stok-' . now()->format('Y-m-d') . '.pdf';
+
+            $pdf = Pdf::loadView('laporan.stok.pdf-index', [
+                'stocks' => $stocks,
+                'judulLaporan' => 'Laporan Stok',
+                'filterInfo' => ['Cabang' => $cabangNamaFilter],
+                'footerDicetak' => 'Dicetak oleh: ' . $user->name . ' pada ' . now()->translatedFormat('d F Y, H:i') . ' WIB',
+            ])->setPaper('a4', 'portrait');
+
+            return $pdf->download($filename);
         }
 
         $stocks = $query->paginate(30)->withQueryString();
@@ -87,7 +108,26 @@ class LaporanStokController extends Controller
 
         if ($request->export === 'excel') {
             $movements = $query->orderByDesc('created_at')->get();
-            return $this->exportPergerakanExcel($movements);
+            $filename = 'Laporan-Pergerakan-Stok-' . now()->format('Y-m-d') . '.xlsx';
+
+            return Excel::download(new LaporanStokPergerakanExport($movements, $user->name), $filename);
+        }
+        if ($request->export === 'pdf') {
+            $movements = $query->orderByDesc('created_at')->get();
+            $cabangNamaFilter = $lokasiId ? (Cabang::find($lokasiId)?->nama_cabang ?? '-') : 'Semua Cabang';
+            $filename = 'Laporan-Pergerakan-Stok-' . now()->format('Y-m-d') . '.pdf';
+
+            $pdf = Pdf::loadView('laporan.stok.pdf-pergerakan', [
+                'movements' => $movements,
+                'judulLaporan' => 'Laporan Pergerakan Stok',
+                'filterInfo' => [
+                    'Periode' => $dari->format('d/m/Y') . ' — ' . $sampai->format('d/m/Y'),
+                    'Cabang' => $cabangNamaFilter,
+                ],
+                'footerDicetak' => 'Dicetak oleh: ' . $user->name . ' pada ' . now()->translatedFormat('d F Y, H:i') . ' WIB',
+            ])->setPaper('a4', 'landscape');
+
+            return $pdf->download($filename);
         }
 
         $movements = $query->orderByDesc('created_at')->paginate(30)->withQueryString();
@@ -110,12 +150,33 @@ class LaporanStokController extends Controller
             $lokasiId = session('active_cabang_id') ?? $user->defaultCabangId();
         }
 
-        $stocks = Stock::with(['item', 'item.category', 'lokasi'])
+        $baseQuery = Stock::with(['item', 'item.category', 'lokasi'])
             ->whereColumn('qty', '<=', 'qty_minimum')
             ->when($lokasiId, fn($q) => $q->where('lokasi_id', $lokasiId))
-            ->orderByRaw('qty / NULLIF(qty_minimum, 0) ASC')
-            ->paginate(30)
-            ->withQueryString();
+            ->orderByRaw('qty / NULLIF(qty_minimum, 0) ASC');
+
+        if ($request->export === 'excel') {
+            $stocks = (clone $baseQuery)->get();
+            $filename = 'Laporan-Stok-Minimum-' . now()->format('Y-m-d') . '.xlsx';
+
+            return Excel::download(new LaporanStokMinimumExport($stocks, $user->name), $filename);
+        }
+        if ($request->export === 'pdf') {
+            $stocks = (clone $baseQuery)->get();
+            $cabangNamaFilter = $lokasiId ? (Cabang::find($lokasiId)?->nama_cabang ?? '-') : 'Semua Cabang';
+            $filename = 'Laporan-Stok-Minimum-' . now()->format('Y-m-d') . '.pdf';
+
+            $pdf = Pdf::loadView('laporan.stok.pdf-minimum', [
+                'stocks' => $stocks,
+                'judulLaporan' => 'Laporan Stok Minimum',
+                'filterInfo' => ['Cabang' => $cabangNamaFilter],
+                'footerDicetak' => 'Dicetak oleh: ' . $user->name . ' pada ' . now()->translatedFormat('d F Y, H:i') . ' WIB',
+            ])->setPaper('a4', 'portrait');
+
+            return $pdf->download($filename);
+        }
+
+        $stocks = $baseQuery->paginate(30)->withQueryString();
 
         $totalStokRendah = Stock::whereColumn('qty', '<=', 'qty_minimum')
             ->when($lokasiId, fn($q) => $q->where('lokasi_id', $lokasiId))
@@ -130,56 +191,4 @@ class LaporanStokController extends Controller
         ));
     }
 
-    private function exportExcel($stocks)
-    {
-        $headers = [
-            'Content-Type' => 'application/vnd.ms-excel; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="laporan-stok-' . now()->format('Y-m-d') . '.xls"',
-        ];
-        $callback = function () use ($stocks) {
-            $file = fopen('php://output', 'w');
-            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
-            fputcsv($file, ['Nama Barang', 'Kategori', 'Satuan', 'Lokasi', 'Stok Saat Ini', 'Stok Minimum', 'Status'], ';');
-            foreach ($stocks as $s) {
-                fputcsv($file, [
-                    $s->item?->nama_item,
-                    $s->item?->category?->nama_kategori,
-                    $s->item?->satuan,
-                    $s->lokasi?->nama_cabang,
-                    $s->qty,
-                    $s->qty_minimum,
-                    $s->isBelowMinimum() ? 'Rendah' : 'Normal',
-                ], ';');
-            }
-            fclose($file);
-        };
-        return response()->stream($callback, 200, $headers);
-    }
-
-    private function exportPergerakanExcel($movements)
-    {
-        $headers = [
-            'Content-Type' => 'application/vnd.ms-excel; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="laporan-pergerakan-stok-' . now()->format('Y-m-d') . '.xls"',
-        ];
-        $callback = function () use ($movements) {
-            $file = fopen('php://output', 'w');
-            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
-            fputcsv($file, ['Tanggal', 'Barang', 'Tipe', 'Qty', 'Lokasi Asal', 'Lokasi Tujuan', 'Catatan', 'User'], ';');
-            foreach ($movements as $m) {
-                fputcsv($file, [
-                    $m->created_at?->format('d/m/Y H:i'),
-                    $m->item?->nama_item,
-                    $m->tipe?->value,
-                    $m->qty,
-                    $m->lokasiAsal?->nama_cabang,
-                    $m->lokasiTujuan?->nama_cabang,
-                    $m->catatan,
-                    $m->user?->name,
-                ], ';');
-            }
-            fclose($file);
-        };
-        return response()->stream($callback, 200, $headers);
-    }
 }
