@@ -731,6 +731,12 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
         Route::get('/simulator-bep', [SimulatorBepController::class, 'index'])
             ->name('simulator-bep.index')
             ->middleware('can:laporan.simulator.view');
+        Route::post('/simulator-bep/export-excel', [SimulatorBepController::class, 'exportExcel'])
+            ->name('simulator-bep.export-excel')
+            ->middleware('can:laporan.simulator.export');
+        Route::post('/simulator-bep/export-pdf', [SimulatorBepController::class, 'exportPdf'])
+            ->name('simulator-bep.export-pdf')
+            ->middleware('can:laporan.simulator.export');
 
         // Analisa Jam Ramai (Peak Hours) — menu BARU, murni dari
         // orders.created_at (lihat JamRamaiService untuk alasan

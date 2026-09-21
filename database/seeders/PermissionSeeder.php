@@ -283,6 +283,8 @@ class PermissionSeeder extends Seeder
             // Interactive Simulator BEP (Sesi B) — group 'laporan',
             // Owner-only default, delegable manual.
             ['name' => 'laporan.simulator.view', 'display_name' => 'Lihat Simulator BEP', 'group' => 'laporan'],
+            // Sprint 3 Batch 2 lanjutan (2026-09-22) — Export Snapshot Simulator BEP
+            ['name' => 'laporan.simulator.export', 'display_name' => 'Export Snapshot Simulator BEP', 'group' => 'laporan'],
 
             // Analisa Jam Ramai (Peak Hours) — group 'laporan', murni dari
             // orders.created_at. Owner-only default, delegable manual.

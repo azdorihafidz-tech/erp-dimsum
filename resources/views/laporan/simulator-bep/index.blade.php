@@ -7,7 +7,17 @@
         <h4 class="fw-bold mb-0">🎛️ Simulator BEP Interaktif</h4>
         <small class="text-muted">{{ $cabangNama }} — geser slider untuk eksperimen skenario, hasil dihitung real-time</small>
     </div>
-    <x-panduan-button slug="simulator-bep" />
+    <div class="d-flex gap-2">
+        @can('laporan.simulator.export')
+        <button type="button" id="btnExportSnapshotExcel" class="btn btn-outline-success btn-sm">
+            <i class="bi bi-file-earmark-excel me-1"></i><span class="d-none d-sm-inline">Export Snapshot Excel</span>
+        </button>
+        <button type="button" id="btnExportSnapshotPdf" class="btn btn-success btn-sm">
+            <i class="bi bi-file-earmark-pdf me-1"></i><span class="d-none d-sm-inline">Export Snapshot PDF</span>
+        </button>
+        @endcan
+        <x-panduan-button slug="simulator-bep" />
+    </div>
 </div>
 
 <div class="alert alert-secondary py-2 px-3 small mb-3">
@@ -23,6 +33,14 @@
                 <button type="button" id="btnReset" class="btn btn-sm btn-outline-secondary py-0"><i class="bi bi-arrow-counterclockwise"></i> Reset</button>
             </div>
             <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">Nama Simulasi</label>
+                    <input type="text" class="form-control form-control-sm" id="inputNamaSimulasi" placeholder="Simulasi BEP - {{ now()->translatedFormat('d F Y') }}">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Target Profit (Rp, opsional)</label>
+                    <input type="number" class="form-control form-control-sm" id="inputTargetProfit" min="0" placeholder="Kosongkan kalau tidak perlu">
+                </div>
                 <div class="mb-3">
                     <label class="form-label d-flex justify-content-between"><span>Volume Harian (kg)</span><strong id="lblVolume">-</strong></label>
                     <input type="range" class="form-range" id="sliderVolume" min="0" max="{{ max(50, round($defaultValues['volume_harian_kg'] * 5)) }}" step="0.5">
@@ -60,6 +78,7 @@
                 <table class="table table-sm">
                     <tbody>
                         <tr><td>Margin Kontribusi / kg</td><td class="text-end fw-semibold" id="hasilMargin">-</td></tr>
+                        <tr><td>Margin Kontribusi Ratio</td><td class="text-end" id="hasilMarginRatio">-</td></tr>
                         <tr><td>Volume Bulanan (26 hari)</td><td class="text-end" id="hasilVolumeBulanan">-</td></tr>
                         <tr><td>Omzet Bulanan</td><td class="text-end" id="hasilOmzet">-</td></tr>
                         <tr><td>Laba/Rugi Bulanan</td><td class="text-end fw-bold" id="hasilLaba">-</td></tr>
@@ -98,6 +117,7 @@
         bepUnit: document.getElementById('hasilBepUnit'),
         bepRupiah: document.getElementById('hasilBepRupiah'),
         margin: document.getElementById('hasilMargin'),
+        marginRatio: document.getElementById('hasilMarginRatio'),
         volumeBulanan: document.getElementById('hasilVolumeBulanan'),
         omzet: document.getElementById('hasilOmzet'),
         laba: document.getElementById('hasilLaba'),
@@ -133,6 +153,7 @@
 
         var margin = hargaJual - biayaVariabel;
         hasil.margin.textContent = formatRupiah(margin);
+        hasil.marginRatio.textContent = hargaJual > 0 ? formatAngka((margin / hargaJual) * 100, 1) + '%' : '-';
 
         if (margin <= 0) {
             hasil.bepUnit.textContent = '-';
@@ -177,6 +198,50 @@
         setDefaults();
         hitung();
     });
+
+    function submitSnapshot(url) {
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.action = url;
+        form.style.display = 'none';
+
+        var fields = {
+            _token: document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            nama_simulasi: document.getElementById('inputNamaSimulasi').value,
+            target_profit: document.getElementById('inputTargetProfit').value,
+            cabang_id: '{{ $cabangId }}',
+            volume_harian: els.volume.value,
+            harga_jual: els.harga.value,
+            biaya_variabel: els.variabel.value,
+            beban_tetap: els.bebanTetap.value,
+            modal_awal: DEFAULTS.modal_awal,
+        };
+
+        Object.keys(fields).forEach(function(key) {
+            var input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = fields[key];
+            form.appendChild(input);
+        });
+
+        document.body.appendChild(form);
+        form.submit();
+    }
+
+    var btnExcel = document.getElementById('btnExportSnapshotExcel');
+    if (btnExcel) {
+        btnExcel.addEventListener('click', function() {
+            submitSnapshot('{{ route('laporan.simulator-bep.export-excel') }}');
+        });
+    }
+
+    var btnPdf = document.getElementById('btnExportSnapshotPdf');
+    if (btnPdf) {
+        btnPdf.addEventListener('click', function() {
+            submitSnapshot('{{ route('laporan.simulator-bep.export-pdf') }}');
+        });
+    }
 
     setDefaults();
     hitung();

@@ -514,6 +514,32 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 
 **Sisa dari 17 menu**: 9 selesai sesi ini + 3 blocker (di-skip, tunggu keputusan Owner) = 12. **5 menu belum disentuh eksplisit** karena ternyata sudah tercakup validasi audit awal sbg "hanya butuh Excel, PDF sudah ada" dan masuk hitungan 9 di atas (BEP Otomatis/Neraca/Laba Rugi Formal/Buku Besar) — jadi genuinely 17 = 9 (built/rapikan Excel+PDF penuh: Aset×2, BEP manual×2, Audit Bukti, Jam Ramai, Perlengkapan) + 4 (Excel-only krn PDF sudah ada: BEP Otomatis, Neraca, Laba Rugi Formal, Buku Besar) + 3 blocker = 16, HR/SDM sudah selesai duluan di sesi audit awal Batch 2 (lihat commit sebelumnya, `LaporanHRController` evaluasi/absensi/penggajian) — total 17 genap.
 
+### 4.27 🟢 Sprint 3 Lanjutan — Export Snapshot Simulator BEP (2026-09-22)
+
+**Konteks**: [[4.26]] Batch 2 skip "Laporan Simulator BEP" sbg blocker (murni kalkulator client-side, tidak ada data server). Owner minta approach **"snapshot"**: kirim payload input ke server, server hitung ulang + generate Excel/PDF.
+
+**Keputusan kunci (disetujui Owner)**: **server MEREPRODUKSI ULANG** logic `hitung()` JS (`SimulatorBepController::buildSnapshot()`) — TIDAK percaya begitu saja angka hasil hitung dari browser. Payload yang dikirim cuma 4 input mentah wajib (`volume_harian`, `harga_jual`, `biaya_variabel`, `beban_tetap`) + opsional (`nama_simulasi`, `cabang_id`, `modal_awal`, `target_profit`) — semua metric (BEP unit/rupiah, margin, MoS, kesimpulan, sensitivitas) dihitung ULANG di PHP dgn rumus PERSIS sama dgn JS (`margin=harga-biaya`, `bepUnit=bebanTetap/margin`, `volumeBulanan=volumeHarian×26`, dst) — snapshot jadi genuinely terpercaya, tidak bisa dipalsukan lewat tamper JS browser.
+
+**Field baru ditambah** (di `laporan/simulator-bep/index.blade.php`, TIDAK mengganti slider existing): input teks "Nama Simulasi" (default JS `Simulasi BEP - {tanggal}` kalau kosong), input angka "Target Profit" (opsional, dipakai hitung Margin of Safety). Display baru: "Margin Kontribusi Ratio" (%) di tabel hasil JS existing.
+
+**Grafik Sensitivitas → Tabel (bukan visual chart), keputusan Owner eksplisit**: dompdf **tidak render Chart.js** (JS tidak dieksekusi di render engine, konsisten [[4.24]] alasan `enable_php=false`) — matriks 5×5 (skenario ±10%/±5%/baseline utk Harga Jual × Biaya Variabel, isi = BEP Unit hasil) ditampilkan sbg tabel di Excel Sheet 3 & PDF Section terakhir. Sel infeasible (margin≤0 pada kombinasi itu) tampil "N/A". Sel baseline (0%,0%) di-highlight krim `#FFF8E7`.
+
+**Excel** (`LaporanSimulatorBepExport`, `WithMultipleSheets` — pola BARU, belum pernah dipakai Export manapun di project sebelumnya): 3 sheet class internal di file yang sama (`SimulatorBepParameterSheet`/`HasilSheet`/`SensitivitasSheet`, masing-masing `FromArray`+`WithStyles`, pakai `HasLaporanStyles` trait yang sama).
+
+**PDF** (`laporan/pdf/simulator-bep.blade.php`, extends layout Batch 1 `laporan.pdf.layout`, portrait): Parameter Input → Hasil Perhitungan → box Kesimpulan (list bullet dinamis) → Tabel Sensitivitas.
+
+**Kesimpulan tekstual dinamis** (`buildKesimpulan()`) — 3 skenario sesuai spesifikasi Owner: margin negatif → "BEP tidak bisa dicapai..."; BEP unit > volume bulanan → "⚠️ Volume saat ini BELUM mencapai BEP..."; BEP unit ≤ volume bulanan → "✅ Volume saat ini SUDAH mencapai BEP..." — ditambah baris proyeksi modal (balik modal/habis modal/impas, threshold epsilon Rp1.000 sama seperti JS) dan baris Margin of Safety kalau `target_profit` diisi.
+
+**Cara kirim payload dari browser**: bukan `fetch()`+blob (ribet utk trigger download-file), tapi **hidden `<form method="POST">` yang di-generate JS lalu `.submit()`** — pola paling sederhana utk "POST lalu langsung download response sbg file" tanpa JS tambahan di sisi client utk handle response.
+
+**Permission BARU** `laporan.simulator.export` (Owner-only default, konsisten `laporan.simulator.view` yang juga Owner-only/delegable manual — pola sama [[4.26]] `laporan.jam_ramai.export`).
+
+**File yang diedit**: `app/Http/Requests/SimulatorBepSnapshotRequest.php` (baru), `app/Exports/LaporanSimulatorBepExport.php` (baru, 3 class sheet internal), `resources/views/laporan/pdf/simulator-bep.blade.php` (baru), `app/Http/Controllers/SimulatorBepController.php` (`buildSnapshot()`/`buildKesimpulan()`/`buildSensitivitas()`/`exportExcel()`/`exportPdf()`), `resources/views/laporan/simulator-bep/index.blade.php` (2 input baru, 1 display baru, 2 tombol export, JS `submitSnapshot()`), `routes/web.php` (2 route POST baru), `PermissionSeeder.php` (1 permission baru).
+
+**Verifikasi**: `tests/Feature/Tahap7/SimulatorBepSnapshotExportTest.php` (11 test) — Excel 3-sheet valid, PDF valid, validasi tolak field kosong/nilai negatif, Target Profit opsional tetap jalan kalau kosong, permission ditolak (403) utk role tanpa akses, 3 skenario kesimpulan dinamis (belum BEP/sudah BEP/margin negatif) + kalimat MoS muncul kalau target profit diisi — SEMUA via reflection ke `buildSnapshot()`/`buildKesimpulan()` LANGSUNG (bukan grep string di PDF binary, yang tidak reliable krn dompdf compress/encode konten), reproduksi logic server=JS diverifikasi eksplisit dgn angka fixture. Full regression 325 test lintas Tahap 2.5/5/6/7 PASS (0 regresi).
+
+**Sprint 3 Batch 2 SEKARANG BENAR-BENAR SELESAI SEMUA 17 menu** (9 dibangun/dirapikan penuh + 4 Excel-only + 1 blocker terakhir Simulator BEP DISELESAIKAN via approach snapshot) — 2 blocker TERSISA (Komisi Sales, Laporan Eksekutif) masih butuh keputusan desain Owner, lihat [[12.15]] (diupdate).
+
 ---
 
 ## 5. STRATEGI PENGEMBANGAN
@@ -1046,15 +1072,16 @@ php artisan backup:run --only-db
 
 ---
 
-### 12.15 Blocker Sprint 3 — 3 Menu yang TIDAK BISA Diexport Tanpa Keputusan Desain Owner (2026-09-22)
+### 12.15 Blocker Sprint 3 — 2 Menu yang TIDAK BISA Diexport Tanpa Keputusan Desain Owner (2026-09-22, diupdate)
 
 Ditemukan saat Sprint 3 Batch 2 ([[4.26]]), bukan gap implementasi tapi genuinely butuh keputusan Owner dulu sebelum bisa dikerjakan:
 
 1. **Laporan Komisi Sales** — fiturnya sendiri **tidak ada** di codebase (0 route/controller/view untuk "Komisi Sales" sbg laporan). Yang ada cuma field input `komisi` di record Penggajian (`penggajians.komisi`), tidak ada laporan/rekap terpisah yang mengagregasi itu. **Pertanyaan utk Owner**: apakah ini request fitur BARU (bikin laporan rekap komisi sales per periode/karyawan dari kolom itu), atau menu ini salah masuk daftar 22 menu awal?
 2. **Laporan Eksekutif** — laporan komposit 9-halaman berisi ringkasan bisnis + insight narasi (BUKAN data tabular per-baris seperti laporan lain). PDF-nya sendiri sengaja didesain sbg dokumen presentasi ke Owner/stakeholder, bukan spreadsheet kerja. **Opsi utk Owner**: (a) skip permanen — laporan jenis ini memang tidak natural di-Excel-kan; (b) export PARSIAL — ambil cuma bagian yang genuinely tabular (mis. tabel ringkasan per cabang di dalamnya) jadi 1 sheet Excel terpisah, sisanya tetap PDF-only.
-3. **Laporan Simulator BEP** — murni kalkulator client-side (JavaScript di browser, hasil hitung TIDAK pernah dikirim/disimpan ke server). Tidak ada "data laporan" di database utk diexport. **Kalau Owner mau export**: perlu desain ulang dulu (tambah endpoint utk simpan hasil simulasi + tabel baru), di luar scope "rapikan export existing" — akan jadi fitur baru terpisah, bukan Sprint 3.
 
-**Rekomendasi**: tanyakan ke Owner satu-per-satu saat sesi berikutnya, jangan diasumsikan sendiri — masing-masing py implikasi scope yang beda jauh.
+**✅ Laporan Simulator BEP — SUDAH DISELESAIKAN (2026-09-22)**, lihat [[4.27]]: pola "snapshot" — payload input dikirim ke server, server reproduksi ulang logic hitung + generate Excel (3 sheet)/PDF. Bukan lagi blocker.
+
+**Rekomendasi**: tanyakan ke Owner satu-per-satu saat sesi berikutnya utk 2 sisa, jangan diasumsikan sendiri — masing-masing py implikasi scope yang beda jauh.
 
 ---
 
