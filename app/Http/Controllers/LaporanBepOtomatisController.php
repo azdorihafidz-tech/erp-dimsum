@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Cabang;
 use App\Services\BepOtomatisService;
+use App\Exports\LaporanBepOtomatisExport;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * Laporan BEP Otomatis — menu BARU yang extend menu BEP existing
@@ -50,6 +52,18 @@ class LaporanBepOtomatisController extends Controller
             . $data['mulai']->format('Ymd') . '-' . $data['akhir']->format('Ymd') . '.pdf';
 
         return $pdf->download($filename);
+    }
+
+    public function exportExcel(Request $request)
+    {
+        abort_unless(auth()->user()->can('laporan.bep_otomatis.export'), 403);
+
+        $data = $this->buildData($request);
+
+        return Excel::download(
+            new LaporanBepOtomatisExport($data['bep'], $data['cabangNama'], auth()->user()->name),
+            'laporan-bep-otomatis-' . $data['mulai']->format('Ymd') . '-' . $data['akhir']->format('Ymd') . '.xlsx'
+        );
     }
 
     private function buildData(Request $request): array

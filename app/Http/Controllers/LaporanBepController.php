@@ -8,8 +8,12 @@ use App\Models\BepReport;
 use App\Models\BepSetting;
 use App\Models\Cabang;
 use App\Models\Order;
+use App\Exports\LaporanBepExport;
+use App\Exports\LaporanBepCabangExport;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 class LaporanBepController extends Controller
 {
@@ -99,6 +103,26 @@ class LaporanBepController extends Controller
             }
         }
 
+        if ($request->export === 'excel') {
+            return Excel::download(new LaporanBepExport($products, auth()->user()->name), 'laporan-bep-' . $periode . '.xlsx');
+        }
+
+        if ($request->export === 'pdf') {
+            $filterInfo = [
+                'Periode' => $periode,
+                'Cabang' => optional($cabangs->firstWhere('id', $cabangId))->nama_cabang ?? 'Semua Cabang',
+                'Total Biaya Tetap' => 'Rp ' . number_format($totalBiayaTetap, 0, ',', '.'),
+                'Pendapatan Aktual' => 'Rp ' . number_format($pendapatanAktual, 0, ',', '.'),
+            ];
+            $pdf = Pdf::loadView('laporan.pdf.bep', [
+                'products' => $products,
+                'judulLaporan' => 'Laporan BEP per Produk',
+                'filterInfo' => $filterInfo,
+                'footerDicetak' => 'Dicetak oleh: ' . auth()->user()->name . ' pada ' . now()->translatedFormat('d F Y, H:i') . ' WIB',
+            ])->setPaper('a4', 'portrait');
+            return $pdf->download('laporan-bep-' . $periode . '.pdf');
+        }
+
         // Riwayat BEP laporan
         $reports = BepReport::withoutGlobalScopes()
             ->when($cabangId, fn($q) => $q->where('cabang_id', $cabangId))
@@ -153,6 +177,21 @@ class LaporanBepController extends Controller
         $grafikLabels = collect($dataCabang)->pluck('cabang')->pluck('nama_cabang')->toArray();
         $grafikPendapatan = collect($dataCabang)->pluck('pendapatan')->toArray();
         $grafikBepTarget = collect($dataCabang)->pluck('bep_rupiah')->toArray();
+
+        if ($request->export === 'excel') {
+            return Excel::download(new LaporanBepCabangExport(collect($dataCabang), auth()->user()->name), 'laporan-bep-cabang-' . $periode . '.xlsx');
+        }
+
+        if ($request->export === 'pdf') {
+            $filterInfo = ['Periode' => $periode, 'Total Cabang' => count($dataCabang)];
+            $pdf = Pdf::loadView('laporan.pdf.bep-cabang', [
+                'dataCabang' => $dataCabang,
+                'judulLaporan' => 'Laporan BEP per Cabang',
+                'filterInfo' => $filterInfo,
+                'footerDicetak' => 'Dicetak oleh: ' . auth()->user()->name . ' pada ' . now()->translatedFormat('d F Y, H:i') . ' WIB',
+            ])->setPaper('a4', 'landscape');
+            return $pdf->download('laporan-bep-cabang-' . $periode . '.pdf');
+        }
 
         return view('laporan.bep.index', compact(
             'cabangs', 'dataCabang', 'periode',

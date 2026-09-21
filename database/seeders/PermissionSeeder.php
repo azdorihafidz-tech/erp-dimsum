@@ -287,6 +287,8 @@ class PermissionSeeder extends Seeder
             // Analisa Jam Ramai (Peak Hours) — group 'laporan', murni dari
             // orders.created_at. Owner-only default, delegable manual.
             ['name' => 'laporan.jam_ramai.view', 'display_name' => 'Lihat Laporan Jam Ramai', 'group' => 'laporan'],
+            // Sprint 3 Batch 2 (2026-09-22) — Export Excel/PDF Laporan Jam Ramai
+            ['name' => 'laporan.jam_ramai.export', 'display_name' => 'Export Laporan Jam Ramai', 'group' => 'laporan'],
             // Tahap 6 D'mentai — Laporan Setoran Kasir (beda dari laporan.view
             // generik yang sudah dipakai LaporanSetoranController existing utk
             // Transfer Dana)

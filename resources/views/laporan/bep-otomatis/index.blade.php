@@ -9,6 +9,9 @@
     </div>
     <div class="d-flex gap-2">
         @can('laporan.bep_otomatis.export')
+        <button type="button" id="btnExportBepOtomatisExcel" class="btn btn-outline-success btn-sm">
+            <i class="bi bi-file-earmark-excel me-1"></i><span class="d-none d-sm-inline">Export Excel</span>
+        </button>
         <button type="button" id="btnExportBepOtomatis" class="btn btn-success btn-sm">
             <i class="bi bi-file-earmark-pdf me-1"></i><span class="d-none d-sm-inline">Export PDF</span>
         </button>
@@ -197,6 +200,14 @@
         btnExport.addEventListener('click', function() {
             var params = new URLSearchParams(window.location.search);
             window.location.href = '{{ route('laporan.bep-otomatis.export') }}?' + params.toString();
+        });
+    }
+
+    var btnExportExcel = document.getElementById('btnExportBepOtomatisExcel');
+    if (btnExportExcel) {
+        btnExportExcel.addEventListener('click', function() {
+            var params = new URLSearchParams(window.location.search);
+            window.location.href = '{{ route('laporan.bep-otomatis.export-excel') }}?' + params.toString();
         });
     }
 })();

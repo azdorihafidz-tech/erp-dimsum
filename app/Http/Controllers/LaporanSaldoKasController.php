@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\LaporanSaldoKasExport;
 use App\Models\Cabang;
 use App\Models\Kas;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
 
 class LaporanSaldoKasController extends Controller
 {
@@ -62,7 +65,22 @@ class LaporanSaldoKasController extends Controller
         }
 
         if ($request->export === 'excel') {
-            return $this->exportExcel($kasReports, $dari, $sampai);
+            $filename = 'Laporan-Saldo-Kas-' . now()->format('Y-m-d') . '.xlsx';
+            return Excel::download(new LaporanSaldoKasExport($kasReports, $user->name), $filename);
+        }
+        if ($request->export === 'pdf') {
+            $cabangNamaFilter = $cabangId ? (Cabang::find($cabangId)?->nama_cabang ?? '-') : 'Semua Cabang';
+            $filename = 'Laporan-Saldo-Kas-' . now()->format('Y-m-d') . '.pdf';
+            $pdf = Pdf::loadView('laporan.pdf.saldo-kas', [
+                'kasReports' => $kasReports,
+                'judulLaporan' => 'Laporan Saldo Kas',
+                'filterInfo' => [
+                    'Periode' => $dari->format('d/m/Y') . ' — ' . $sampai->format('d/m/Y'),
+                    'Cabang' => $cabangNamaFilter,
+                ],
+                'footerDicetak' => 'Dicetak oleh: ' . $user->name . ' pada ' . now()->translatedFormat('d F Y, H:i') . ' WIB',
+            ])->setPaper('a4', 'portrait');
+            return $pdf->download($filename);
         }
 
         return view('laporan.saldo-kas', compact(
@@ -136,34 +154,4 @@ class LaporanSaldoKasController extends Controller
         ];
     }
 
-    private function exportExcel($kasReports, Carbon $dari, Carbon $sampai)
-    {
-        $headers = [
-            'Content-Type'        => 'application/vnd.ms-excel; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="saldo-kas-' . $dari->format('Ymd') . '-' . $sampai->format('Ymd') . '.xls"',
-        ];
-        $callback = function () use ($kasReports) {
-            $file = fopen('php://output', 'w');
-            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
-            foreach ($kasReports as $r) {
-                fputcsv($file, ['KAS: ' . $r['kas']->nama_kas . ' (' . ($r['kas']->cabang?->nama_cabang ?? '-') . ')'], ';');
-                fputcsv($file, ['Saldo Awal Periode', '', '', '', number_format($r['saldo_awal'], 0, ',', '.')], ';');
-                fputcsv($file, ['Tanggal', 'No. Transaksi', 'Keterangan', 'Debit (Keluar)', 'Kredit (Masuk)', 'Saldo'], ';');
-                foreach ($r['mutasi'] as $m) {
-                    fputcsv($file, [
-                        Carbon::parse($m['tanggal'])->format('d/m/Y'),
-                        $m['nomor'],
-                        $m['keterangan'],
-                        $m['debit'] ? number_format($m['debit'], 0, ',', '.') : '',
-                        $m['kredit'] ? number_format($m['kredit'], 0, ',', '.') : '',
-                        number_format($m['saldo_running'], 0, ',', '.'),
-                    ], ';');
-                }
-                fputcsv($file, ['Saldo Akhir Periode', '', '', '', number_format($r['saldo_akhir'], 0, ',', '.')], ';');
-                fputcsv($file, [], ';');
-            }
-            fclose($file);
-        };
-        return response()->stream($callback, 200, $headers);
-    }
 }

@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\LaporanSetoranExport;
 use App\Models\Cabang;
 use App\Models\TransaksiKeuangan;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
 
 class LaporanSetoranController extends Controller
 {
@@ -59,13 +62,29 @@ class LaporanSetoranController extends Controller
                      ->where('transaksi_keuangans.status_setoran', 'dibatalkan');
         }
 
-        if ($request->export === 'excel') {
-            return $this->exportExcel(
-                $filtered->with(['cabang:id,nama_cabang', 'kas:id,nama_kas'])
-                    ->orderBy('transaksi_keuangans.tanggal_transaksi')
-                    ->get(),
-                $dari, $sampai
-            );
+        if ($request->export === 'excel' || $request->export === 'pdf') {
+            $rows = $filtered->with(['cabang:id,nama_cabang', 'kas:id,nama_kas'])
+                ->orderBy('transaksi_keuangans.tanggal_transaksi')
+                ->get();
+
+            if ($request->export === 'excel') {
+                $filename = 'Laporan-Transfer-Dana-' . now()->format('Y-m-d') . '.xlsx';
+                return Excel::download(new LaporanSetoranExport($rows, $user->name), $filename);
+            }
+
+            $cabangNamaFilter = $cabangId ? (Cabang::find($cabangId)?->nama_cabang ?? '-') : 'Semua Cabang';
+            $filename = 'Laporan-Transfer-Dana-' . now()->format('Y-m-d') . '.pdf';
+            $pdf = Pdf::loadView('laporan.pdf.setoran', [
+                'rows' => $rows,
+                'judulLaporan' => 'Laporan Transfer / Perpindahan Dana',
+                'filterInfo' => [
+                    'Periode' => $dari->format('d/m/Y') . ' — ' . $sampai->format('d/m/Y'),
+                    'Cabang' => $cabangNamaFilter,
+                    'Status' => $status ? ucfirst($status) : 'Semua Status',
+                ],
+                'footerDicetak' => 'Dicetak oleh: ' . $user->name . ' pada ' . now()->translatedFormat('d F Y, H:i') . ' WIB',
+            ])->setPaper('a4', 'portrait');
+            return $pdf->download($filename);
         }
 
         $setorans = $filtered
@@ -97,33 +116,4 @@ class LaporanSetoranController extends Controller
         ));
     }
 
-    private function exportExcel($rows, Carbon $dari, Carbon $sampai)
-    {
-        $headers = [
-            'Content-Type'        => 'application/vnd.ms-excel; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="laporan-setoran-' . $dari->format('Ymd') . '-' . $sampai->format('Ymd') . '.xls"',
-        ];
-        $callback = function () use ($rows) {
-            $file = fopen('php://output', 'w');
-            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
-            fputcsv($file, ['Tanggal', 'No. Transaksi', 'Cabang Asal', 'Kas Asal', 'Jumlah', 'Status', 'Keterangan'], ';');
-            foreach ($rows as $r) {
-                $status = match(true) {
-                    !is_null($r->deleted_at) => $r->status_setoran ?? 'dihapus',
-                    default                  => $r->status_setoran ?? '-',
-                };
-                fputcsv($file, [
-                    optional($r->tanggal_transaksi)->format('d/m/Y'),
-                    $r->nomor_transaksi,
-                    $r->cabang?->nama_cabang,
-                    $r->kas?->nama_kas,
-                    $r->jumlah,
-                    $status,
-                    $r->keterangan,
-                ], ';');
-            }
-            fclose($file);
-        };
-        return response()->stream($callback, 200, $headers);
-    }
 }

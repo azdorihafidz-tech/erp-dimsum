@@ -4,9 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\Cabang;
 use App\Models\TransaksiKeuangan;
+use App\Exports\LaporanAuditBuktiExport;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
 
 class LaporanAuditBuktiController extends Controller
 {
@@ -46,7 +49,26 @@ class LaporanAuditBuktiController extends Controller
             ->orderByDesc('jumlah');
 
         if ($request->export === 'excel') {
-            return $this->exportExcel($query->get(), $dari, $sampai, $threshold);
+            return Excel::download(
+                new LaporanAuditBuktiExport($query->get(), $threshold, auth()->user()->name),
+                'laporan-audit-bukti-' . $dari->format('Ymd') . '-' . $sampai->format('Ymd') . '.xlsx'
+            );
+        }
+
+        if ($request->export === 'pdf') {
+            $transaksisPdf = $query->get();
+            $filterInfo = [
+                'Periode' => $dari->format('d/m/Y') . ' s.d ' . $sampai->format('d/m/Y'),
+                'Threshold' => 'Rp ' . number_format($threshold, 0, ',', '.'),
+                'Cabang' => optional($cabangs->firstWhere('id', $cabangId))->nama_cabang ?? 'Semua Cabang',
+            ];
+            $pdf = Pdf::loadView('laporan.pdf.audit-bukti', [
+                'transaksis' => $transaksisPdf,
+                'judulLaporan' => 'Laporan Audit Bukti Transaksi',
+                'filterInfo' => $filterInfo,
+                'footerDicetak' => 'Dicetak oleh: ' . auth()->user()->name . ' pada ' . now()->translatedFormat('d F Y, H:i') . ' WIB',
+            ])->setPaper('a4', 'landscape');
+            return $pdf->download('laporan-audit-bukti-' . $dari->format('Ymd') . '-' . $sampai->format('Ymd') . '.pdf');
         }
 
         $transaksis = $query->paginate(25)->withQueryString();
@@ -57,31 +79,4 @@ class LaporanAuditBuktiController extends Controller
         ));
     }
 
-    private function exportExcel($rows, Carbon $dari, Carbon $sampai, int $threshold)
-    {
-        $headers = [
-            'Content-Type'        => 'application/vnd.ms-excel; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="audit-bukti-' . $dari->format('Ymd') . '-' . $sampai->format('Ymd') . '.xls"',
-        ];
-        $callback = function () use ($rows, $threshold) {
-            $file = fopen('php://output', 'w');
-            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
-            fputcsv($file, ['LAPORAN AUDIT BUKTI — Pengeluaran > Rp ' . number_format($threshold, 0, ',', '.')], ';');
-            fputcsv($file, [], ';');
-            fputcsv($file, ['Tanggal', 'No. Transaksi', 'Keterangan', 'Kategori', 'Cabang', 'Jumlah', 'Status Bukti'], ';');
-            foreach ($rows as $r) {
-                fputcsv($file, [
-                    optional($r->tanggal_transaksi)->format('d/m/Y'),
-                    $r->nomor_transaksi,
-                    $r->keterangan,
-                    $r->kategoriDinamis?->nama ?? '-',
-                    $r->cabang?->nama_cabang,
-                    $r->jumlah,
-                    $r->bukti_path ? 'Sudah Upload' : 'BELUM UPLOAD',
-                ], ';');
-            }
-            fclose($file);
-        };
-        return response()->stream($callback, 200, $headers);
-    }
 }

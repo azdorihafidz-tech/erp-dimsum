@@ -8,8 +8,12 @@ use App\Models\AssetDepreciation;
 use App\Models\AssetMaintenance;
 use App\Models\AssetMutation;
 use App\Models\Cabang;
+use App\Exports\LaporanAsetExport;
+use App\Exports\LaporanPenyusutanExport;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 class LaporanAsetController extends Controller
 {
@@ -38,7 +42,23 @@ class LaporanAsetController extends Controller
 
         if ($request->export === 'excel') {
             $assets = $query->orderBy('nama_aset')->get();
-            return $this->exportExcel($assets);
+            return Excel::download(new LaporanAsetExport($assets, auth()->user()->name), 'laporan-aset-' . now()->format('Y-m-d') . '.xlsx');
+        }
+
+        if ($request->export === 'pdf') {
+            $assets = $query->orderBy('nama_aset')->get();
+            $filterInfo = [
+                'Kategori' => optional($kategories->firstWhere('id', $request->kategori_id))->nama_kategori ?? 'Semua Kategori',
+                'Status' => $request->status ?: 'Semua Status',
+                'Total Aset' => $assets->count(),
+            ];
+            $pdf = Pdf::loadView('laporan.pdf.aset', [
+                'assets' => $assets,
+                'judulLaporan' => 'Laporan Aset',
+                'filterInfo' => $filterInfo,
+                'footerDicetak' => 'Dicetak oleh: ' . auth()->user()->name . ' pada ' . now()->translatedFormat('d F Y, H:i') . ' WIB',
+            ])->setPaper('a4', 'landscape');
+            return $pdf->download('laporan-aset-' . now()->format('Y-m-d') . '.pdf');
         }
 
         $assets = $query->orderBy('nama_aset')->paginate(30)->withQueryString();
@@ -74,7 +94,23 @@ class LaporanAsetController extends Controller
 
         if ($request->export === 'excel') {
             $depreciations = $query->get();
-            return $this->exportPenyusutanExcel($depreciations, $periode);
+            return Excel::download(new LaporanPenyusutanExport($depreciations, auth()->user()->name), 'laporan-penyusutan-' . $periode . '.xlsx');
+        }
+
+        if ($request->export === 'pdf') {
+            $depreciations = $query->get();
+            $filterInfo = [
+                'Periode' => $periode,
+                'Total Aset Terdepresiasi' => $totalAsetTerdepresiasi,
+                'Total Penyusutan' => 'Rp ' . number_format($totalPenyusutanPeriode, 0, ',', '.'),
+            ];
+            $pdf = Pdf::loadView('laporan.pdf.aset-penyusutan', [
+                'depreciations' => $depreciations,
+                'judulLaporan' => 'Laporan Penyusutan Aset',
+                'filterInfo' => $filterInfo,
+                'footerDicetak' => 'Dicetak oleh: ' . auth()->user()->name . ' pada ' . now()->translatedFormat('d F Y, H:i') . ' WIB',
+            ])->setPaper('a4', 'landscape');
+            return $pdf->download('laporan-penyusutan-' . $periode . '.pdf');
         }
 
         $depreciations = $query->paginate(30)->withQueryString();
@@ -120,58 +156,4 @@ class LaporanAsetController extends Controller
         return $this->index($request);
     }
 
-    private function exportExcel($assets)
-    {
-        $headers = [
-            'Content-Type' => 'application/vnd.ms-excel; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="laporan-aset-' . now()->format('Y-m-d') . '.xls"',
-        ];
-        $callback = function () use ($assets) {
-            $file = fopen('php://output', 'w');
-            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
-            fputcsv($file, ['Kode Aset', 'Nama Aset', 'Kategori', 'Lokasi', 'Tgl Perolehan', 'Harga Perolehan', 'Nilai Buku', 'Kondisi', 'Status'], ';');
-            foreach ($assets as $a) {
-                fputcsv($file, [
-                    $a->kode_aset,
-                    $a->nama_aset,
-                    $a->kategori?->nama_kategori,
-                    $a->lokasi?->nama_cabang,
-                    $a->tanggal_perolehan?->format('d/m/Y'),
-                    $a->harga_perolehan,
-                    $a->nilai_buku,
-                    $a->kondisi?->value,
-                    $a->status?->value,
-                ], ';');
-            }
-            fclose($file);
-        };
-        return response()->stream($callback, 200, $headers);
-    }
-
-    private function exportPenyusutanExcel($depreciations, $periode)
-    {
-        $headers = [
-            'Content-Type' => 'application/vnd.ms-excel; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="laporan-penyusutan-' . $periode . '.xls"',
-        ];
-        $callback = function () use ($depreciations) {
-            $file = fopen('php://output', 'w');
-            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
-            fputcsv($file, ['Kode Aset', 'Nama Aset', 'Kategori', 'Lokasi', 'Nilai Buku Awal', 'Penyusutan', 'Akumulasi', 'Nilai Buku Akhir'], ';');
-            foreach ($depreciations as $d) {
-                fputcsv($file, [
-                    $d->asset?->kode_aset,
-                    $d->asset?->nama_aset,
-                    $d->asset?->kategori?->nama_kategori,
-                    $d->asset?->lokasi?->nama_cabang,
-                    $d->nilai_buku_awal,
-                    $d->jumlah_penyusutan,
-                    $d->akumulasi_penyusutan,
-                    $d->nilai_buku_akhir,
-                ], ';');
-            }
-            fclose($file);
-        };
-        return response()->stream($callback, 200, $headers);
-    }
 }

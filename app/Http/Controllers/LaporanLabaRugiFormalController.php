@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Cabang;
 use App\Services\LabaRugiFormalService;
+use App\Exports\LaporanLabaRugiFormalExport;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * Laporan Laba Rugi Formal berstandar SAK ETAP (dikelompokkan per Chart of
@@ -49,6 +51,18 @@ class LaporanLabaRugiFormalController extends Controller
             . $data['mulai']->format('Ymd') . '-' . $data['akhir']->format('Ymd') . '.pdf';
 
         return $pdf->download($filename);
+    }
+
+    public function exportExcel(Request $request)
+    {
+        abort_unless(auth()->user()->can('laporan.laba_rugi_formal.export'), 403);
+
+        $data = $this->buildData($request);
+
+        return Excel::download(
+            new LaporanLabaRugiFormalExport($data['labaRugi'], $data['cabangNama'], auth()->user()->name),
+            'laporan-laba-rugi-formal-' . $data['mulai']->format('Ymd') . '-' . $data['akhir']->format('Ymd') . '.xlsx'
+        );
     }
 
     private function buildData(Request $request): array

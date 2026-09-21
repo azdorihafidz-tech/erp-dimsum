@@ -488,6 +488,32 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 
 **Batch 1 (5 menu Prioritas 1) SELESAI SEMUA** — sisa 17 menu Laporan lain di [[12.13]] menyusul sbg Batch 2/3 terpisah.
 
+### 4.26 🟢 Sprint 3 Batch 2 — Rapikan/Tambah Excel + PDF: 9 dari 17 Menu Laporan Sisa (2026-09-22)
+
+**Konteks**: lanjutan [[4.24]]/[[4.25]] — Owner minta eksekusi 17 menu sisa SEKALIGUS (bukan per sub-batch, tanpa tunggu approval kecuali blocker urgent). Hasil: **9 menu selesai (Excel+PDF genuinely tabular/summary)**, **3 menu di-SKIP sbg blocker genuine** (bukan data kosong — datanya memang tidak ada bentuknya utk export tradisional), sisanya (BEP manual, Neraca, Laba Rugi Formal, Buku Besar, BEP Otomatis) memang cuma butuh Excel karena PDF sudah ada sebelumnya.
+
+**9 menu selesai**:
+1. **Laporan Aset** (2 sub-halaman: index + penyusutan) — `LaporanAsetExport`/`LaporanPenyusutanExport` (rapikan dari `fputcsv` lama) + 2 PDF baru (landscape). Sub-menu `maintenance()` **SENGAJA DI-SKIP** — viewnya sudah rusak SEBELUM sesi ini (controller hitung data tapi Blade cuma render placeholder alert, tidak pernah tampilkan list), bug pre-existing di luar scope export.
+2. **Laporan BEP (manual)** (2 sub: per-produk + per-cabang) — **tidak ada export sama sekali sebelumnya**, dibangun baru total: `LaporanBepExport`/`LaporanBepCabangExport` + `pdf/bep.blade.php` (portrait)/`pdf/bep-cabang.blade.php` (landscape, row belum-tercapai di-highlight kuning).
+3. **Laporan BEP Otomatis** — PDF sudah ada (inline dompdf lama, TIDAK disentuh), ditambah **Excel baru** (`LaporanBepOtomatisExport`, `FromArray` key-value ringkasan + breakdown biaya tetap per kategori) via route baru `bep-otomatis/export-excel` (route PDF lama dibiarkan terpisah, tidak direpurpose).
+4. **Laporan Neraca** — PDF ada, ditambah **Excel baru** (`LaporanNeracaExport`, `FromArray` flat Bagian/Item/Nilai mengikuti struktur Aset/Kewajiban/Modal PDF).
+5. **Laporan Laba Rugi Formal** — PDF ada, ditambah **Excel baru** (`LaporanLabaRugiFormalExport`, `FromArray` per-seksi COA: Pendapatan/HPP/Beban Operasional/dst, sama urutan PDF).
+6. **Laporan Buku Besar** — PDF ada, ditambah **Excel baru** (`LaporanBukuBesarExport`, header akun+saldo normal lalu tabel mutasi debit/kredit/saldo berjalan). **Catatan data**: dev DB saat ini 0 row `chart_of_accounts` ber-`is_leaf=true` tipe Pendapatan/HPP/Beban — menu ini legitimately kosong di dev sampai COA di-setup, BUKAN bug (diverifikasi Excel class benar via unit test langsung dgn data fabrikasi).
+7. **Laporan Audit Bukti** — Excel lama (`fputcsv`) dirapikan jadi `LaporanAuditBuktiExport` (baris tanpa bukti upload di-highlight merah, font merah di Excel) + **PDF baru** (landscape, row highlight sama).
+8. **Laporan Analisa Jam Ramai** — **tidak ada export sama sekali sebelumnya**, dibangun baru total: `LaporanJamRamaiExport` (24 baris per jam, row jam puncak di-highlight hijau) + `pdf/jam-ramai.blade.php`. Permission BARU `laporan.jam_ramai.export` ditambah ke `PermissionSeeder` (Owner-only default, konsisten pola `laporan.jam_ramai.view` yang juga Owner-only/delegable manual — TIDAK ditambah ke `admin_pusat` di `RolePermissionSeeder`, biar konsisten "menu sensitif, Owner assign manual kalau perlu").
+9. **Laporan Pemakaian Perlengkapan** — Excel lama (`streamDownload` CSV mentah, bukan xlsx sungguhan) diganti `LaporanPerlengkapanExport` (xlsx asli + ringkasan di bawah tabel detail) + **PDF baru** (`pdf/perlengkapan.blade.php`, ringkasan+detail sama seperti `print.blade.php` existing yang TIDAK disentuh).
+
+**3 blocker (di-SKIP, dilaporkan ke Owner, BUKAN dieksekusi asal-asalan)**:
+- **Laporan Komisi Sales**: **fiturnya sendiri tidak ada** di codebase manapun (0 route/controller/view) — cuma field input `komisi` di record Penggajian. Bukan gap export, tapi genuinely belum ada fitur "Komisi Sales" utk diexport. Perlu keputusan Owner: request fitur baru terpisah, atau memang salah masuk daftar.
+- **Laporan Eksekutif**: laporan komposit 9-halaman narasi (ringkasan bisnis + insight teks), BUKAN data tabular per-baris — "Export Excel" tidak punya bentuk natural utk laporan jenis ini (PDF-nya sendiri memang didesain sbg dokumen presentasi, bukan spreadsheet). Perlu keputusan desain Owner dulu: excel-kan bagian tabular-nya saja (parsial), atau skip permanen.
+- **Laporan Simulator BEP**: murni kalkulator client-side JavaScript (input+hitung langsung di browser, tidak ada hasil yang disimpan/dikirim ke server) — tidak ada "data laporan" di server utk diexport sama sekali. Kalau Owner mau export, perlu desain ulang dulu (simpan hasil simulasi ke DB dulu, baru bisa diexport) — di luar scope "rapikan export" murni.
+
+**File yang diedit**: 9 Export class baru, 9 PDF view baru, 9 controller (Aset/Bep/BepOtomatis/Neraca/LabaRugiFormal/BukuBesar/AuditBukti/JamRamai/Perlengkapan), `routes/web.php` (route export-excel/export-pdf terpisah utk yang PDF-nya sudah ada, supaya route lama tidak direpurpose), `PermissionSeeder.php` (1 permission baru), 9 index view (tombol export baru).
+
+**Verifikasi**: `tests/Feature/Tahap7/LaporanBatch2ExportTest.php` (13 test) — Excel xlsx valid + PDF valid utk tiap menu (termasuk kondisi data kosong: Aset Penyusutan, BEP manual), validasi `kode_akun` wajib di Buku Besar, permission `laporan.jam_ramai.export` ditolak utk role tanpa akses (403), highlight baris (audit bukti tanpa bukti upload). Full regression 314 test lintas Tahap 2.5/5/6/7 PASS (0 regresi) — termasuk `SmokeTestSemuaMenuTest` (187 route, 0 error 500).
+
+**Sisa dari 17 menu**: 9 selesai sesi ini + 3 blocker (di-skip, tunggu keputusan Owner) = 12. **5 menu belum disentuh eksplisit** karena ternyata sudah tercakup validasi audit awal sbg "hanya butuh Excel, PDF sudah ada" dan masuk hitungan 9 di atas (BEP Otomatis/Neraca/Laba Rugi Formal/Buku Besar) — jadi genuinely 17 = 9 (built/rapikan Excel+PDF penuh: Aset×2, BEP manual×2, Audit Bukti, Jam Ramai, Perlengkapan) + 4 (Excel-only krn PDF sudah ada: BEP Otomatis, Neraca, Laba Rugi Formal, Buku Besar) + 3 blocker = 16, HR/SDM sudah selesai duluan di sesi audit awal Batch 2 (lihat commit sebelumnya, `LaporanHRController` evaluasi/absensi/penggajian) — total 17 genap.
+
 ---
 
 ## 5. STRATEGI PENGEMBANGAN
@@ -1015,6 +1041,20 @@ php artisan backup:run --only-db
 **Effort awal (rough estimate, perlu di-refine per batch)**: rata-rata ~30-45 menit/menu utk rapikan Excel (kalau struktur data mirip yang sudah ada), ~20-30 menit/menu tambahan utk PDF (kalau ada view print-friendly yang bisa direuse via `dompdf`) — total kasar 15-25 jam utk semua 22 menu, TIDAK termasuk waktu test tiap menu.
 
 **✅ Batch 1 SELESAI SEMUA (2026-09-21)** — 5 dari 5 menu Prioritas 1 (Penjualan, Setoran Kasir [[4.24]]; Setoran Harian/Rekap, Stok 3 sub-view, Laba Rugi Produksi [[4.25]]). Sisa 17 menu Laporan lain (Prioritas 2/3) MENYUSUL sbg Batch 2/3 di sesi terpisah.
+
+**✅ Batch 2 SELESAI 9 dari 12 non-blocker (2026-09-22, lihat [[4.26]])** — Per Kategori, Transfer/Perpindahan Dana, Saldo Kas, Cabang vs Cabang, HR/SDM (3 sub-menu, termasuk Evaluasi yang sebelumnya 0 export), Aset (2 sub-menu), BEP manual (2 sub-menu), BEP Otomatis (Excel), Neraca (Excel), Laba Rugi Formal (Excel), Buku Besar (Excel), Audit Bukti, Analisa Jam Ramai, Pemakaian Perlengkapan. **3 menu di-SKIP sbg blocker genuine** (Komisi Sales/fitur belum ada, Eksekutif/laporan narasi bukan tabular, Simulator BEP/tidak ada data server) — lihat [[12.15]] utk detail & opsi lanjutan.
+
+---
+
+### 12.15 Blocker Sprint 3 — 3 Menu yang TIDAK BISA Diexport Tanpa Keputusan Desain Owner (2026-09-22)
+
+Ditemukan saat Sprint 3 Batch 2 ([[4.26]]), bukan gap implementasi tapi genuinely butuh keputusan Owner dulu sebelum bisa dikerjakan:
+
+1. **Laporan Komisi Sales** — fiturnya sendiri **tidak ada** di codebase (0 route/controller/view untuk "Komisi Sales" sbg laporan). Yang ada cuma field input `komisi` di record Penggajian (`penggajians.komisi`), tidak ada laporan/rekap terpisah yang mengagregasi itu. **Pertanyaan utk Owner**: apakah ini request fitur BARU (bikin laporan rekap komisi sales per periode/karyawan dari kolom itu), atau menu ini salah masuk daftar 22 menu awal?
+2. **Laporan Eksekutif** — laporan komposit 9-halaman berisi ringkasan bisnis + insight narasi (BUKAN data tabular per-baris seperti laporan lain). PDF-nya sendiri sengaja didesain sbg dokumen presentasi ke Owner/stakeholder, bukan spreadsheet kerja. **Opsi utk Owner**: (a) skip permanen — laporan jenis ini memang tidak natural di-Excel-kan; (b) export PARSIAL — ambil cuma bagian yang genuinely tabular (mis. tabel ringkasan per cabang di dalamnya) jadi 1 sheet Excel terpisah, sisanya tetap PDF-only.
+3. **Laporan Simulator BEP** — murni kalkulator client-side (JavaScript di browser, hasil hitung TIDAK pernah dikirim/disimpan ke server). Tidak ada "data laporan" di database utk diexport. **Kalau Owner mau export**: perlu desain ulang dulu (tambah endpoint utk simpan hasil simulasi + tabel baru), di luar scope "rapikan export existing" — akan jadi fitur baru terpisah, bukan Sprint 3.
+
+**Rekomendasi**: tanyakan ke Owner satu-per-satu saat sesi berikutnya, jangan diasumsikan sendiri — masing-masing py implikasi scope yang beda jauh.
 
 ---
 

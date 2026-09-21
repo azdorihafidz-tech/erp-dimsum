@@ -23,7 +23,10 @@
         @endcan
         @can('laporan.perlengkapan.export')
         <a href="{{ route('laporan.perlengkapan.export', request()->query()) }}" class="btn btn-sm btn-outline-success">
-            <i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV
+            <i class="bi bi-file-earmark-excel me-1"></i>Export Excel
+        </a>
+        <a href="{{ route('laporan.perlengkapan.export-pdf', request()->query()) }}" class="btn btn-sm btn-danger">
+            <i class="bi bi-file-earmark-pdf me-1"></i>Export PDF
         </a>
         @endcan
     </div>

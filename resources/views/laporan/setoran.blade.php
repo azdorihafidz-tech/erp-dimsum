@@ -10,6 +10,9 @@
         <a href="{{ request()->fullUrlWithQuery(['export' => 'excel']) }}" class="btn btn-success btn-sm">
             <i class="bi bi-file-earmark-excel me-1"></i><span class="d-none d-sm-inline">Export Excel</span>
         </a>
+        <a href="{{ request()->fullUrlWithQuery(['export' => 'pdf']) }}" class="btn btn-danger btn-sm">
+            <i class="bi bi-file-earmark-pdf me-1"></i><span class="d-none d-sm-inline">Export PDF</span>
+        </a>
         <button onclick="window.print()" class="btn btn-secondary btn-sm d-none d-sm-inline-flex">
             <i class="bi bi-printer me-1"></i>Print
         </button>

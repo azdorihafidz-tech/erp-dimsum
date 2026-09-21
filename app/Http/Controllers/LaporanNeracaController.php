@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Cabang;
 use App\Models\NeracaSetting;
 use App\Services\NeracaService;
+use App\Exports\LaporanNeracaExport;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * Laporan Neraca (Balance Sheet) formal berstandar SAK ETAP — menu BARU,
@@ -48,6 +50,18 @@ class LaporanNeracaController extends Controller
         $filename = 'Neraca_' . ($data['cabangNama'] ?? 'Konsolidasi') . '_' . $data['tanggal']->format('Ymd') . '.pdf';
 
         return $pdf->download($filename);
+    }
+
+    public function exportExcel(Request $request)
+    {
+        abort_unless(auth()->user()->can('laporan.neraca.export'), 403);
+
+        $data = $this->buildData($request);
+
+        return Excel::download(
+            new LaporanNeracaExport($data['neraca'], $data['cabangNama'], auth()->user()->name),
+            'laporan-neraca-' . $data['tanggal']->format('Ymd') . '.xlsx'
+        );
     }
 
     public function updateSetting(Request $request)

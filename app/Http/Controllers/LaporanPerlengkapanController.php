@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Cabang;
 use App\Services\LaporanPerlengkapanService;
+use App\Exports\LaporanPerlengkapanExport;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * Fase 5 — Modul Perlengkapan (Rule #66). Controller BARU.
@@ -38,24 +41,31 @@ class LaporanPerlengkapanController extends Controller
 
         $data = $this->buildData($request);
 
-        $filename = 'laporan-pemakaian-perlengkapan-' . now()->format('Ymd-His') . '.csv';
+        return Excel::download(
+            new LaporanPerlengkapanExport($data['detail'], $data['ringkasan'], auth()->user()->name),
+            'laporan-pemakaian-perlengkapan-' . now()->format('Ymd-His') . '.xlsx'
+        );
+    }
 
-        return response()->streamDownload(function () use ($data) {
-            $out = fopen('php://output', 'w');
-            fputcsv($out, ['Tanggal', 'Item', 'Cabang', 'Qty', 'Satuan', 'Nilai', 'Keterangan']);
-            foreach ($data['detail'] as $row) {
-                fputcsv($out, [
-                    Carbon::parse($row->tanggal_pemakaian)->format('d/m/Y'),
-                    $row->nama_item,
-                    $row->nama_cabang,
-                    $row->qty,
-                    $row->satuan,
-                    $row->nilai,
-                    $row->keterangan,
-                ]);
-            }
-            fclose($out);
-        }, $filename, ['Content-Type' => 'text/csv']);
+    public function exportPdf(Request $request)
+    {
+        abort_unless(auth()->user()->can('laporan.perlengkapan.export'), 403);
+
+        $data = $this->buildData($request);
+
+        $filterInfo = [
+            'Periode' => $data['mulai']->format('d/m/Y') . ' s.d ' . $data['akhir']->format('d/m/Y'),
+            'Cabang' => optional($data['cabangs']->firstWhere('id', $data['cabangId']))->nama_cabang ?? 'Semua Cabang',
+        ];
+        $pdf = Pdf::loadView('laporan.pdf.perlengkapan', [
+            'ringkasan' => $data['ringkasan'],
+            'detail' => $data['detail'],
+            'judulLaporan' => 'Laporan Pemakaian Perlengkapan',
+            'filterInfo' => $filterInfo,
+            'footerDicetak' => 'Dicetak oleh: ' . auth()->user()->name . ' pada ' . now()->translatedFormat('d F Y, H:i') . ' WIB',
+        ])->setPaper('a4', 'portrait');
+
+        return $pdf->download('laporan-pemakaian-perlengkapan-' . now()->format('Ymd-His') . '.pdf');
     }
 
     private function buildData(Request $request): array

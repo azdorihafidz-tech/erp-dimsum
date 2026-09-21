@@ -10,6 +10,9 @@
     <div class="d-flex gap-2">
         @can('laporan.buku_besar.export')
         @if($ledger)
+        <button type="button" id="btnExportBukuBesarExcel" class="btn btn-outline-success btn-sm">
+            <i class="bi bi-file-earmark-excel me-1"></i><span class="d-none d-sm-inline">Export Excel</span>
+        </button>
         <button type="button" id="btnExportBukuBesar" class="btn btn-success btn-sm">
             <i class="bi bi-file-earmark-pdf me-1"></i><span class="d-none d-sm-inline">Export PDF</span>
         </button>
@@ -136,6 +139,17 @@
                 params.set('kode_akun', @json($kodeAkun));
             }
             window.location.href = '{{ route('laporan.buku-besar.export') }}?' + params.toString();
+        });
+    }
+
+    var btnExportExcel = document.getElementById('btnExportBukuBesarExcel');
+    if (btnExportExcel) {
+        btnExportExcel.addEventListener('click', function() {
+            var params = new URLSearchParams(window.location.search);
+            if (!params.get('kode_akun')) {
+                params.set('kode_akun', @json($kodeAkun));
+            }
+            window.location.href = '{{ route('laporan.buku-besar.export-excel') }}?' + params.toString();
         });
     }
 })();

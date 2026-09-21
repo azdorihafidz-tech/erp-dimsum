@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\LaporanCabangExport;
 use App\Models\Cabang;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
 
 class LaporanCabangController extends Controller
 {
@@ -103,7 +106,18 @@ class LaporanCabangController extends Controller
         $pieValues = $rankingOp->where('pemasukan', '>', 0)->pluck('pemasukan')->map(fn($v) => (float)$v)->toArray();
 
         if ($request->export === 'excel') {
-            return $this->exportExcel($ranking, $totalPemasukan, $totalPengeluaran, $totalNet, $dari, $sampai);
+            $filename = 'Laporan-Cabang-vs-Cabang-' . now()->format('Y-m-d') . '.xlsx';
+            return Excel::download(new LaporanCabangExport($ranking, $totalPemasukan, $totalPengeluaran, $totalNet, auth()->user()->name), $filename);
+        }
+        if ($request->export === 'pdf') {
+            $filename = 'Laporan-Cabang-vs-Cabang-' . now()->format('Y-m-d') . '.pdf';
+            $pdf = Pdf::loadView('laporan.pdf.cabang-vs-cabang', [
+                'ranking' => $ranking, 'totalPemasukan' => $totalPemasukan, 'totalPengeluaran' => $totalPengeluaran, 'totalNet' => $totalNet,
+                'judulLaporan' => 'Laporan Cabang vs Cabang',
+                'filterInfo' => ['Periode' => $dari->format('d/m/Y') . ' — ' . $sampai->format('d/m/Y')],
+                'footerDicetak' => 'Dicetak oleh: ' . auth()->user()->name . ' pada ' . now()->translatedFormat('d F Y, H:i') . ' WIB',
+            ])->setPaper('a4', 'landscape');
+            return $pdf->download($filename);
         }
 
         return view('laporan.cabang-vs-cabang', compact(
@@ -114,30 +128,4 @@ class LaporanCabangController extends Controller
         ));
     }
 
-    private function exportExcel($ranking, $totalP, $totalK, $totalNet, Carbon $dari, Carbon $sampai)
-    {
-        $headers = [
-            'Content-Type'        => 'application/vnd.ms-excel; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="laporan-cabang-' . $dari->format('Ymd') . '-' . $sampai->format('Ymd') . '.xls"',
-        ];
-        $callback = function () use ($ranking, $totalP, $totalK, $totalNet) {
-            $file = fopen('php://output', 'w');
-            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
-            fputcsv($file, ['Ranking', 'Cabang', 'Pemasukan', 'Pengeluaran', 'Setoran Keluar', 'Setoran Masuk', 'Net'], ';');
-            foreach ($ranking as $i => $r) {
-                fputcsv($file, [
-                    $i + 1,
-                    $r['nama_cabang'],
-                    $r['pemasukan'],
-                    $r['pengeluaran'],
-                    $r['setoran_keluar'],
-                    $r['setoran_masuk'],
-                    $r['net'],
-                ], ';');
-            }
-            fputcsv($file, ['TOTAL', '', $totalP, $totalK, '', '', $totalNet], ';');
-            fclose($file);
-        };
-        return response()->stream($callback, 200, $headers);
-    }
 }

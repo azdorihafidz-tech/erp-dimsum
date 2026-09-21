@@ -9,6 +9,9 @@
     </div>
     <div class="d-flex gap-2">
         @can('laporan.laba_rugi_formal.export')
+        <button type="button" id="btnExportLabaRugiFormalExcel" class="btn btn-outline-success btn-sm">
+            <i class="bi bi-file-earmark-excel me-1"></i><span class="d-none d-sm-inline">Export Excel</span>
+        </button>
         <button type="button" id="btnExportLabaRugiFormal" class="btn btn-success btn-sm">
             <i class="bi bi-file-earmark-pdf me-1"></i><span class="d-none d-sm-inline">Export PDF</span>
         </button>
@@ -136,6 +139,14 @@
         btnExport.addEventListener('click', function() {
             var params = new URLSearchParams(window.location.search);
             window.location.href = '{{ route('laporan.laba-rugi-formal.export') }}?' + params.toString();
+        });
+    }
+
+    var btnExportExcel = document.getElementById('btnExportLabaRugiFormalExcel');
+    if (btnExportExcel) {
+        btnExportExcel.addEventListener('click', function() {
+            var params = new URLSearchParams(window.location.search);
+            window.location.href = '{{ route('laporan.laba-rugi-formal.export-excel') }}?' + params.toString();
         });
     }
 })();

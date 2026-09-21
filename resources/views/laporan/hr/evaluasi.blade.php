@@ -10,6 +10,14 @@
         <p class="text-muted mb-0" style="font-size:0.875rem">Ringkasan hasil penilaian per periode</p>
     </div>
     <div class="d-flex gap-2">
+        <a href="{{ request()->fullUrlWithQuery(['export' => 'excel']) }}" class="btn btn-success btn-sm">
+            <i class="bi bi-file-earmark-excel me-1"></i>
+            <span class="d-none d-sm-inline">Export Excel</span>
+        </a>
+        <a href="{{ request()->fullUrlWithQuery(['export' => 'pdf']) }}" class="btn btn-danger btn-sm">
+            <i class="bi bi-file-earmark-pdf me-1"></i>
+            <span class="d-none d-sm-inline">Export PDF</span>
+        </a>
         <a href="{{ route('evaluasi.periods') }}" class="btn btn-outline-primary btn-sm">
             <i class="bi bi-star-half me-1"></i>
             <span class="d-none d-sm-inline">Kelola Evaluasi</span>

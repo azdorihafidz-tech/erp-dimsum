@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\LaporanKategoriExport;
 use App\Models\Cabang;
 use App\Models\KategoriTransaksi;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
 
 class LaporanKategoriController extends Controller
 {
@@ -70,7 +73,22 @@ class LaporanKategoriController extends Controller
         $pieValues = $pieData->values()->map(fn($v) => (float)$v)->toArray();
 
         if ($request->export === 'excel') {
-            return $this->exportExcel($rows, $dari, $sampai);
+            $filename = 'Laporan-Per-Kategori-' . now()->format('Y-m-d') . '.xlsx';
+            return Excel::download(new LaporanKategoriExport($rows, $user->name), $filename);
+        }
+        if ($request->export === 'pdf') {
+            $cabangNamaFilter = $cabangId ? (Cabang::find($cabangId)?->nama_cabang ?? '-') : 'Semua Cabang';
+            $filename = 'Laporan-Per-Kategori-' . now()->format('Y-m-d') . '.pdf';
+            $pdf = Pdf::loadView('laporan.pdf.kategori', [
+                'rows' => $rows, 'totalPemasukan' => $totalPemasukan, 'totalPengeluaran' => $totalPengeluaran,
+                'judulLaporan' => 'Laporan Per Kategori',
+                'filterInfo' => [
+                    'Periode' => $dari->format('d/m/Y') . ' — ' . $sampai->format('d/m/Y'),
+                    'Cabang' => $cabangNamaFilter,
+                ],
+                'footerDicetak' => 'Dicetak oleh: ' . $user->name . ' pada ' . now()->translatedFormat('d F Y, H:i') . ' WIB',
+            ])->setPaper('a4', 'portrait');
+            return $pdf->download($filename);
         }
 
         return view('laporan.kategori', compact(
@@ -79,27 +97,4 @@ class LaporanKategoriController extends Controller
         ));
     }
 
-    private function exportExcel($rows, Carbon $dari, Carbon $sampai)
-    {
-        $headers = [
-            'Content-Type'        => 'application/vnd.ms-excel; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename="laporan-kategori-' . $dari->format('Ymd') . '-' . $sampai->format('Ymd') . '.xls"',
-        ];
-        $callback = function () use ($rows) {
-            $file = fopen('php://output', 'w');
-            fprintf($file, chr(0xEF) . chr(0xBB) . chr(0xBF));
-            fputcsv($file, ['Parent Kategori', 'Kategori', 'Tipe', 'Jumlah Transaksi', 'Total'], ';');
-            foreach ($rows as $r) {
-                fputcsv($file, [
-                    $r->parent_nama ?? '-',
-                    $r->kategori_nama ?? 'Lainnya',
-                    $r->tipe,
-                    $r->jumlah_transaksi,
-                    $r->total,
-                ], ';');
-            }
-            fclose($file);
-        };
-        return response()->stream($callback, 200, $headers);
-    }
 }

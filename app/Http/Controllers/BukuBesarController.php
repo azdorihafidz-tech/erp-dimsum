@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Cabang;
 use App\Services\BukuBesarService;
+use App\Exports\LaporanBukuBesarExport;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * Buku Besar (General Ledger) per akun COA — menu BARU (Fase 3), scope
@@ -51,6 +53,20 @@ class BukuBesarController extends Controller
             . $data['mulai']->format('Ymd') . '-' . $data['akhir']->format('Ymd') . '.pdf';
 
         return $pdf->download($filename);
+    }
+
+    public function exportExcel(Request $request)
+    {
+        abort_unless(auth()->user()->can('laporan.buku_besar.export'), 403);
+
+        $request->validate(['kode_akun' => 'required|string']);
+
+        $data = $this->buildData($request);
+
+        return Excel::download(
+            new LaporanBukuBesarExport($data['ledger'], $data['cabangNama'], auth()->user()->name),
+            'laporan-buku-besar-' . ($data['ledger']['akun']->kode ?? 'akun') . '-' . $data['mulai']->format('Ymd') . '-' . $data['akhir']->format('Ymd') . '.xlsx'
+        );
     }
 
     private function buildData(Request $request): array

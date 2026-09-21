@@ -7,7 +7,17 @@
         <h4 class="fw-bold mb-0">⏰ Analisa Jam Ramai</h4>
         <small class="text-muted">{{ $mulai->format('d/m/Y') }} — {{ $akhir->format('d/m/Y') }} — {{ $cabangNama }}</small>
     </div>
-    <x-panduan-button slug="laporan-jam-ramai" />
+    <div class="d-flex gap-2">
+        @can('laporan.jam_ramai.export')
+        <a href="{{ route('laporan.jam-ramai.export-excel', request()->query()) }}" class="btn btn-outline-success btn-sm">
+            <i class="bi bi-file-earmark-excel me-1"></i><span class="d-none d-sm-inline">Export Excel</span>
+        </a>
+        <a href="{{ route('laporan.jam-ramai.export-pdf', request()->query()) }}" class="btn btn-success btn-sm">
+            <i class="bi bi-file-earmark-pdf me-1"></i><span class="d-none d-sm-inline">Export PDF</span>
+        </a>
+        @endcan
+        <x-panduan-button slug="laporan-jam-ramai" />
+    </div>
 </div>
 
 <div class="alert alert-secondary py-2 px-3 small mb-3">

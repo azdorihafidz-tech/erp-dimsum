@@ -671,6 +671,9 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
         Route::get('/neraca/export', [LaporanNeracaController::class, 'export'])
             ->name('neraca.export')
             ->middleware('can:laporan.neraca.export');
+        Route::get('/neraca/export-excel', [LaporanNeracaController::class, 'exportExcel'])
+            ->name('neraca.export-excel')
+            ->middleware('can:laporan.neraca.export');
 
         // FASE 2 Akuntansi — Laba Rugi Formal SAK ETAP (dikelompokkan per COA,
         // berbeda dari Laba Rugi existing di atas yang analisis gross profit).
@@ -679,6 +682,9 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
             ->middleware('can:laporan.laba_rugi_formal.view');
         Route::get('/laba-rugi-formal/export', [LaporanLabaRugiFormalController::class, 'export'])
             ->name('laba-rugi-formal.export')
+            ->middleware('can:laporan.laba_rugi_formal.export');
+        Route::get('/laba-rugi-formal/export-excel', [LaporanLabaRugiFormalController::class, 'exportExcel'])
+            ->name('laba-rugi-formal.export-excel')
             ->middleware('can:laporan.laba_rugi_formal.export');
 
         // FASE 3 — BEP Otomatis (menu BARU, extend menu BEP existing di atas
@@ -690,6 +696,9 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
         Route::get('/bep-otomatis/export', [LaporanBepOtomatisController::class, 'export'])
             ->name('bep-otomatis.export')
             ->middleware('can:laporan.bep_otomatis.export');
+        Route::get('/bep-otomatis/export-excel', [LaporanBepOtomatisController::class, 'exportExcel'])
+            ->name('bep-otomatis.export-excel')
+            ->middleware('can:laporan.bep_otomatis.export');
 
         // FASE 3 — Buku Besar (General Ledger) per akun COA, scope terbatas
         // (hanya akun Pendapatan/HPP/Beban — akun Aset/Kewajiban/Modal
@@ -699,6 +708,9 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
             ->middleware('can:laporan.buku_besar.view');
         Route::get('/buku-besar/export', [BukuBesarController::class, 'export'])
             ->name('buku-besar.export')
+            ->middleware('can:laporan.buku_besar.export');
+        Route::get('/buku-besar/export-excel', [BukuBesarController::class, 'exportExcel'])
+            ->name('buku-besar.export-excel')
             ->middleware('can:laporan.buku_besar.export');
 
         // Laporan Eksekutif Keuangan (Sesi A) — 6 halaman: Cover Overview,
@@ -726,6 +738,12 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
         Route::get('/jam-ramai', [LaporanJamRamaiController::class, 'index'])
             ->name('jam-ramai.index')
             ->middleware('can:laporan.jam_ramai.view');
+        Route::get('/jam-ramai/export-excel', [LaporanJamRamaiController::class, 'exportExcel'])
+            ->name('jam-ramai.export-excel')
+            ->middleware('can:laporan.jam_ramai.export');
+        Route::get('/jam-ramai/export-pdf', [LaporanJamRamaiController::class, 'exportPdf'])
+            ->name('jam-ramai.export-pdf')
+            ->middleware('can:laporan.jam_ramai.export');
 
         // Laporan Pemakaian Perlengkapan (Fase 5, Rule #66) — baca dari
         // pemakaian_perlengkapans (tabel BARU), bukan reuse konsumsi-bahan
@@ -747,6 +765,9 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
             ->middleware('can:laporan.perlengkapan.print');
         Route::get('/perlengkapan/export', [\App\Http\Controllers\LaporanPerlengkapanController::class, 'export'])
             ->name('perlengkapan.export')
+            ->middleware('can:laporan.perlengkapan.export');
+        Route::get('/perlengkapan/export-pdf', [\App\Http\Controllers\LaporanPerlengkapanController::class, 'exportPdf'])
+            ->name('perlengkapan.export-pdf')
             ->middleware('can:laporan.perlengkapan.export');
     });
 
