@@ -66,10 +66,20 @@
     </div>
 </div>
 
+@php
+    $sumberLabel = match($loyaltyProgram->sumber_data) {
+        'orders.berat_daging_kg' => 'berat gilingan (orders.berat_daging_kg, legacy)',
+        'orders.count' => 'jumlah transaksi (orders.count)',
+        default => 'total belanja (orders.total_bayar)',
+    };
+    $tanpaDataLabel = $loyaltyProgram->sumber_data === 'orders.berat_daging_kg'
+        ? 'belum diisi berat gilingan-nya'
+        : 'nilai basis-nya kosong/nol';
+@endphp
 <div class="alert alert-info py-2 small mb-3">
     <i class="bi bi-info-circle me-1"></i>
-    Progress dihitung dari <code>orders.berat_daging_kg</code> (berat gilingan per order), bukan jumlah baris bumbu/kemasan.
-    Order yang belum diisi berat gilingan-nya dianggap 0 kg untuk sementara — kalau ada pelanggan yang progress-nya terasa kurang, cek kolom "Order Tanpa Data".
+    Progress dihitung dari <code>{{ $sumberLabel }}</code> per order, bukan jumlah baris bumbu/kemasan.
+    Order yang {{ $tanpaDataLabel }} dianggap 0 {{ $loyaltyProgram->satuan_qty }} untuk sementara — kalau ada pelanggan yang progress-nya terasa kurang, cek kolom "Order Tanpa Data".
 </div>
 
 <div class="card">
@@ -105,7 +115,7 @@
                     </td>
                     <td class="text-center d-none d-md-table-cell">
                         @if($row['jumlah_order_tanpa_data'] > 0)
-                        <span class="badge bg-warning-subtle text-warning" title="Order tanpa data berat gilingan, dihitung 0 kg">
+                        <span class="badge bg-warning-subtle text-warning" title="Order dgn {{ $tanpaDataLabel }}, dihitung 0 {{ $loyaltyProgram->satuan_qty }}">
                             {{ $row['jumlah_order_tanpa_data'] }} order
                         </span>
                         @else

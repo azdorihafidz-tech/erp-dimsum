@@ -3,9 +3,9 @@
 > **Untuk Claude Code**: File ini adalah **single source of truth** untuk seluruh project. WAJIB dibaca sebelum eksekusi apapun.
 > Isinya: keputusan bisnis, temuan audit, aturan teknis, dan filosofi kerja.
 
-**Versi**: 3.9  
-**Update terakhir**: 2026-09-19  
-**Status**: 🎉 **PROJECT LIVE DI PRODUCTION** (https://erpdimsum.azwacore.com) — Tahap 1-7 SELESAI SEMUA (Branding, Master Data, POS, Rename qty_per_unit, Setoran Cabang→HO, Dashboard & Laporan, Final Polish & Testing) + Bug Fix Ronde 2 + Rename Jenis Menu/Master Bumbu Pusat + Fitur Import dari Bumbu Pusat + Improvement Test Manual Production (rename label, hapus Gojek/Grab) + Fix Foto Produk Production + UI Preview Harga Master/Subtotal Resep + Bug Fix Ronde 3 (Simulasi Produksi realtime + Total HPP footer) + Ronde 4 (format qty + konsolidasi Total HPP) + Ronde 5 (preview subtotal Bumbu Pusat decoupled dari produk + fix parse angka ribuan) + Auto-isi Satuan Master Bumbu Pusat + Fix ENUM kategori Saldo Awal (Keuangan) + Fix label Kode Kategori wajib SELESAI. Sprint 2 (konversi satuan foolproof kalkulator resep) DIDEFER, lihat [[12.12]].
+**Versi**: 4.0  
+**Update terakhir**: 2026-09-21  
+**Status**: 🎉 **PROJECT LIVE DI PRODUCTION** (https://erpdimsum.azwacore.com) — Tahap 1-7 SELESAI SEMUA (Branding, Master Data, POS, Rename qty_per_unit, Setoran Cabang→HO, Dashboard & Laporan, Final Polish & Testing) + Bug Fix Ronde 2 + Rename Jenis Menu/Master Bumbu Pusat + Fitur Import dari Bumbu Pusat + Improvement Test Manual Production (rename label, hapus Gojek/Grab) + Fix Foto Produk Production + UI Preview Harga Master/Subtotal Resep + Bug Fix Ronde 3 (Simulasi Produksi realtime + Total HPP footer) + Ronde 4 (format qty + konsolidasi Total HPP) + Ronde 5 (preview subtotal Bumbu Pusat decoupled dari produk + fix parse angka ribuan) + Auto-isi Satuan Master Bumbu Pusat + Fix ENUM kategori Saldo Awal (Keuangan) + Fix label Kode Kategori wajib + Default Basis Program Loyalty ke Rp SELESAI. Sprint 2 (konversi satuan foolproof kalkulator resep) DIDEFER, lihat [[12.12]].
 
 ---
 
@@ -397,6 +397,29 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 **Fix**: murni UI, samakan pola dengan field "Nama Kategori" di sebelahnya (yang sudah benar) — tambah `<span class="text-danger">*</span>` di label + atribut `required` di input + ganti placeholder jadi cth: "CAT-001" (tanpa "(opsional)"), di KEDUA file. 0 perubahan controller/route/migration.
 
 **Verifikasi**: `tests/Feature/Tahap7/KodeKategoriWajibTest.php` (4 test) — label+placeholder baru tampil di form Create & Edit, backend tetap menolak kode kosong (regresi validasi existing), kategori dengan kode lengkap tetap bisa disimpan. Full regression 247 test lintas Tahap 2.5/5/6/7 PASS (0 regresi).
+
+### 4.22 🟢 Default Basis Program Loyalty: Kg Giling → Total Belanja (Rp) (2026-09-21)
+
+**Laporan Owner**: form "Tambah Program Loyalty" — dropdown "Tipe Program" (Auto-Track) berlabel "kumulatif kg giling, otomatis", padahal D'mentai tidak pernah pakai satuan kg.
+
+**Root cause**: `LoyaltyService::auto_track` sudah di-extend Tahap 7 ([[4.12]] B2) supaya support 3 basis (`orders.berat_daging_kg`/`orders.total_bayar`/`orders.count`) dan form `sumber_data` sudah default-select "Total Belanja (Rp)" — TAPI 3 lapis lain masih basis kg warisan Berkah Mulyo, tidak ikut disinkronkan saat widen enum dulu:
+1. **DB column default**: `loyalty_programs.sumber_data`/`satuan_qty` masih `DEFAULT 'orders.berat_daging_kg'`/`'kg'` (migration awal `2026_08_11_000001`, tidak diubah saat widen `2026_09_17_600001`).
+2. **Backend fallback**: `LoyaltyProgramController::store()` — `$validated['sumber_data'] ?? 'orders.berat_daging_kg'` (fallback kalau field tidak dikirim).
+3. **Label statis di view**: dropdown "Tipe Program" (create & edit) hardcode "kumulatif kg giling, otomatis" + helper text sebut `orders.berat_daging_kg` eksplisit, TIDAK PEDULI basis apa yang sebenarnya dipilih di dropdown "Basis Perhitungan" terpisah.
+4. **`loyalty-program/show.blade.php`**: info alert + tooltip kolom "Order Tanpa Data" hardcode teks "berat gilingan"/"kg" utk SEMUA program apapun basisnya — salah/membingungkan utk program Rp/transaksi (yang sekarang jadi default).
+
+**Fix (sinkronisasi 4 lapis, opsi kg TETAP ADA sbg pilihan legacy — tidak dihapus, cuma bukan default)**:
+1. Migration `2026_09_21_900001_ubah_default_sumber_data_loyalty_programs_ke_rp` — `ALTER ... MODIFY` DEFAULT kolom jadi `orders.total_bayar`/`Rp`. Reversibel, diverifikasi manual `migrate`→`rollback`→`migrate`.
+2. `LoyaltyProgramController::store()` — fallback diubah ke `'orders.total_bayar'`.
+3. `create.blade.php`/`edit.blade.php` — label "Auto-Track (kumulatif otomatis dari transaksi pelanggan)" + helper text generik (tidak hardcode kolom kg), default nama program & target diganti ke skenario Rp ("Hadiah Loyalty Pelanggan Setia", target Rp 500.000).
+4. `show.blade.php` — info alert & tooltip "Order Tanpa Data" sekarang dinamis (`@php $sumberLabel`/`$tanpaDataLabel` di-`match()` dari `$loyaltyProgram->sumber_data`) — program basis kg (legacy) tetap tampil teks kg yang benar, program Rp/transaksi tampil teks yang sesuai.
+5. `database/seeders/ProgramLoyaltySeeder.php` — demo seed diupdate ke basis Rp (**dead code**, tidak terdaftar di `DatabaseSeeder.php`, tidak pernah dieksekusi otomatis — disinkronkan isinya utk jaga-jaga kalau dijalankan manual suatu saat).
+
+**Temuan terkait TIDAK diubah (di luar scope, murni informasi)**: `pelanggan/show.blade.php` (halaman detail 1 pelanggan) punya widget stat card "Total Kg Giling" (`PelangganController` query `SUM(berat_daging_kg)`) — SELALU tampil 0 kg utk semua pelanggan D'mentai (tidak ada order jasa giling sama sekali), dead-weight display warisan Berkah Mulyo. Tidak disentuh karena di luar scope "form Tambah Program Loyalty" yang diminta — perlu keputusan Owner terpisah apakah mau dihapus/diganti widget lain.
+
+**File yang diedit**: migration baru, `LoyaltyProgramController.php`, `loyalty-program/{create,edit,show}.blade.php`, `ProgramLoyaltySeeder.php`.
+
+**Verifikasi**: `tests/Feature/Tahap7/LoyaltyDefaultBasisRpTest.php` (8 test) — DB default sekarang Rp, submit tanpa `sumber_data` fallback ke Rp bukan kg, label create/edit tidak sebut "kg giling" lagi, show basis Rp tidak tampilkan teks "berat gilingan", show basis kg (legacy, kalau ada program lama) tetap tampil teks kg yang benar, regresi submit eksplisit basis kg & Rp keduanya tetap normal. Full regression 255 test lintas Tahap 2.5/5/6/7 PASS (0 regresi).
 
 ---
 

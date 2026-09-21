@@ -28,15 +28,15 @@
                 <div class="col-12">
                     <label class="form-label">Tipe Program <span class="text-danger">*</span></label>
                     <select name="tipe_program" id="tipeProgram" class="form-select" required>
-                        <option value="auto_track" {{ old('tipe_program','auto_track')==='auto_track'?'selected':'' }}>Auto-Track (kumulatif kg giling, otomatis)</option>
+                        <option value="auto_track" {{ old('tipe_program','auto_track')==='auto_track'?'selected':'' }}>Auto-Track (kumulatif otomatis dari transaksi pelanggan)</option>
                         <option value="event_based" {{ old('tipe_program')==='event_based'?'selected':'' }}>Event-Based (klaim manual + bukti, 1x per pelanggan)</option>
                     </select>
-                    <small class="text-muted">Auto-Track: progress dihitung sistem dari <code>orders.berat_daging_kg</code>. Event-Based: pelanggan klaim manual (mis. post di sosmed), Owner approve/reject.</small>
+                    <small class="text-muted">Auto-Track: progress dihitung sistem otomatis dari transaksi POS pelanggan (default: Total Belanja Rp — bisa diganti ke Jumlah Transaksi di "Basis Perhitungan" di bawah). Event-Based: pelanggan klaim manual (mis. post di sosmed), Owner approve/reject.</small>
                 </div>
 
                 <div class="col-12 col-md-8">
                     <label class="form-label">Nama Program <span class="text-danger">*</span></label>
-                    <input type="text" name="nama" class="form-control" value="{{ old('nama', 'Hadiah Loyalty 500 Kg') }}" required>
+                    <input type="text" name="nama" class="form-control" value="{{ old('nama', 'Hadiah Loyalty Pelanggan Setia') }}" required>
                 </div>
                 <div class="col-6 col-md-2">
                     <label class="form-label">Status</label>
@@ -48,8 +48,8 @@
 
                 <div class="col-6 col-md-2 field-auto-track">
                     <label class="form-label">Target <span class="text-danger">*</span></label>
-                    <input type="number" step="0.01" min="0.01" name="target_qty_kg" id="targetQtyKg" class="form-control" value="{{ old('target_qty_kg', 500) }}">
-                    <small class="text-muted">Sesuai satuan basis di bawah (kg / Rp / transaksi)</small>
+                    <input type="number" step="0.01" min="0.01" name="target_qty_kg" id="targetQtyKg" class="form-control" value="{{ old('target_qty_kg', 500000) }}">
+                    <small class="text-muted">Sesuai satuan basis di bawah (Rp / transaksi / kg legacy)</small>
                 </div>
 
                 <div class="col-12">
@@ -97,7 +97,7 @@
                     <div class="form-check">
                         <input type="checkbox" name="berulang" id="berulang" class="form-check-input" value="1" {{ old('berulang')?'checked':'' }}>
                         <label class="form-check-label" for="berulang">
-                            Bisa berulang kali per pelanggan (mis. dapat hadiah lagi tiap kelipatan 500kg)
+                            Bisa berulang kali per pelanggan (mis. dapat hadiah lagi tiap kelipatan target di atas)
                         </label>
                     </div>
                 </div>

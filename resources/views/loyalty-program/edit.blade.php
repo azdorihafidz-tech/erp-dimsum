@@ -29,10 +29,10 @@
                 <div class="col-12">
                     <label class="form-label">Tipe Program <span class="text-danger">*</span></label>
                     <select name="tipe_program" id="tipeProgram" class="form-select" required>
-                        <option value="auto_track" {{ old('tipe_program',$loyaltyProgram->tipe_program)==='auto_track'?'selected':'' }}>Auto-Track (kumulatif kg giling, otomatis)</option>
+                        <option value="auto_track" {{ old('tipe_program',$loyaltyProgram->tipe_program)==='auto_track'?'selected':'' }}>Auto-Track (kumulatif otomatis dari transaksi pelanggan)</option>
                         <option value="event_based" {{ old('tipe_program',$loyaltyProgram->tipe_program)==='event_based'?'selected':'' }}>Event-Based (klaim manual + bukti, 1x per pelanggan)</option>
                     </select>
-                    <small class="text-muted">Auto-Track: progress dihitung sistem dari <code>orders.berat_daging_kg</code>. Event-Based: pelanggan klaim manual (mis. post di sosmed), Owner approve/reject.</small>
+                    <small class="text-muted">Auto-Track: progress dihitung sistem otomatis dari transaksi POS pelanggan (default: Total Belanja Rp — bisa diganti ke Jumlah Transaksi di "Basis Perhitungan" di bawah). Event-Based: pelanggan klaim manual (mis. post di sosmed), Owner approve/reject.</small>
                 </div>
 
                 <div class="col-12 col-md-8">

@@ -52,9 +52,10 @@ class LoyaltyProgramController extends Controller
             // Tahap 7 D'mentai — 'penjualan' ditambah (D'mentai tidak py jasa
             // giling), 'jasa_giling' dipertahankan (backward compat data lama).
             'tipe_item'        => 'required|in:jasa_giling,penjualan',
-            // Basis perhitungan progress — sengaja opsional (default kg,
-            // backward compat) supaya form lama yang belum tahu field ini
-            // tetap jalan tanpa error.
+            // Basis perhitungan progress — sengaja opsional (default Total
+            // Belanja Rp, basis yang genuinely relevan utk retail D'mentai;
+            // bug fix 2026-09-21 — dulu default kg warisan Berkah Mulyo)
+            // supaya request yang belum tahu field ini tetap jalan tanpa error.
             'sumber_data'      => 'nullable|in:orders.berat_daging_kg,orders.total_bayar,orders.count',
             'periode_mulai'    => 'nullable|date',
             'periode_akhir'    => 'nullable|date|after_or_equal:periode_mulai',
@@ -64,7 +65,7 @@ class LoyaltyProgramController extends Controller
             'status'           => 'required|in:aktif,nonaktif',
         ]);
         $validated['berulang'] = $request->boolean('berulang');
-        $validated['sumber_data'] = $validated['sumber_data'] ?? 'orders.berat_daging_kg';
+        $validated['sumber_data'] = $validated['sumber_data'] ?? 'orders.total_bayar';
         $validated['satuan_qty'] = self::SATUAN_PER_SUMBER[$validated['sumber_data']];
         // event_based tidak punya target kg — set 0 (kolom NOT NULL di DB)
         // supaya tidak error, tapi tidak dipakai kalkulasi apapun.
