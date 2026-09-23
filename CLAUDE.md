@@ -3,9 +3,9 @@
 > **Untuk Claude Code**: File ini adalah **single source of truth** untuk seluruh project. WAJIB dibaca sebelum eksekusi apapun.
 > Isinya: keputusan bisnis, temuan audit, aturan teknis, dan filosofi kerja.
 
-**Versi**: 4.4  
-**Update terakhir**: 2026-09-21  
-**Status**: 🎉 **PROJECT LIVE DI PRODUCTION** (https://erpdimsum.azwacore.com) — Tahap 1-7 SELESAI SEMUA + rangkaian bug fix & improvement lintas sesi (lihat section 4 utk detail lengkap tiap item): Bug Fix Ronde 2, Rename Jenis Menu/Master Bumbu Pusat, Fitur Import dari Bumbu Pusat, Rename Label & Hapus Gojek/Grab, Fix Foto Produk Production, UI Preview Harga Master/Subtotal Resep (Ronde 3-5), Auto-isi Satuan Master Bumbu Pusat, Fix ENUM Kategori Saldo Awal, Fix Label Kode Kategori Wajib, Default Basis Program Loyalty ke Rp, Widget Total Pembelian Pelanggan, Fix Export Excel Laporan Keuangan. **Sprint 3 Batch 1 SELESAI SEMUA** (5 menu Prioritas 1 — Penjualan, Setoran Kasir, Setoran Harian/Rekap, Stok 3 sub-view, Laba Rugi Produksi — lihat [[4.24]], [[4.25]]) — Sprint 2 (konversi satuan resep) DIDEFER [[12.12]], Sprint 3 Batch 2/3 (17 menu Laporan Prioritas 2/3) + TODO tracking stock movement [[12.14]] MENYUSUL [[12.13]].
+**Versi**: 4.5  
+**Update terakhir**: 2026-09-23  
+**Status**: 🎉 **PROJECT LIVE DI PRODUCTION** (https://erp.dmentaiindonesia.com — domain lama `erpdimsum.azwacore.com` sudah tidak dipakai; **GO-LIVE data real: lihat [[4.28]]**) — Tahap 1-7 SELESAI SEMUA + rangkaian bug fix & improvement lintas sesi (lihat section 4 utk detail lengkap tiap item): Bug Fix Ronde 2, Rename Jenis Menu/Master Bumbu Pusat, Fitur Import dari Bumbu Pusat, Rename Label & Hapus Gojek/Grab, Fix Foto Produk Production, UI Preview Harga Master/Subtotal Resep (Ronde 3-5), Auto-isi Satuan Master Bumbu Pusat, Fix ENUM Kategori Saldo Awal, Fix Label Kode Kategori Wajib, Default Basis Program Loyalty ke Rp, Widget Total Pembelian Pelanggan, Fix Export Excel Laporan Keuangan. **Sprint 3 Batch 1 SELESAI SEMUA** (5 menu Prioritas 1 — Penjualan, Setoran Kasir, Setoran Harian/Rekap, Stok 3 sub-view, Laba Rugi Produksi — lihat [[4.24]], [[4.25]]) — Sprint 2 (konversi satuan resep) DIDEFER [[12.12]], Sprint 3 Batch 2/3 (17 menu Laporan Prioritas 2/3) + TODO tracking stock movement [[12.14]] MENYUSUL [[12.13]].
 
 ---
 
@@ -303,7 +303,7 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 
 ### 4.18 🔴 Foto Produk Tidak Tampil di Production (Rumah Web Shared Hosting) — Root Cause Ganda + Fix Override `asset()`
 
-**Konteks**: Production (`erpdimsum.azwacore.com`, Rumah Web shared hosting cPanel) TIDAK PUNYA terminal/SSH, dan `symlink()` PHP DIBLOKIR provider — `php artisan storage:link` (jalan normal di XAMPP lokal, lihat [[10.5b]]) tidak bisa dipakai sama sekali di production. Foto produk (upload sukses, file genuinely ada di `storage/app/public/produk/`) tidak tampil di UI manapun (Master Produk Jual, POS). 4 percobaan fix awal (proxy `.htaccess`, ubah config `filesystems.php`, tambah route `/storage/{path}`, replace compiled views) SEMUANYA gagal — audit menemukan **2 root cause independen** yang saling menjelaskan kenapa keempatnya gagal:
+**Konteks**: Production (`erp.dmentaiindonesia.com`, sebelumnya `erpdimsum.azwacore.com`; Rumah Web shared hosting cPanel) TIDAK PUNYA terminal/SSH, dan `symlink()` PHP DIBLOKIR provider — `php artisan storage:link` (jalan normal di XAMPP lokal, lihat [[10.5b]]) tidak bisa dipakai sama sekali di production. Foto produk (upload sukses, file genuinely ada di `storage/app/public/produk/`) tidak tampil di UI manapun (Master Produk Jual, POS). 4 percobaan fix awal (proxy `.htaccess`, ubah config `filesystems.php`, tambah route `/storage/{path}`, replace compiled views) SEMUANYA gagal — audit menemukan **2 root cause independen** yang saling menjelaskan kenapa keempatnya gagal:
 
 **Root Cause A — `.htaccess` bawaan blokir `/storage/*` SEBELUM sampai Laravel**: `public/.htaccess` (warisan template Berkah Mulyo, ada sejak initial commit) punya `RewriteRule ^storage/ - [L,NC]` — didesain utk kondisi `public/storage` adalah symlink/junction BENERAN (fast-path: Apache serve langsung tanpa lewat Laravel). Di production, symlink itu TIDAK ADA (diblokir), jadi Apache coba serve file yang tidak ada → 404 Apache → kemungkinan besar Rumah Web punya `ErrorDocument 404` custom yang fallback ke `index.php` → Laravel jalan tapi HANYA menemukan "tidak ada route match", render 404 branded-nya sendiri. **Rule `[L]` ini terminate proses SEBELUM custom `.htaccess` rule ATAU route Laravel `/storage/{path}` manapun sempat dievaluasi** — itu sebabnya Coba 1 (proxy rule) dan Coba 3 (route baru) sama-sama gagal walau masing-masing secara terpisah sudah benar.
 
@@ -539,6 +539,42 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 **Verifikasi**: `tests/Feature/Tahap7/SimulatorBepSnapshotExportTest.php` (11 test) — Excel 3-sheet valid, PDF valid, validasi tolak field kosong/nilai negatif, Target Profit opsional tetap jalan kalau kosong, permission ditolak (403) utk role tanpa akses, 3 skenario kesimpulan dinamis (belum BEP/sudah BEP/margin negatif) + kalimat MoS muncul kalau target profit diisi — SEMUA via reflection ke `buildSnapshot()`/`buildKesimpulan()` LANGSUNG (bukan grep string di PDF binary, yang tidak reliable krn dompdf compress/encode konten), reproduksi logic server=JS diverifikasi eksplisit dgn angka fixture. Full regression 325 test lintas Tahap 2.5/5/6/7 PASS (0 regresi).
 
 **Sprint 3 Batch 2 SEKARANG BENAR-BENAR SELESAI SEMUA 17 menu** (9 dibangun/dirapikan penuh + 4 Excel-only + 1 blocker terakhir Simulator BEP DISELESAIKAN via approach snapshot) — 2 blocker TERSISA (Komisi Sales, Laporan Eksekutif) masih butuh keputusan desain Owner, lihat [[12.15]] (diupdate).
+
+### 4.28 🔴 Go-Live Data Real — GoLiveSeeder, Script `public/golive.php`, dan Alur Setup (2026-09-23)
+
+**Konteks**: aplikasi pindah ke domain baru `erp.dmentaiindonesia.com`; semua data di DB saat itu dummy. Audit seeder menemukan `db:seed` biasa TIDAK boleh dipakai utk go-live.
+
+**Temuan audit seeder (kenapa `DatabaseSeeder` berbahaya utk go-live)**:
+- `UserSeeder` membuat 9 user `@berkahmulyo.com` dgn password `password` (Owner: `admin@berkahmulyo.com`) — **kredensial default WAJIB tidak pernah hidup di production**. Seeder itu juga sudah rusak sejak fork (cari cabang `CA001`/`CB001` yang tidak ada lagi).
+- `CabangSeeder`/`ItemSeeder`/`ResepBumbuSeeder`/`PembelianPenjualanSeeder`/`HRSeeder` = data dummy. `NeracaSettingSeeder` hardcode modal Rp 198.329.749 (data Berkah Mulyo). `CleanupBerkahMulyoDataSeeder`/`TestingBatch1SeederTemp`/`StokSeeder` = dev only.
+- **7 seeder wajib TIDAK ada di `DatabaseSeeder`**: `ChartOfAccountsSeeder` (tanpa ini COA kosong → Laba Rugi Formal/Neraca/Buku Besar kosong), `KategoriCoaBackfillSeeder`, `PerlengkapanKategoriCoaSeeder`, `KeamananPermissionSeeder`, `AbsensiPermissionSeeder`, `AntrianPermissionSeeder` (permission `lihat_audit_log`/`scan_absensi`/`antrian.*` HANYA dibuat di sini, bukan di `PermissionSeeder`).
+- **Ketergantungan urutan**: semua seeder permission harus sebelum `RolePermissionSeeder`; `PanduanPosSeeder` sebelum `PanduanStubSeeder` (Stub mengubah `modul` panduan `pos` → `penjualan`, slug tetap `pos`); `ChartOfAccountsSeeder` sebelum `KategoriCoaBackfillSeeder`. `EvaluationAspectSeeder` memakai `create()` (tidak idempotent) — di-guard `count()===0`. **`PanduanStubSeeder` TIDAK bisa dijalankan ulang di DB yang sudah terisi** (update slug bentrok `transfer-dana`) — GoLiveSeeder hanya utk DB fresh.
+
+**Yang dibangun**:
+- `database/seeders/GoLiveSeeder.php` — 18 seeder referensi wajib (urutan di atas) + 1 Owner + 1 Gudang Pusat placeholder (`HO-01`, tipe `gudang_pusat`, owner ter-attach `is_default`). **Role Owner = `owner` (bukan `admin_pusat`)** — `owner` mendapat semua permission lewat `Gate::before`; `admin_pusat` role terpisah (121 permission ter-map). Menolak jalan di `APP_ENV=production` kalau kredensial masih default.
+- `config/golive.php` — `GOLIVE_OWNER_EMAIL`/`_PASSWORD`/`_NAME` (dari `.env`, bukan hardcode), `GOLIVE_ENABLED` (saklar pengaman).
+- `public/golive.php` — script sekali pakai (pola `clear-cache.php`) utk hosting tanpa terminal: `migrate:fresh --force` + `GoLiveSeeder`. **5 pengaman berlapis**: `APP_ENV=production`, `GOLIVE_ENABLED=true` di `.env`, kredensial bukan default, `?confirm=YES-GO-LIVE`, dan `storage/golive.lock` (cegah wipe kedua tanpa sengaja; hapus lock manual kalau memang mau mengulang). Password Owner SENGAJA tidak dicetak di layar (cuma email) — script tanpa auth, output bisa terbaca siapa pun yang tahu URL.
+
+**Yang TIDAK dilakukan GoLiveSeeder**: tidak membuat outlet, kas, karyawan, item, modal owner (`neraca_settings` kosong → `getSetting()` membuat baris `modal_owner=0`). Semua diinput Owner lewat UI (alur di bawah).
+
+**⚠️ Setelah go-live**: hapus `public/golive.php` dari server, hapus semua baris `GOLIVE_*` dari `.env`, jalankan `public/clear-cache.php` (lalu hapus), ganti password Owner. Pastikan `.env` production: `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL=https://erp.dmentaiindonesia.com`.
+
+**Urutan setup data real (15 langkah, sesuai dependency)**:
+1. Login Owner, ganti password/email. 2. Pengaturan Umum (nama perusahaan, logo). 3. Cabang (Gudang Pusat + outlet: alamat, GPS, config POS dine-in/takeaway/frozen/service charge/footer struk). 4. **Kas per cabang WAJIB** — tiap outlet 3 kas default `tunai`/`transfer`/`qris` (tanpa itu checkout POS error "Cabang belum punya Kas default…") + kas Gudang Pusat (tujuan Setoran Kasir); saldo awal otomatis jadi transaksi "Saldo Awal". 5. Modal Owner di halaman Neraca (manual, supaya BALANCE). 6. Karyawan → User login (role + cabang). 7. Cek Role & Hak Akses (`/role`; permission laporan baru Owner-only). 8. Kategori Item (7 default ada). 9. Master Bahan Baku & Kemasan (satuan harga = satuan stok! lihat [[4.19]]). 10. Stok awal per cabang (Pembelian/Adjustment → batch FIFO berharga; verifikasi HPP>0). 11. Master Bumbu Pusat (opsional, sebelum Produk Jual). 12. Master Produk Jual (resep, foto, varian, centang outlet `item_cabang`). 13. Aset awal. 14. Program Loyalty (opsional). 15. Verifikasi per outlet: 1 order tunai dgn kembalian → cek kas naik sebesar NILAI order ([[4.29]]), stok terpotong, HPP terisi, Setoran Kasir benar.
+
+**Belum ada tool "Reset Data Transaksi"** (TODO 5.5) — order percobaan sebaiknya di gladi lokal, bukan production.
+
+**Verifikasi**: `tests/Feature/Tahap7/GoLiveSeederTest.php` (10 test; DB test sudah terisi jadi panduan/tooltip dikosongkan dulu dlm transaction utk meniru DB fresh) + **gladi bersih nyata**: `migrate:fresh` + `GoLiveSeeder` di DB kosong terpisah (`erp_dimsum_golive_rehearsal`, sudah di-drop) → 1 user, 1 cabang, 178 permission, 121 permission `admin_pusat`, 59 akun COA (3 leaf HPP), 22 kategori transaksi, 7 kategori item, 8 kategori aset, 79 panduan (0 kosong), 113 tooltip, 0 item/kas/order/karyawan/user dummy; `public/golive.php` diuji 6 skenario (bukan production, `GOLIVE_ENABLED` belum diset, kredensial default, tanpa confirm, eksekusi penuh, jalan kedua ditolak lock) dgn `DB_DATABASE` di-override ke DB gladi.
+
+### 4.29 🔴 Kas/Transaksi Mencatat Uang Diserahkan, Bukan Nilai Order (Kembalian Tidak Dikurangi) (2026-09-23)
+
+**Laporan Owner**: order Rp 5.000, bayar tunai Rp 50.000, kembali Rp 45.000 — di Kas & Transaksi tercatat pemasukan Rp 50.000.
+
+**Root cause**: `PenjualanService::prosesPembayaran()` mencatat `payments[].jumlah` (uang yang diserahkan) ke `Kas.saldo_sekarang`, `TransaksiKeuangan.jumlah`, dan `OrderPayment.jumlah` — kembalian tidak pernah dikurangkan (`orders.kembalian` cuma dihitung setelahnya utk struk).
+
+**Fix**: kembalian (`total pembayaran − total_bayar`) dipotong dari pembayaran **tunai** sebelum dicatat ke ketiga tempat itu (split payment: cuma bagian tunai yang dipotong, transfer/QRIS utuh). `orders.jumlah_bayar` tetap uang yang diserahkan (struk). `SetoranKasirService` (baca `order_payments`) dan pembatalan order (baca `TransaksiKeuangan.jumlah`) otomatis ikut benar. 4 test di `KembalianKasSinkronTest.php`; regresi 329 test PASS.
+
+**⚠️ Data lama tidak dikoreksi**: order lama yang punya kembalian masih membuat saldo kas/Setoran Kasir kelebihan sebesar total kembaliannya. Untuk data go-live baru (`migrate:fresh`) tidak relevan; kalau ada data lama yang dipertahankan, perlu script koreksi (belum dibuat — tunggu persetujuan Owner).
 
 ---
 
@@ -1131,7 +1167,7 @@ Setiap kali mulai kerja fitur baru, Claude Code WAJIB:
 
 ---
 
-**🎉 PROJECT LIVE DI PRODUCTION** (https://erpdimsum.azwacore.com) **— Tahap 7 (Final Polish) selesai 2026-09-14, Bug Fix Ronde 2 selesai 2026-09-15, Rename Jenis Menu/Master Bumbu Pusat + Fitur Import dari Bumbu Pusat selesai 2026-09-17, Improvement Test Manual Production selesai 2026-09-18.** Semua 7 tahap roadmap tuntas + 6 bug dari test manual final (termasuk 1 KRITIS: data ghost akibat nested form) sudah difix & diguard-rail + fitur link-resep-antar-produk (anti cyclic by construction, live-calculation tanpa cache/job) sudah dibangun + POS disederhanakan jadi 3 metode pembayaran (Tunai/Transfer/QRIS, Gojek/Grab dihapus) berdasar masukan pemakaian nyata di production. 194 test lintas fase PASS (0 regresi), smoke test 187 halaman clean, dead code dibersihkan, bug BEP+Loyalty terwariskan sudah difix, error page branded, 4 alur bisnis end-to-end terverifikasi.
+**🎉 PROJECT LIVE DI PRODUCTION** (https://erp.dmentaiindonesia.com) **— Tahap 7 (Final Polish) selesai 2026-09-14, Bug Fix Ronde 2 selesai 2026-09-15, Rename Jenis Menu/Master Bumbu Pusat + Fitur Import dari Bumbu Pusat selesai 2026-09-17, Improvement Test Manual Production selesai 2026-09-18.** Semua 7 tahap roadmap tuntas + 6 bug dari test manual final (termasuk 1 KRITIS: data ghost akibat nested form) sudah difix & diguard-rail + fitur link-resep-antar-produk (anti cyclic by construction, live-calculation tanpa cache/job) sudah dibangun + POS disederhanakan jadi 3 metode pembayaran (Tunai/Transfer/QRIS, Gojek/Grab dihapus) berdasar masukan pemakaian nyata di production. 194 test lintas fase PASS (0 regresi), smoke test 187 halaman clean, dead code dibersihkan, bug BEP+Loyalty terwariskan sudah difix, error page branded, 4 alur bisnis end-to-end terverifikasi.
 
 ---
 
