@@ -412,10 +412,22 @@ class PenjualanService
         $totalDibayar = 0.0;
         $isSplit = count($payments) > 1;
 
+        // Kembalian keluar dari laci (tunai), jadi kas/transaksi/order_payments
+        // hanya mencatat uang yang BENAR-BENAR tinggal (diterima - kembalian).
+        // orders.jumlah_bayar tetap uang yang diserahkan pelanggan (utk struk).
+        $sisaKembalian = max(0.0, array_sum(array_map(fn ($p) => (float) $p['jumlah'], $payments)) - (float) $order->total_bayar);
+
         foreach ($payments as $index => $payment) {
             $metode = TipePembayaran::from($payment['metode']);
-            $jumlah = (float) $payment['jumlah'];
-            $totalDibayar += $jumlah;
+            $diserahkan = (float) $payment['jumlah'];
+            $totalDibayar += $diserahkan;
+
+            $jumlah = $diserahkan;
+            if ($metode === TipePembayaran::Tunai && $sisaKembalian > 0) {
+                $potong = min($sisaKembalian, $diserahkan);
+                $jumlah = $diserahkan - $potong;
+                $sisaKembalian -= $potong;
+            }
 
             $kas = Kas::where('cabang_id', $cabangId)
                 ->where('default_untuk', $metode->kasKategori())
@@ -432,6 +444,10 @@ class PenjualanService
             if ($index === 0) {
                 $kasIdUtama = $kas->id;
                 $tipePembayaranSummary = $metode;
+            }
+
+            if ($jumlah <= 0) {
+                continue;
             }
 
             OrderPayment::create([
