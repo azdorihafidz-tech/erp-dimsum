@@ -44,6 +44,18 @@ class ItemRequest extends FormRequest
             // di migration yang menjamin data lama aman).
             'jenis'             => ['required', Rule::in(['bahan_baku','perlengkapan'])],
             'track_stok'        => ['boolean'],
+            // Sprint Unit Family (2026-09-27).
+            'unit_beli'         => ['nullable', 'required_with:isi_per_unit_beli', 'string', 'max:20'],
+            'isi_per_unit_beli' => ['nullable', 'required_with:unit_beli', 'numeric', 'gt:0'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'unit_beli.required_with'         => 'Unit Beli wajib diisi kalau Isi per Unit Beli di-isi.',
+            'isi_per_unit_beli.required_with' => 'Isi per Unit Beli wajib diisi kalau Unit Beli di-isi.',
+            'isi_per_unit_beli.gt'            => 'Isi per Unit Beli harus lebih dari 0.',
         ];
     }
 

@@ -38,6 +38,11 @@ class Item extends Model
         'punya_varian',
         'stok_per_varian',
         'foto',
+        // Sprint Unit Family (2026-09-27): unit_beli + isi_per_unit_beli.
+        // Kalau di-isi, form PO/Adjustment menampilkan dropdown Unit dan
+        // auto-convert qty & harga ke unit pakai (satuan) sebelum simpan.
+        'unit_beli',
+        'isi_per_unit_beli',
     ];
 
     protected function casts(): array
@@ -51,7 +56,27 @@ class Item extends Model
             'track_stok' => 'boolean',
             'punya_varian' => 'boolean',
             'stok_per_varian' => 'boolean',
+            'isi_per_unit_beli' => 'decimal:3',
         ];
+    }
+
+    /** Sprint Unit Family (2026-09-27) — barang ini bisa di-input dgn unit beli? */
+    public function hasUnitBeli(): bool
+    {
+        return !empty($this->unit_beli) && (float) $this->isi_per_unit_beli > 0;
+    }
+
+    /**
+     * Konversi qty dari $unit (unit_beli atau satuan) ke unit pakai (satuan).
+     * $unit yang tidak dikenal dianggap unit pakai (return apa adanya) —
+     * fail-safe supaya data lama (unit_input NULL) tidak error.
+     */
+    public function convertToUnitPakai(float $qty, ?string $unit = null): float
+    {
+        if ($unit !== null && $this->hasUnitBeli() && strcasecmp($unit, (string) $this->unit_beli) === 0) {
+            return $qty * (float) $this->isi_per_unit_beli;
+        }
+        return $qty;
     }
 
     public function category()

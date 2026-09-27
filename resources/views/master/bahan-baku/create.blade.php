@@ -63,6 +63,8 @@
             </div>
         </div>
 
+        <x-unit-beli-section />
+
         <div class="card mb-3">
             <div class="card-header fw-semibold">Harga &amp; Stok Minimum</div>
             <div class="card-body">

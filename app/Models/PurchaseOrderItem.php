@@ -20,6 +20,11 @@ class PurchaseOrderItem extends Model
         'harga_satuan',
         'total_harga',
         'catatan',
+        // Sprint Unit Family (2026-09-27): audit trail input asli user
+        // sebelum konversi ke unit pakai. NULL berarti input dlm unit pakai
+        // (legacy/backward compat).
+        'unit_input',
+        'qty_input',
     ];
 
     protected function casts(): array

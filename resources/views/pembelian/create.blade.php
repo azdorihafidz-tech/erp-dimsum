@@ -146,6 +146,8 @@ $itemsJson = $items->map(function($i) {
         'nama_item'           => $i->nama_item,
         'kode_item'           => $i->kode_item,
         'satuan'              => $i->satuan,
+        'unit_beli'           => $i->unit_beli,
+        'isi_per_unit_beli'   => $i->isi_per_unit_beli !== null ? (float) $i->isi_per_unit_beli : null,
         'harga_beli_terakhir' => $i->harga_beli_terakhir ?? 0,
         'total_stok'          => $i->total_stok ?? 0,
         'stok_per_lokasi'     => $i->stok_per_lokasi ?? [],
@@ -180,13 +182,19 @@ function tambahItem() {
                 ${options}
             </select>
         </div>
-        <div class="col-5 col-md-2">
-            <label class="form-label small">Qty Pesan <span class="text-danger">*</span></label>
+        <div class="col-4 col-md-1">
+            <label class="form-label small">Qty <span class="text-danger">*</span></label>
             <input type="number" name="items[${idx}][qty_pesan]" class="form-control form-control-sm qty-input"
                 step="0.001" min="0.001" value="1" required onchange="hitungSubtotal(${idx})">
         </div>
-        <div class="col-7 col-md-3">
-            <label class="form-label small">Harga Satuan <span class="text-danger">*</span></label>
+        <div class="col-4 col-md-1">
+            <label class="form-label small">Unit</label>
+            <select name="items[${idx}][unit_input]" class="form-select form-select-sm unit-input" onchange="hitungSubtotal(${idx})">
+                <option value="">—</option>
+            </select>
+        </div>
+        <div class="col-8 col-md-2">
+            <label class="form-label small harga-label">Harga / <span class="unit-label">satuan</span> <span class="text-danger">*</span></label>
             <input type="text" inputmode="numeric" data-rupiah name="items[${idx}][harga_satuan]" class="form-control form-control-sm harga-input"
                 value="0" required onchange="hitungSubtotal(${idx})">
         </div>
@@ -201,6 +209,7 @@ function tambahItem() {
         </div>
         <div class="col-12">
             <div id="stokInfo_${idx}" class="small text-muted"></div>
+            <div id="unitInfo_${idx}" class="small text-primary mt-1"></div>
         </div>
     `;
     container.appendChild(row);
@@ -217,8 +226,28 @@ function onItemChange(selectEl, idx) {
     }
     const itemId = parseInt(opt.value);
     const item = itemsData.find(i => i.id === itemId);
-    const hargaInput = selectEl.closest('.item-row').querySelector('.harga-input');
+    const row = selectEl.closest('.item-row');
+    const hargaInput = row.querySelector('.harga-input');
     if (hargaInput && item) { hargaInput.value = rupiahFmt(item.harga_beli_terakhir); hargaInput.dispatchEvent(new Event('input')); }
+
+    // Sprint Unit Family: populate dropdown Unit sesuai item.
+    const unitSelect = row.querySelector('.unit-input');
+    const unitLabel = row.querySelector('.unit-label');
+    if (unitSelect && item) {
+        unitSelect.innerHTML = '';
+        const optPakai = document.createElement('option');
+        optPakai.value = item.satuan;
+        optPakai.textContent = item.satuan;
+        unitSelect.appendChild(optPakai);
+        if (item.unit_beli && item.isi_per_unit_beli > 0) {
+            const optBeli = document.createElement('option');
+            optBeli.value = item.unit_beli;
+            optBeli.textContent = item.unit_beli + ' (1 = ' + item.isi_per_unit_beli + ' ' + item.satuan + ')';
+            unitSelect.appendChild(optBeli);
+            unitSelect.value = item.unit_beli; // default ke unit beli kalau ada
+        }
+        if (unitLabel) unitLabel.textContent = unitSelect.value || item.satuan;
+    }
 
     // Tampilkan stok per lokasi
     const stokEl = document.getElementById(`stokInfo_${idx}`);
@@ -246,6 +275,30 @@ function hitungSubtotal(idx) {
     const subtotal = qty * harga;
     const el = document.getElementById(`subtotal_${idx}`);
     if (el) el.textContent = 'Rp ' + subtotal.toLocaleString('id-ID');
+
+    // Sprint Unit Family: info konversi kalau input pakai unit_beli.
+    const unitSel = row.querySelector('.unit-input');
+    const unitLabel = row.querySelector('.unit-label');
+    if (unitLabel && unitSel) unitLabel.textContent = unitSel.value || 'satuan';
+    const info = document.getElementById(`unitInfo_${idx}`);
+    if (info) {
+        const selectEl = row.querySelector('select[name^="items"][name$="[item_id]"]');
+        const itemId = selectEl ? parseInt(selectEl.value) : 0;
+        const item = itemsData.find(i => i.id === itemId);
+        if (item && unitSel && unitSel.value && item.unit_beli
+            && unitSel.value.toLowerCase() === String(item.unit_beli).toLowerCase()
+            && item.isi_per_unit_beli > 0 && qty > 0 && harga > 0) {
+            const qtyPcs = qty * item.isi_per_unit_beli;
+            const hargaPcs = harga / item.isi_per_unit_beli;
+            info.innerHTML = '<i class="bi bi-arrow-right me-1"></i>'
+                + qty + ' ' + unitSel.value + ' × Rp ' + harga.toLocaleString('id-ID')
+                + ' = <strong>Rp ' + subtotal.toLocaleString('id-ID') + '</strong> '
+                + '(setara <strong>' + qtyPcs.toLocaleString('id-ID') + ' ' + item.satuan + '</strong> @ Rp '
+                + hargaPcs.toLocaleString('id-ID', {maximumFractionDigits: 2}) + '/' + item.satuan + ')';
+        } else {
+            info.innerHTML = '';
+        }
+    }
     updateSummary();
 }
 

@@ -209,6 +209,10 @@
                 </div>
             </div>
 
+            {{-- Sprint Unit Family (2026-09-27) --}}
+            <div class="section-title mt-4"><i class="bi bi-box2 me-1"></i>Unit Beli <span class="text-muted small">(Opsional)</span></div>
+            <x-unit-beli-section />
+
             {{-- Qty Minimum --}}
             <div class="section-title mt-4"><i class="bi bi-bell me-1"></i>Stok Minimum</div>
             <div class="row g-3 mb-3">

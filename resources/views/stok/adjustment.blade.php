@@ -97,6 +97,8 @@
                                 <option value="{{ $it->id }}"
                                     data-satuan="{{ $it->satuan }}"
                                     data-harga="{{ $it->harga_beli_terakhir ?? 0 }}"
+                                    data-unit-beli="{{ $it->unit_beli }}"
+                                    data-isi-per-unit="{{ $it->isi_per_unit_beli }}"
                                     {{ old('item_id', request('item_id')) == $it->id ? 'selected' : '' }}>
                                     [{{ $it->kode_item }}] {{ $it->nama_item }}
                                 </option>
@@ -132,9 +134,13 @@
                             class="form-control @error('qty_fisik') is-invalid @enderror"
                             placeholder="0" min="0" step="0.001"
                             value="{{ old('qty_fisik') }}" required>
-                        <span class="input-group-text" id="satuanDisplay" style="min-width:60px">—</span>
+                        <select name="unit_input" id="unit_input" class="form-select" style="max-width:150px">
+                            <option value="">—</option>
+                        </select>
                         @error('qty_fisik') <div class="invalid-feedback">{{ $message }}</div> @enderror
                     </div>
+                    <span id="satuanDisplay" class="d-none">—</span>
+                    <div id="unitInfo" class="small text-primary mt-1"></div>
                     <div id="selisihInfo" class="mt-2"></div>
                 </div>
 
@@ -411,7 +417,26 @@ function loadItemData() {
     currentSatuan  = selOpt ? (selOpt.dataset.satuan || '—') : '—';
     hargaTerakhir  = selOpt ? parseFloat(selOpt.dataset.harga || 0) : 0;
     satuanDisp.textContent = currentSatuan;
+
+    // Sprint Unit Family: populate dropdown Unit sesuai item.
+    var unitSel = document.getElementById('unit_input');
+    if (unitSel && selOpt) {
+        unitSel.innerHTML = '';
+        var optPakai = document.createElement('option');
+        optPakai.value = currentSatuan;
+        optPakai.textContent = currentSatuan;
+        unitSel.appendChild(optPakai);
+        var ub = selOpt.dataset.unitBeli || '';
+        var ipu = parseFloat(selOpt.dataset.isiPerUnit || 0);
+        if (ub && ipu > 0) {
+            var optBeli = document.createElement('option');
+            optBeli.value = ub;
+            optBeli.textContent = ub + ' (1 = ' + ipu + ' ' + currentSatuan + ')';
+            unitSel.appendChild(optBeli);
+        }
+    }
     updateHargaAutoInfo();
+    refreshUnitInfo();
 
     if (!lokasiId || !itemId) {
         currentStok = null; currentBatches = [];
@@ -469,10 +494,42 @@ function renderBatchSidePanel() {
     batchSideContent.innerHTML = html;
 }
 
+// Sprint Unit Family: konversi qty_fisik ke unit pakai kalau user pilih unit_beli.
+function qtyFisikPakai() {
+    var raw = parseFloat(qtyFisikIn.value);
+    if (isNaN(raw)) return NaN;
+    var unitSel = document.getElementById('unit_input');
+    var selOpt = itemSel.options[itemSel.selectedIndex];
+    if (!unitSel || !selOpt) return raw;
+    var ub = selOpt.dataset.unitBeli || '';
+    var ipu = parseFloat(selOpt.dataset.isiPerUnit || 0);
+    if (unitSel.value && ub && ipu > 0 && unitSel.value.toLowerCase() === ub.toLowerCase()) {
+        return raw * ipu;
+    }
+    return raw;
+}
+function refreshUnitInfo() {
+    var info = document.getElementById('unitInfo');
+    if (!info) return;
+    var unitSel = document.getElementById('unit_input');
+    var selOpt = itemSel.options[itemSel.selectedIndex];
+    var raw = parseFloat(qtyFisikIn.value);
+    if (!unitSel || !selOpt || isNaN(raw) || raw <= 0) { info.innerHTML = ''; return; }
+    var ub = selOpt.dataset.unitBeli || '';
+    var ipu = parseFloat(selOpt.dataset.isiPerUnit || 0);
+    if (unitSel.value && ub && ipu > 0 && unitSel.value.toLowerCase() === ub.toLowerCase()) {
+        var pakai = raw * ipu;
+        info.innerHTML = '<i class="bi bi-arrow-right me-1"></i>' + raw + ' ' + ub + ' = <strong>' + pakai.toLocaleString('id-ID') + ' ' + currentSatuan + '</strong>';
+    } else {
+        info.innerHTML = '';
+    }
+}
+
 // ── Update selisih & toggle sections ──────────────────────────────
 function onQtyChange() {
+    refreshUnitInfo();
     if (currentStok === null) { selisihInfo.innerHTML=''; resetSections(); return; }
-    const fisik = parseFloat(qtyFisikIn.value);
+    const fisik = qtyFisikPakai();
     if (isNaN(fisik)) { selisihInfo.innerHTML=''; resetSections(); return; }
 
     const selisih = fisik - currentStok;
@@ -715,6 +772,8 @@ function updateAlasanHint() {
 lokasiSel.addEventListener('change', loadItemData);
 itemSel.addEventListener('change', loadItemData);
 qtyFisikIn.addEventListener('input', onQtyChange);
+var _unitSelInit = document.getElementById('unit_input');
+if (_unitSelInit) _unitSelInit.addEventListener('change', onQtyChange);
 alasanEl.addEventListener('change', updateAlasanHint);
 if (catatSebagaiBiaya) catatSebagaiBiaya.addEventListener('change', updateAlasanHint);
 updateAlasanHint(); // jalankan saat load (kalau ada old() value setelah validation error)

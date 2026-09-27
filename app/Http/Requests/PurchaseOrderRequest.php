@@ -23,6 +23,9 @@ class PurchaseOrderRequest extends FormRequest
             'items.*.item_id'  => 'required|exists:items,id',
             'items.*.qty_pesan'     => 'required|numeric|min:0.001',
             'items.*.harga_satuan'  => 'required|numeric|min:0',
+            // Sprint Unit Family (2026-09-27): nullable, kalau NULL berarti mode
+            // legacy (qty/harga sudah dalam unit pakai — backward compat).
+            'items.*.unit_input'    => 'nullable|string|max:20',
         ];
     }
 

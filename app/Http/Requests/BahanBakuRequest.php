@@ -38,6 +38,18 @@ class BahanBakuRequest extends FormRequest
             'is_active'           => ['boolean'],
             'stok_awal'           => ['nullable', 'array'],
             'stok_awal.*'         => ['nullable', 'numeric', 'min:0'],
+            // Sprint Unit Family (2026-09-27) — pasangan wajib atau keduanya kosong.
+            'unit_beli'           => ['nullable', 'required_with:isi_per_unit_beli', 'string', 'max:20'],
+            'isi_per_unit_beli'   => ['nullable', 'required_with:unit_beli', 'numeric', 'gt:0'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'unit_beli.required_with'         => 'Unit Beli wajib diisi kalau Isi per Unit Beli di-isi.',
+            'isi_per_unit_beli.required_with' => 'Isi per Unit Beli wajib diisi kalau Unit Beli di-isi.',
+            'isi_per_unit_beli.gt'            => 'Isi per Unit Beli harus lebih dari 0.',
         ];
     }
 

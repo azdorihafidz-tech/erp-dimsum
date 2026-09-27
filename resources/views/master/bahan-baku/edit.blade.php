@@ -63,6 +63,8 @@
             </div>
         </div>
 
+        <x-unit-beli-section :unitBeli="$item->unit_beli" :isiPerUnitBeli="$item->isi_per_unit_beli" />
+
         <div class="card mb-3">
             <div class="card-header fw-semibold">Harga &amp; Stok Minimum</div>
             <div class="card-body">

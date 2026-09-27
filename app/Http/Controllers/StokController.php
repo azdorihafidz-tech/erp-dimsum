@@ -147,6 +147,19 @@ class StokController extends Controller
                     ->toArray();
             }
 
+            // Sprint Unit Family (2026-09-27): kalau user input dlm unit_beli,
+            // convert qty_fisik ke unit pakai + tambah audit trail ke catatan.
+            $itemModel = \App\Models\Item::find((int) $request->item_id);
+            $qtyFisikRaw = (float) $request->qty_fisik;
+            $unitInput = $request->input('unit_input');
+            $qtyFisikPakai = $itemModel ? $itemModel->convertToUnitPakai($qtyFisikRaw, $unitInput) : $qtyFisikRaw;
+            $catatan = (string) ($request->catatan ?? '');
+            if ($itemModel && $itemModel->hasUnitBeli() && $unitInput
+                && strcasecmp($unitInput, (string) $itemModel->unit_beli) === 0) {
+                $prefix = '[Input: ' . rtrim(rtrim(number_format($qtyFisikRaw, 3, '.', ''), '0'), '.') . ' ' . $unitInput . ']';
+                $catatan = trim($prefix . ' ' . $catatan);
+            }
+
             $options = [
                 'mode_distribusi' => $request->mode_distribusi,
                 'harga_custom'    => $request->filled('harga_custom') ? (float)$request->harga_custom : null,
@@ -157,8 +170,8 @@ class StokController extends Controller
             $this->stokService->adjustment(
                 (int)   $request->item_id,
                 (int)   $request->lokasi_id,
-                (float) $request->qty_fisik,
-                (string)($request->catatan ?? ''),
+                $qtyFisikPakai,
+                $catatan,
                 $batchDistribusi,
                 $request->alasan,
                 $options

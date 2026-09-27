@@ -144,6 +144,32 @@ class PurchaseOrderController extends Controller
         $cabangId = $request->input('cabang_id')
             ?: (session('cabang_aktif_id') ?? $authUser->defaultCabangId());
 
+        // Sprint Unit Family (2026-09-27): kalau unit_input = unit_beli item,
+        // konversi qty & harga ke unit pakai (satuan) SEBELUM disimpan supaya
+        // qty_pesan/harga_satuan tetap dalam unit pakai (backward compat penuh
+        // dgn PO lama). qty_input + unit_input disimpan sbg audit trail.
+        $itemIds = collect($data['items'])->pluck('item_id')->unique()->all();
+        $itemMap = Item::whereIn('id', $itemIds)->get()->keyBy('id');
+
+        $data['items'] = array_map(function ($row) use ($itemMap) {
+            $item = $itemMap[$row['item_id']] ?? null;
+            $qtyInput = (float) $row['qty_pesan'];
+            $unitInput = $row['unit_input'] ?? null;
+
+            if ($item && $item->hasUnitBeli() && $unitInput
+                && strcasecmp($unitInput, (string) $item->unit_beli) === 0) {
+                $rasio = (float) $item->isi_per_unit_beli;
+                $row['qty_pesan']    = $qtyInput * $rasio;
+                $row['harga_satuan'] = (float) $row['harga_satuan'] / $rasio;
+                $row['unit_input']   = $item->unit_beli;
+                $row['qty_input']    = $qtyInput;
+            } else {
+                $row['unit_input'] = null;
+                $row['qty_input']  = null;
+            }
+            return $row;
+        }, $data['items']);
+
         $newPo = null;
         DB::transaction(function () use ($data, $cabangId, &$newPo) {
             $totalHarga = 0;
@@ -171,6 +197,8 @@ class PurchaseOrderController extends Controller
                     'qty_pesan'         => $row['qty_pesan'],
                     'harga_satuan'      => $row['harga_satuan'],
                     'total_harga'       => (float) $row['qty_pesan'] * (float) $row['harga_satuan'],
+                    'unit_input'        => $row['unit_input'] ?? null,
+                    'qty_input'         => $row['qty_input'] ?? null,
                 ]);
             }
         });

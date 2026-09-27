@@ -3,8 +3,8 @@
 > **Untuk Claude Code**: File ini adalah **single source of truth** untuk seluruh project. WAJIB dibaca sebelum eksekusi apapun.
 > Isinya: keputusan bisnis, temuan audit, aturan teknis, dan filosofi kerja.
 
-**Versi**: 4.5  
-**Update terakhir**: 2026-09-23  
+**Versi**: 4.6  
+**Update terakhir**: 2026-09-27  
 **Status**: 🎉 **PROJECT LIVE DI PRODUCTION** (https://erp.dmentaiindonesia.com — domain lama `erpdimsum.azwacore.com` sudah tidak dipakai; **GO-LIVE data real: lihat [[4.28]]**) — Tahap 1-7 SELESAI SEMUA + rangkaian bug fix & improvement lintas sesi (lihat section 4 utk detail lengkap tiap item): Bug Fix Ronde 2, Rename Jenis Menu/Master Bumbu Pusat, Fitur Import dari Bumbu Pusat, Rename Label & Hapus Gojek/Grab, Fix Foto Produk Production, UI Preview Harga Master/Subtotal Resep (Ronde 3-5), Auto-isi Satuan Master Bumbu Pusat, Fix ENUM Kategori Saldo Awal, Fix Label Kode Kategori Wajib, Default Basis Program Loyalty ke Rp, Widget Total Pembelian Pelanggan, Fix Export Excel Laporan Keuangan. **Sprint 3 Batch 1 SELESAI SEMUA** (5 menu Prioritas 1 — Penjualan, Setoran Kasir, Setoran Harian/Rekap, Stok 3 sub-view, Laba Rugi Produksi — lihat [[4.24]], [[4.25]]) — Sprint 2 (konversi satuan resep) DIDEFER [[12.12]], Sprint 3 Batch 2/3 (17 menu Laporan Prioritas 2/3) + TODO tracking stock movement [[12.14]] MENYUSUL [[12.13]].
 
 ---
@@ -575,6 +575,58 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 **Fix**: kembalian (`total pembayaran − total_bayar`) dipotong dari pembayaran **tunai** sebelum dicatat ke ketiga tempat itu (split payment: cuma bagian tunai yang dipotong, transfer/QRIS utuh). `orders.jumlah_bayar` tetap uang yang diserahkan (struk). `SetoranKasirService` (baca `order_payments`) dan pembatalan order (baca `TransaksiKeuangan.jumlah`) otomatis ikut benar. 4 test di `KembalianKasSinkronTest.php`; regresi 329 test PASS.
 
 **⚠️ Data lama tidak dikoreksi**: order lama yang punya kembalian masih membuat saldo kas/Setoran Kasir kelebihan sebesar total kembaliannya. Untuk data go-live baru (`migrate:fresh`) tidak relevan; kalau ada data lama yang dipertahankan, perlu script koreksi (belum dibuat — tunggu persetujuan Owner).
+
+### 4.30 🟢 Sprint Unit Family — PO/Adjustment dgn Unit Beli Fleksibel (2026-09-27)
+
+**Konteks Owner**: sudah input 30 bahan baku di production. Sekarang minta input Pembelian dalam **unit beli** (pack/karung/dus) yang auto-convert ke **unit pakai** (`items.satuan`), konversi beda per bahan (sumpit A = 100, sumpit B = 50). Non-breaking wajib: data existing tidak boleh rusak.
+
+**Design (Opsi A — dropdown fleksibel, disetujui Owner)**:
+- `items.satuan` **tetap "unit pakai"** — semua sistem stok existing (`stocks.qty`, `stock_batches.qty`, `stock_movements.qty`, `order_items.qty`, `resep_bumbu_items.qty_per_unit`) TIDAK berubah maknanya. Cuma **input di form** yang bisa pakai unit beli, konversi terjadi sebelum simpan.
+- 2 kolom baru nullable `items.{unit_beli, isi_per_unit_beli}` — kalau NULL = mode legacy (perilaku lama). Kalau isi = form PO/Adjustment kasih dropdown Unit.
+- 2 kolom baru nullable `purchase_order_items.{unit_input, qty_input}` — audit trail input asli user (`10 pack`) sebelum konversi ke `qty_pesan` (`1000 pcs`) + `harga_satuan` (Rp/pcs). NULL berarti PO legacy (input dlm unit pakai langsung).
+- **`harga_satuan` mode "Per Unit Input" (Opsi A, Owner)**: user input Rp 5.000/pack di form, backend hitung `harga_pcs = 5000/100 = 50`, simpan `harga_satuan=50`. Info live "10 pack × Rp 5.000 = Total Rp 50.000 (setara 1000 pcs @ Rp 50/pcs)" tampil di form.
+- **Dropdown Unit Beli = HTML `<datalist>` free-text** (bukan enum DB): 7 saran (pack/karung/dus/box/plastik/lusin/gross) + user bebas ketik (sak, renceng, dll).
+
+**Yang TIDAK termasuk sprint ini** (di luar scope, keputusan Owner):
+- **Retur Pembelian** — fitur `Retur/retur_items` genuinely tidak ada di codebase (0 model/tabel/controller). Bukan gap unit family, tapi fitur belum ada sama sekali. Skip permanen dari sprint ini, kalau butuh nanti = sprint terpisah.
+- **Master Produk Jual** tidak ikut disentuh (produk jual **tidak dibeli**, jadi konsep unit beli tidak relevan di sana).
+
+**Skema**: migration `2026_09_27_A00001_add_unit_beli_to_items_and_purchase_order_items` — 4 kolom nullable, tanpa FK, tanpa constraint DB, tanpa data-migrate. `down()` bersih (`dropColumn`). Zero-risk deploy.
+
+**Yang dibuat**:
+- **Model `Item`**: `hasUnitBeli()` (`!empty(unit_beli) && isi > 0`) + `convertToUnitPakai(float $qty, ?string $unit)` — case-insensitive, unit tidak dikenal / NULL passthrough apa adanya. Cast `isi_per_unit_beli => 'decimal:3'`.
+- **Component `<x-unit-beli-section>`** (reusable, 3 form pakai yang sama): section card dgn info alert + datalist + preview live "1 pack = 100 satuan" via JS `@once`.
+- **Master Bahan Baku** (create+edit) + **Master Barang Lengkap** (create+edit) — embed component. `BahanBakuRequest`/`ItemRequest` validasi `required_with` mutual + `isi_per_unit_beli|gt:0`.
+- **PO Create form** (`resources/views/pembelian/create.blade.php`): dropdown Unit per baris (default ke `unit_beli` kalau ada), label harga dinamis "Harga / pack", info live konversi ("10 pack × Rp 5.000 = Rp 50.000 (setara 1000 pcs @ Rp 50/pcs)").
+- **`PurchaseOrderController::store`**: sebelum simpan, batch-load `Item` by id, tiap baris: kalau `unit_input == item->unit_beli` (case-insensitive) → `qty_pesan *= isi`, `harga_satuan /= isi`, simpan `unit_input`+`qty_input` sbg audit. Kalau tidak → `unit_input=NULL, qty_input=NULL` (legacy mode).
+- **PO Show** (`resources/views/pembelian/show.blade.php`): tampil `1000 pcs` + info kecil "(input: 10 pack)" kalau ada audit trail.
+- **Adjustment Stok** (`resources/views/stok/adjustment.blade.php`): dropdown `unit_input` di sebelah `qty_fisik`, JS `qtyFisikPakai()` konversi ke unit pakai untuk perhitungan selisih/preview FIFO (semua logic batch existing tetap pakai angka pcs, no-op utk data lama).
+- **`StokController::adjustmentStore`**: konversi `qty_fisik` via `Item::convertToUnitPakai()`, prepend audit trail `[Input: 5 pack]` ke `catatan` yang diteruskan ke `stock_movements.catatan` (**tidak ada tabel `stock_adjustments` di codebase** — audit trail masuk ke `catatan` movement, satu-satunya tempat yg ada).
+- **Laporan Stok** (`resources/views/laporan/stok/index.blade.php`): kolom baru "Setara Pack" — barang dgn `hasUnitBeli()` tampil `5 pack` (dari `qty / isi_per_unit_beli`, trailing zero dibuang), barang tanpa tampil "—".
+
+**Non-breaking terverifikasi**:
+- 30 bahan existing tetap `unit_beli=NULL` → form show dropdown "—" saja, submit dgn `unit_input=NULL` → controller skip konversi → `qty_pesan` masuk apa adanya. Diverifikasi via 3 test eksplisit: `test_master_bahan_baku_simpan_tanpa_unit_beli_backward_compat`, `test_po_item_tanpa_unit_beli_tetap_works`, `test_adjustment_tanpa_unit_input_backward_compat`.
+- PO lama (0 baris `unit_input`) tampil normal — kolom audit "input:" hanya muncul kalau `$item->unit_input && $item->qty_input`.
+- Regresi penuh 351 test PASS (12 baru + 339 lama), 0 regresi.
+
+**Bug ditemukan & difix sekalian** (efek samping): test lama `KodeKategoriWajibTest` pakai `assertDontSee('(opsional)')` yang case-insensitive-collide dgn label section baru "Unit Beli (opsional)". Label diganti "(Opsional)" (huruf besar). Ini bukan bug produksi, cuma naming collision — pelajaran: `assertDontSee` string umum ("opsional") rawan false-positive begitu ada section baru yang wajar-wajar saja pakai kata itu.
+
+**File yang diedit** (14 file):
+- Migration baru: `2026_09_27_A00001_add_unit_beli_to_items_and_purchase_order_items.php`
+- Model: `app/Models/Item.php` (helper+fillable+cast), `app/Models/PurchaseOrderItem.php` (fillable)
+- Component baru: `resources/views/components/unit-beli-section.blade.php`
+- Request: `app/Http/Requests/BahanBakuRequest.php`, `ItemRequest.php`, `PurchaseOrderRequest.php`, `AdjustmentStokRequest.php`
+- Controller: `PurchaseOrderController.php` (`store()`), `StokController.php` (`adjustmentStore()`)
+- View: `master/bahan-baku/create.blade.php` + `edit.blade.php`, `item/create.blade.php` + `edit.blade.php`, `pembelian/create.blade.php` + `show.blade.php`, `stok/adjustment.blade.php`, `laporan/stok/index.blade.php`
+
+**Verifikasi**: `tests/Feature/Tahap7/UnitFamilyTest.php` (12 test) — konversi model (case-insensitive + passthrough), Master Bahan Baku save (dgn/tanpa unit_beli + validasi mutual), PO input pack (`10 pack × Rp 5.000` → `qty=1000, harga=50`, `unit_input='pack', qty_input=10`), PO input pcs backward compat (`unit_input=NULL`), PO item tanpa unit_beli, Adjustment input pack (`5 pack → qty=500` + audit trail di catatan movement), Adjustment backward compat, Laporan Stok kolom "Setara Pack" (500 pcs → "5 pack"), 4 kolom baru nullable (data existing aman).
+
+**Instruksi manual utk Owner (setelah deploy)**:
+1. Deploy: `git pull` → `public/clear-cache.php` (lalu hapus) → jalankan migration lewat script (kalau di production tanpa terminal, tambah baris `Artisan::call('migrate', ['--force' => true])` ke `clear-cache.php` sekali pakai, jalankan, lalu revert).
+2. Edit 30 bahan existing di menu **Master Bahan Baku** → klik satu-satu → isi section "Unit Beli (Opsional)" kalau bahan itu genuinely dibeli dlm pack/karung/dus. Contoh: sumpit → `pack`, isi `100`. Bahan yang genuinely dibeli per satuan pakai (mis. daging per kg) → **biarkan kosong**, sudah benar.
+3. Test 1 PO: pilih bahan yg sudah ada unit_beli → dropdown Unit muncul otomatis → input `10 pack × Rp 5.000` → cek info live "= 1000 pcs @ Rp 50/pcs" → simpan → cek di **Pembelian → detail PO** ada label "(input: 10 pack)" di kolom Qty.
+
+**⚠️ 1 catatan penting**: adjustment audit trail masuk ke `stock_movements.catatan` sbg prefix `[Input: 5 pack] <catatan user>`. Tidak muncul di UI Adjustment histori (view existing belum highlight catatan movement) — sudah cukup utk audit manual via **Laporan Pergerakan Stok** yang menampilkan kolom catatan. Kalau nanti dibuat kolom terpisah `stock_movements.unit_input`/`qty_input` seperti PO, itu sprint kecil terpisah (~15 menit).
 
 ---
 

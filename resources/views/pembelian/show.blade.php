@@ -290,7 +290,12 @@
                                 <div class="fw-semibold">{{ $item->item?->nama_item ?? '-' }}</div>
                                 <small class="text-muted">{{ $item->item?->satuan ?? '-' }}</small>
                             </td>
-                            <td class="text-end">{{ fmt_qty($item->qty_pesan) }}</td>
+                            <td class="text-end">
+                                {{ fmt_qty($item->qty_pesan) }} {{ $item->item?->satuan }}
+                                @if($item->unit_input && $item->qty_input)
+                                    <div class="small text-muted">(input: {{ fmt_qty($item->qty_input) }} {{ $item->unit_input }})</div>
+                                @endif
+                            </td>
                             <td class="text-end">
                                 @if($item->qty_terima !== null)
                                     {{ fmt_qty($item->qty_terima) }}

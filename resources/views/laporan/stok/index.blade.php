@@ -99,6 +99,7 @@
                         <th class="d-none d-sm-table-cell">Satuan</th>
                         <th class="d-none d-lg-table-cell">Lokasi</th>
                         <th class="text-end px-3">Stok</th>
+                        <th class="text-end d-none d-md-table-cell px-3">Setara Pack</th>
                         <th class="text-end d-none d-sm-table-cell px-3">Min</th>
                         <th>Status</th>
                     </tr>
@@ -122,6 +123,14 @@
                         <td class="text-end px-3 fw-bold" style="font-size:0.875rem">
                             {{ number_format($stok->qty, 2, ',', '.') }}
                         </td>
+                        <td class="text-end d-none d-md-table-cell px-3 text-muted" style="font-size:0.75rem">
+                            @if($stok->item?->hasUnitBeli())
+                                @php $pack = (float) $stok->qty / (float) $stok->item->isi_per_unit_beli; @endphp
+                                {{ rtrim(rtrim(number_format($pack, 2, ',', '.'), '0'), ',') }} {{ $stok->item->unit_beli }}
+                            @else
+                                <span class="text-muted">—</span>
+                            @endif
+                        </td>
                         <td class="text-end d-none d-sm-table-cell px-3 text-muted" style="font-size:0.875rem">
                             {{ number_format($stok->qty_minimum, 2, ',', '.') }}
                         </td>
@@ -137,7 +146,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="7" class="text-center text-muted py-4">
+                        <td colspan="8" class="text-center text-muted py-4">
                             <i class="bi bi-inbox me-2"></i>Tidak ada data
                         </td>
                     </tr>
