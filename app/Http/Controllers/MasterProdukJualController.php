@@ -338,18 +338,44 @@ class MasterProdukJualController extends Controller
 
         $search = $request->input('search', '');
 
+        // Sprint 4.31 (2026-09-29): eager-load items.item supaya picker bisa
+        // tampilkan accordion detail bahan + harga_beli + subtotal + total HPP
+        // per bumbu -- rumus subtotal SAMA dgn hitungSubtotalBumbuTunggal()
+        // (qty_per_unit_dalam_kg × harga_beli_terakhir) supaya konsisten.
         $bumbus = ResepBumbu::whereNull('item_id')
             ->where('is_active', true)
             ->when($search, fn ($q) => $q->where('nama', 'like', "%{$search}%"))
+            ->with(['items' => fn ($q) => $q->orderBy('urutan'), 'items.item'])
             ->withCount('items')
             ->orderBy('nama')
             ->limit(50)
             ->get(['id', 'nama', 'kode']);
 
         return response()->json([
-            'data' => $bumbus->map(fn ($b) => [
-                'id' => $b->id, 'nama' => $b->nama, 'kode' => $b->kode, 'jumlah_bahan' => $b->items_count,
-            ]),
+            'data' => $bumbus->map(function ($b) {
+                $bahanDetail = $b->items->map(function ($ri) {
+                    $hargaBeli = (float) ($ri->item?->harga_beli_terakhir ?? 0);
+                    $qtyKg = $ri->qty_per_unit_dalam_kg;
+                    $subtotal = $ri->mode_harga === 'pakai_master' ? round($qtyKg * $hargaBeli, 2) : 0.0;
+                    return [
+                        'nama_bahan' => $ri->item?->nama_item ?? '(bahan terhapus)',
+                        'kode_bahan' => $ri->item?->kode_item ?? '-',
+                        'qty'        => (float) $ri->qty_per_unit,
+                        'satuan'     => $ri->satuan,
+                        'mode_harga' => $ri->mode_harga,
+                        'harga_beli' => $hargaBeli,
+                        'subtotal'   => $subtotal,
+                    ];
+                });
+                return [
+                    'id' => $b->id,
+                    'nama' => $b->nama,
+                    'kode' => $b->kode,
+                    'jumlah_bahan' => $b->items_count,
+                    'total_hpp' => (float) $bahanDetail->sum('subtotal'),
+                    'items' => $bahanDetail->values(),
+                ];
+            }),
         ]);
     }
 

@@ -3,8 +3,8 @@
 > **Untuk Claude Code**: File ini adalah **single source of truth** untuk seluruh project. WAJIB dibaca sebelum eksekusi apapun.
 > Isinya: keputusan bisnis, temuan audit, aturan teknis, dan filosofi kerja.
 
-**Versi**: 4.6  
-**Update terakhir**: 2026-09-27  
+**Versi**: 4.7  
+**Update terakhir**: 2026-09-29  
 **Status**: 🎉 **PROJECT LIVE DI PRODUCTION** (https://erp.dmentaiindonesia.com — domain lama `erpdimsum.azwacore.com` sudah tidak dipakai; **GO-LIVE data real: lihat [[4.28]]**) — Tahap 1-7 SELESAI SEMUA + rangkaian bug fix & improvement lintas sesi (lihat section 4 utk detail lengkap tiap item): Bug Fix Ronde 2, Rename Jenis Menu/Master Bumbu Pusat, Fitur Import dari Bumbu Pusat, Rename Label & Hapus Gojek/Grab, Fix Foto Produk Production, UI Preview Harga Master/Subtotal Resep (Ronde 3-5), Auto-isi Satuan Master Bumbu Pusat, Fix ENUM Kategori Saldo Awal, Fix Label Kode Kategori Wajib, Default Basis Program Loyalty ke Rp, Widget Total Pembelian Pelanggan, Fix Export Excel Laporan Keuangan. **Sprint 3 Batch 1 SELESAI SEMUA** (5 menu Prioritas 1 — Penjualan, Setoran Kasir, Setoran Harian/Rekap, Stok 3 sub-view, Laba Rugi Produksi — lihat [[4.24]], [[4.25]]) — Sprint 2 (konversi satuan resep) DIDEFER [[12.12]], Sprint 3 Batch 2/3 (17 menu Laporan Prioritas 2/3) + TODO tracking stock movement [[12.14]] MENYUSUL [[12.13]].
 
 ---
@@ -628,6 +628,46 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 
 **⚠️ 1 catatan penting**: adjustment audit trail masuk ke `stock_movements.catatan` sbg prefix `[Input: 5 pack] <catatan user>`. Tidak muncul di UI Adjustment histori (view existing belum highlight catatan movement) — sudah cukup utk audit manual via **Laporan Pergerakan Stok** yang menampilkan kolom catatan. Kalau nanti dibuat kolom terpisah `stock_movements.unit_input`/`qty_input` seperti PO, itu sprint kecil terpisah (~15 menit).
 
+### 4.31 🟢 Bug harga_jual → harga_beli_terakhir di Master Bumbu Pusat + Enhancement Picker Import (2026-09-29)
+
+**Konteks Owner**: preview harga bahan di halaman edit Master Bumbu Pusat tampil Rp 0 utk semua bahan baku (karena pakai `harga_jual` yang memang kosong utk `bahan_baku`). Sekaligus permintaan enhancement: picker "Import dari Bumbu Pusat" di form Produk Jual tampilkan detail bahan + harga per bumbu, bukan cuma nama.
+
+**Bug A — `harga_jual` → `harga_beli_terakhir` di preview Master Bumbu Pusat**:
+- `ResepBumbuItem::getTotalHargaMasterAttribute()` (line 108) pakai `$this->item?->harga_jual` — bahan_baku genuinely tidak punya field itu (`harga_jual` untuk `produk_jual` yang dijual di POS), jadi kolom **"Total /kg" selalu Rp 0** utk semua bahan baku di halaman edit Master Bumbu Pusat.
+- Ini adalah TODO yang sudah tercatat di [[4.19]] tapi belum difix. Sekarang selesai.
+- **HPP RIIL di POS TIDAK KENA bug ini** — `PenjualanService::potongStokUntukItem()` pakai FIFO batch (`StokService::keluar`), dan `MasterProdukJualController::hitungSubtotalBumbuTunggal()` (kalkulator preview di form Produk Jual) SUDAH benar pakai `harga_beli_terakhir` sejak Fitur Import Bumbu Pusat [[4.16]]. Bug ini murni di 1 halaman preview UI.
+
+**Fix Bug A (4 titik)**:
+- `ResepBumbuItem::getTotalHargaMasterAttribute()` — `harga_jual` → `harga_beli_terakhir`. Otomatis footer "Total Bahan per 1 unit produksi" ikut benar (pakai accessor sama).
+- `resources/views/master/resep-bumbu/edit.blade.php` — kolom "Harga Master" → **"Harga Beli"**, kolom "Total /kg" → **"Subtotal"**, data source `harga_jual` → `harga_beli_terakhir`, caption info "harga jual" → "**harga beli terakhir**" + ditambah kalimat "HPP riil saat penjualan tetap dihitung FIFO dari batch stok cabang" supaya user tidak salah paham preview ini adalah HPP final.
+- Dropdown "Tambah Bahan": `data-harga-jual` → `data-harga-beli` + JS `updatePreview()` `dataset.hargaJual` → `dataset.hargaBeli` + pesan "harga master belum diset" → "harga beli belum diset".
+
+**Bug B (enhancement) — Picker Import Bumbu Pusat tampilkan detail bahan + harga**:
+- Sebelumnya: modal picker cuma tampilkan `nama + kode + jumlah bahan` sebagai list button. Owner harus pilih dulu baru tahu isi bumbunya (dan harga baru muncul di baris resep produk setelah dilink).
+- Sekarang: **accordion inline** — tiap card bumbu bisa di-expand utk lihat tabel detail bahan (nama, takaran, harga beli/satuan, subtotal) + **Total HPP Bumbu** di footer. Tombol "Pilih" tetap ada di header card (bisa langsung link tanpa expand).
+- `listBumbuPusat()` endpoint: eager-load `items.item`, return array `items` per bumbu berisi `{nama_bahan, kode_bahan, qty, satuan, mode_harga, harga_beli, subtotal}` + `total_hpp` per bumbu. **Rumus subtotal SAMA persis** dgn `hitungSubtotalBumbuTunggal()` yang dipakai kalkulator produk jual (`qty_per_unit_dalam_kg × harga_beli_terakhir`, skip kalau `mode_harga=gratis`) — konsistensi lintas 3 tempat: preview picker, preview form Produk Jual, HPP riil POS.
+- Modal picker render pakai fungsi JS baru `renderKartuBumbu(b, idx)` — Bootstrap collapse-based accordion, escape HTML aman (`escHtml()`), format Rupiah konsisten (`fmtRupiah()`), qty tanpa trailing zero (`fmtQtyKecil()`).
+
+**Klarifikasi "harga per cabang" (didisclose ke Owner sebelum eksekusi)**: `items.harga_beli_terakhir` sekarang GLOBAL, bukan per cabang. Yang genuinely per-cabang adalah `stock_batches` (FIFO batch cost aktual). Semua preview UI (Master Bumbu, kalkulator Produk Jual, picker Import) pakai `harga_beli_terakhir` global sebagai **estimasi kasar** — HPP RIIL saat POS checkout tetap pakai FIFO batch per cabang. Konsisten dgn keputusan Owner di CLAUDE.md [[12.4]]. Sprint per-cabang preview terpisah (lebih kompleks, butuh context cabang aktif di halaman master).
+
+**Yang TIDAK disentuh** (defensif, sesuai instruksi Owner):
+- Master Produk Jual form — `harga_jual` (utk customer di POS) TETAP pakai `harga_jual`. Diverifikasi via test regresi eksplisit (`test_master_produk_jual_form_tetap_pakai_harga_jual`).
+- POS view (`penjualan/pos.blade.php`) — TETAP pakai `harga_jual`.
+- `hitungSubtotalBumbuTunggal()` di `MasterProdukJualController` — sudah benar sejak awal, tidak disentuh.
+
+**File yang diedit** (4 file):
+- Model: `app/Models/ResepBumbuItem.php`
+- View: `resources/views/master/resep-bumbu/edit.blade.php`, `resources/views/master/produk-jual/_form.blade.php`
+- Controller: `app/Http/Controllers/MasterProdukJualController.php` (`listBumbuPusat()` enhanced)
+
+**Verifikasi**: `tests/Feature/Tahap7/MasterBumbuHargaBeliTest.php` (8 test) — accessor pakai `harga_beli_terakhir` (2 kg × 45k = 90k, bukan 0), bahan tanpa harga_beli subtotal 0 (bukan fallback ke harga_jual), halaman edit tampil kolom "Harga Beli"+"Subtotal" (bukan "Harga Master"/"Total /kg" lama) + caption baru "harga beli terakhir", regresi Master Produk Jual TETAP pakai `harga_jual`, endpoint `listBumbuPusat()` return detail bahan + `total_hpp` benar (0.5kg×30k + 1kg×20k = 35k), bahan mode `gratis` subtotal 0, form Produk Jual render JS `renderKartuBumbu()` + `BUMBU_PUSAT_LIST_URL`, permission ditolak (403) utk role tanpa akses. Full regression 359 test lintas Tahap 2.5/5/6/7 PASS (0 regresi).
+
+**Test manual utk Owner** (4 skenario, sudah verified di test otomatis, tinggal cek visual):
+1. Master Bumbu Pusat → edit 1 bumbu → cek kolom "Harga Beli" tampil harga aktual (bukan Rp 0) + kolom "Subtotal" akurat + footer "Total Bahan per 1 unit produksi" benar.
+2. Master Bumbu Pusat → Tambah Bahan → pilih bahan → preview "Perkiraan total" tampil angka benar dari harga_beli_terakhir.
+3. Form Produk Jual (create atau edit) → klik "Import dari Bumbu Pusat" → cek accordion: klik nama bumbu → expand tabel bahan (nama, takaran, harga beli/satuan, subtotal) + footer "Total HPP: Rp X". Tombol "Pilih" tetap kerja langsung link ke resep produk.
+4. Master Produk Jual → cek field "Harga Jual" masih pakai harga_jual (regresi, tidak ikut ke-fix salah). POS transaksi juga tetap normal.
+
 ---
 
 ## 5. STRATEGI PENGEMBANGAN
@@ -1105,7 +1145,7 @@ php artisan backup:run --only-db
 - [x] **Bug Fix Ronde 3 (2026-09-19)**: Simulasi Produksi baca DB bukan form real-time (Bug A) + footer Total HPP hilang (Bug B) — lihat addendum [[4.19]]. 8 test baru, 225 test total lintas fase PASS (0 regresi).
 - [x] **Simplifikasi Ronde 4 (2026-09-19)**: format qty tanpa titik-ribuan (`formatQtyInput`) + konsolidasi 2 mode Total HPP jadi 1 — lihat addendum kedua [[4.19]]. 4 test diupdate/ditambah, 227 test total lintas fase PASS.
 - [x] **Bug Fix Ronde 5 (2026-09-19)**: subtotal Bumbu Pusat selalu "—" di halaman Create (endpoint `kalkulator-resep` butuh produk tersimpan, fix: endpoint baru `preview-bumbu/{bumbu}` decoupled dari Item) + Total HPP salah jumlah (`parseFloat("1.200")` dibaca 1.2 bukan 1200, fix: buang semua non-digit sebelum parse) — lihat addendum ketiga [[4.19]]. 8 test baru, 235 test total lintas fase PASS (0 regresi).
-- [ ] **Ditemukan tapi belum difix (di luar scope eksplisit)**: `ResepBumbuItem::getTotalHargaMasterAttribute()` pakai `harga_jual` (harusnya `harga_beli_terakhir`) — kolom "Total /kg" di halaman edit Master Bumbu Pusat selalu Rp0 untuk bahan baku. Perlu keputusan Owner apakah masuk Sprint 2 ([[12.12]]) atau ditangani terpisah.
+- [x] **Bug harga_jual di Master Bumbu Pusat SELESAI (2026-09-29)** — `ResepBumbuItem::getTotalHargaMasterAttribute()` sekarang pakai `harga_beli_terakhir`. Lihat [[4.31]].
 
 ### 12.12 Sprint 2 (Belum Dikerjakan) — Konversi Satuan Foolproof di Kalkulator Resep
 

@@ -488,12 +488,10 @@ function cariBumbuPusat(search) {
                     container.innerHTML = '<div class="text-center text-muted py-3 small">Tidak ada Bumbu Pusat aktif ditemukan.</div>';
                     return;
                 }
-                container.innerHTML = data.data.map(b => `
-                    <button type="button" class="list-group-item list-group-item-action" onclick="pilihBumbuPusat(${b.id}, '${b.nama.replace(/'/g, "\\'")}')">
-                        <div class="fw-semibold">${b.nama}</div>
-                        <div class="small text-muted">${b.kode} — ${b.jumlah_bahan} bahan</div>
-                    </button>
-                `).join('');
+                // Sprint 4.31 (2026-09-29): render accordion inline — klik card
+                // untuk lihat detail bahan + harga_beli + subtotal + total HPP.
+                // Total HPP pakai rumus SAMA dgn hitungSubtotalBumbuTunggal() server.
+                container.innerHTML = data.data.map((b, i) => renderKartuBumbu(b, i)).join('');
             })
             .catch(() => {
                 document.getElementById('listBumbuPusat').innerHTML = '<div class="text-center text-danger py-3 small">Gagal memuat daftar Bumbu Pusat.</div>';
@@ -504,6 +502,64 @@ function cariBumbuPusat(search) {
 function pilihBumbuPusat(id, nama) {
     tambahBarisResepLinked(id, nama, { qty_per_unit: 1 });
     bootstrap.Modal.getInstance(document.getElementById('modalImportBumbu')).hide();
+}
+
+function fmtRupiah(n) {
+    return 'Rp ' + Math.round(Number(n) || 0).toLocaleString('id-ID');
+}
+function escHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function fmtQtyKecil(q) {
+    var n = parseFloat(q); if (!isFinite(n)) return '0';
+    return String(n).replace(/\.?0+$/, '');
+}
+
+function renderKartuBumbu(b, idx) {
+    var idAcc = 'accBumbu_' + b.id;
+    var badgeHpp = b.total_hpp > 0
+        ? '<span class="badge bg-primary-subtle text-primary">Total HPP: ' + fmtRupiah(b.total_hpp) + '</span>'
+        : '<span class="badge bg-secondary-subtle text-secondary">Gratis</span>';
+    var rows = (b.items || []).map(function (r) {
+        var subCell = r.mode_harga === 'pakai_master'
+            ? (r.subtotal > 0 ? fmtRupiah(r.subtotal) : '<span class="text-warning">harga beli belum diset</span>')
+            : '<span class="text-muted">Gratis</span>';
+        var hargaCell = r.mode_harga === 'pakai_master'
+            ? (r.harga_beli > 0 ? fmtRupiah(r.harga_beli) : '<span class="text-warning">—</span>')
+            : '<span class="text-muted">—</span>';
+        return '<tr>'
+            + '<td class="small">' + escHtml(r.nama_bahan) + '<div class="text-muted" style="font-size:.7rem">' + escHtml(r.kode_bahan) + '</div></td>'
+            + '<td class="text-end small">' + fmtQtyKecil(r.qty) + ' ' + escHtml(r.satuan) + '</td>'
+            + '<td class="text-end small">' + hargaCell + '</td>'
+            + '<td class="text-end small fw-semibold">' + subCell + '</td>'
+            + '</tr>';
+    }).join('');
+    var bodyDetail = rows
+        ? '<table class="table table-sm mb-2"><thead><tr>'
+            + '<th class="small">Bahan</th><th class="text-end small">Takaran</th>'
+            + '<th class="text-end small">Harga Beli</th><th class="text-end small">Subtotal</th>'
+            + '</tr></thead><tbody>' + rows + '</tbody></table>'
+            + '<div class="d-flex justify-content-between align-items-center pt-1 border-top">'
+            + '<small class="text-muted"><i class="bi bi-info-circle me-1"></i>Preview per 1 unit produksi. HPP riil di POS pakai FIFO batch stok cabang.</small>'
+            + '<strong class="text-primary">Total HPP: ' + fmtRupiah(b.total_hpp) + '</strong>'
+            + '</div>'
+        : '<div class="text-center text-muted small py-2">Bumbu ini belum punya bahan.</div>';
+
+    return '<div class="card mb-2" style="border-color:#e2e8f0">'
+        + '<div class="card-body p-2">'
+        +   '<div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">'
+        +     '<div class="flex-grow-1" style="cursor:pointer" data-bs-toggle="collapse" data-bs-target="#' + idAcc + '">'
+        +       '<div class="fw-semibold small">' + escHtml(b.nama)
+        +         ' <i class="bi bi-chevron-down text-muted"></i></div>'
+        +       '<div class="small text-muted">' + escHtml(b.kode) + ' — ' + b.jumlah_bahan + ' bahan &nbsp;·&nbsp; ' + badgeHpp + '</div>'
+        +     '</div>'
+        +     '<button type="button" class="btn btn-sm btn-primary" '
+        +       'onclick="pilihBumbuPusat(' + b.id + ', \'' + String(b.nama).replace(/'/g, "\\'") + '\')">'
+        +       '<i class="bi bi-plus-circle me-1"></i>Pilih</button>'
+        +   '</div>'
+        +   '<div id="' + idAcc + '" class="collapse mt-2">' + bodyDetail + '</div>'
+        + '</div>'
+        + '</div>';
 }
 
 // ===== Varian =====

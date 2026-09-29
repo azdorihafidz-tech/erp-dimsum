@@ -91,8 +91,8 @@
                             <th class="text-end">Takaran</th>
                             <th class="text-center">Wajib?</th>
                             <th class="text-center">Mode</th>
-                            <th class="text-end">Harga Master</th>
-                            <th class="text-end">Total /kg</th>
+                            <th class="text-end">Harga Beli</th>
+                            <th class="text-end">Subtotal</th>
                             <th class="text-center" style="width:50px"></th>
                         </tr>
                     </thead>
@@ -112,9 +112,9 @@
                                 {{ $item->mode_harga === 'pakai_master' ? 'Harga Master' : 'Gratis' }}
                             </td>
                             <td class="text-end small">
-                                @if($item->item && $item->item->harga_jual)
+                                @if($item->item && $item->item->harga_beli_terakhir)
                                 <a href="{{ route('item.edit', $item->item_id) }}" class="text-decoration-none" title="Edit harga di Master Barang">
-                                    Rp {{ number_format($item->item->harga_jual, 0, ',', '.') }}
+                                    Rp {{ number_format($item->item->harga_beli_terakhir, 0, ',', '.') }}
                                 </a>
                                 @else
                                 <span class="text-muted">Belum diset</span>
@@ -151,7 +151,7 @@
                 </table>
             </div>
             <div class="card-body py-2 border-top">
-                <small class="text-muted"><i class="bi bi-info-circle me-1"></i>Kolom "Harga Master" &amp; "Total /kg" murni pratinjau (tidak disimpan) — diambil live dari harga jual di Master Barang saat halaman ini dibuka.</small>
+                <small class="text-muted"><i class="bi bi-info-circle me-1"></i>Kolom "Harga Beli" &amp; "Subtotal" murni pratinjau (tidak disimpan) — diambil live dari <strong>harga beli terakhir</strong> di Master Barang saat halaman ini dibuka. HPP riil saat penjualan tetap dihitung FIFO dari batch stok cabang.</small>
             </div>
         </div>
 
@@ -166,7 +166,7 @@
                             <select name="item_id" id="itemIdSelect" class="form-select form-select-sm" required>
                                 <option value="">-- Pilih Bahan --</option>
                                 @foreach($bahanBakuItems as $b)
-                                <option value="{{ $b->id }}" data-harga-jual="{{ $b->harga_jual ?? 0 }}" data-satuan="{{ $b->satuan }}">{{ $b->nama_item }} ({{ $b->kode_item }})</option>
+                                <option value="{{ $b->id }}" data-harga-beli="{{ $b->harga_beli_terakhir ?? 0 }}" data-satuan="{{ $b->satuan }}">{{ $b->nama_item }} ({{ $b->kode_item }})</option>
                                 @endforeach
                             </select>
                         </div>
@@ -256,7 +256,7 @@
 
     function updatePreview() {
         const opt = itemSelect.selectedOptions[0];
-        const hargaJual = opt ? (parseFloat(opt.dataset.hargaJual) || 0) : 0;
+        const hargaBeli = opt ? (parseFloat(opt.dataset.hargaBeli) || 0) : 0;
         const qty = parseFloat(qtyInput.value) || 0;
         const mode = modeEl.value;
 
@@ -266,9 +266,9 @@
         }
 
         const qtyKg = konversiKeKg(qty, satuanEl.value);
-        const total = qtyKg * hargaJual;
+        const total = qtyKg * hargaBeli;
         previewEl.textContent = 'Perkiraan total: Rp ' + total.toLocaleString('id-ID', { maximumFractionDigits: 0 })
-            + (hargaJual === 0 ? ' (harga master bahan ini belum diset)' : '');
+            + (hargaBeli === 0 ? ' (harga beli bahan ini belum diset)' : '');
     }
 
     [itemSelect, qtyInput, satuanEl, modeEl].forEach(el => {

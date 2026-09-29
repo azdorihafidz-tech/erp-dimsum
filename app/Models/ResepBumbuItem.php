@@ -105,6 +105,10 @@ class ResepBumbuItem extends Model
         if ($this->mode_harga !== 'pakai_master') {
             return 0.0;
         }
-        return round($this->qty_per_unit_dalam_kg * (float) ($this->item?->harga_jual ?? 0), 2);
+        // Sprint 4.31 (2026-09-29): fix — dulu pakai harga_jual, bug krn bahan_baku
+        // tidak punya harga_jual (field itu utk produk_jual). Sekarang pakai
+        // harga_beli_terakhir (HPP/modal), konsisten dgn hitungSubtotalBumbuTunggal()
+        // di MasterProdukJualController & CLAUDE.md 4.19 addendum yg belum difix.
+        return round($this->qty_per_unit_dalam_kg * (float) ($this->item?->harga_beli_terakhir ?? 0), 2);
     }
 }
