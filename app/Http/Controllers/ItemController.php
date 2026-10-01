@@ -42,10 +42,15 @@ class ItemController extends Controller
         $categories = ItemCategory::orderBy('nama_kategori')->get();
         $tipes      = ['bahan_baku' => 'Bahan Baku', 'kemasan' => 'Kemasan', 'tambahan_gratis' => 'Tambahan Gratis', 'produk_jual' => 'Produk Jual', 'produk_tambahan' => 'Produk Tambahan'];
 
+        // Sprint 4.33 (2026-10-01) — rename stat `produk_jadi` → `produk_jual`
+        // mengikuti enum DB terbaru (Tahap 2.5 rename, CLAUDE.md 8.3). Key lama
+        // `produk_jadi` di-alias supaya kalau ada view lain yg masih akses tidak crash.
+        $jumlahProdukJual = Item::where('tipe', 'produk_jual')->count();
         $stats = [
             'total'       => Item::count(),
             'bahan_baku'  => Item::where('tipe', 'bahan_baku')->count(),
-            'produk_jadi' => Item::where('tipe', 'produk_jual')->count(),
+            'produk_jual' => $jumlahProdukJual,
+            'produk_jadi' => $jumlahProdukJual, // alias legacy
             'nonaktif'    => Item::where('is_active', false)->count(),
         ];
 

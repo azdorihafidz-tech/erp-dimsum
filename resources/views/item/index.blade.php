@@ -78,8 +78,8 @@
                 <i class="bi bi-bag-check text-success" style="font-size:1.2rem"></i>
             </div>
             <div>
-                <div class="fw-bold fs-5 lh-1">{{ $stats['produk_jadi'] }}</div>
-                <div class="text-muted" style="font-size:0.75rem">Produk Jadi</div>
+                <div class="fw-bold fs-5 lh-1">{{ $stats['produk_jual'] }}</div>
+                <div class="text-muted" style="font-size:0.75rem">Produk Jual</div>
             </div>
         </div>
     </div>
@@ -114,9 +114,13 @@
                 <select name="tipe" class="form-select form-select-sm">
                     <option value="">Semua Tipe</option>
                     <option value="bahan_baku" {{ request('tipe') === 'bahan_baku' ? 'selected' : '' }}>Bahan Baku</option>
-                    <option value="produk_jadi" {{ request('tipe') === 'produk_jadi' ? 'selected' : '' }}>Produk Jadi</option>
+                    <option value="produk_jual" {{ request('tipe') === 'produk_jual' ? 'selected' : '' }}>Produk Jual</option>
+                    <option value="produk_tambahan" {{ request('tipe') === 'produk_tambahan' ? 'selected' : '' }}>Produk Tambahan</option>
+                    <option value="tambahan_gratis" {{ request('tipe') === 'tambahan_gratis' ? 'selected' : '' }}>Tambahan Gratis</option>
                     <option value="kemasan" {{ request('tipe') === 'kemasan' ? 'selected' : '' }}>Kemasan</option>
-                    <option value="lainnya" {{ request('tipe') === 'lainnya' ? 'selected' : '' }}>Lainnya</option>
+                    <option disabled>──────────</option>
+                    <option value="produk_jadi" {{ request('tipe') === 'produk_jadi' ? 'selected' : '' }}>Produk Jadi (legacy)</option>
+                    <option value="lainnya" {{ request('tipe') === 'lainnya' ? 'selected' : '' }}>Lainnya (legacy)</option>
                 </select>
             </div>
             <div class="col-6 col-sm-3 col-md-2">
@@ -205,17 +209,26 @@
                     </td>
                     <td>
                         @php
+                            // Sprint 4.33 (2026-10-01) — tambah 3 tipe baru Tahap 2.5
+                            // (produk_jual/produk_tambahan/tambahan_gratis). Legacy produk_jadi/
+                            // lainnya tetap didukung utk backward compat data historis.
                             $tipeBadge = match($item->tipe) {
-                                'bahan_baku'  => 'bg-warning-subtle text-warning',
-                                'produk_jadi' => 'bg-success-subtle text-success',
-                                'kemasan'     => 'bg-info-subtle text-info',
-                                default       => 'bg-secondary-subtle text-secondary',
+                                'bahan_baku'      => 'bg-warning-subtle text-warning',
+                                'produk_jual',
+                                'produk_jadi'     => 'bg-success-subtle text-success',
+                                'produk_tambahan' => 'bg-primary-subtle text-primary',
+                                'tambahan_gratis' => 'bg-info-subtle text-info',
+                                'kemasan'         => 'bg-secondary-subtle text-secondary',
+                                default           => 'bg-light text-muted',
                             };
                             $tipeLabel = match($item->tipe) {
-                                'bahan_baku'  => 'Bahan Baku',
-                                'produk_jadi' => 'Produk Jadi',
-                                'kemasan'     => 'Kemasan',
-                                default       => 'Lainnya',
+                                'bahan_baku'      => 'Bahan Baku',
+                                'produk_jual'     => 'Produk Jual',
+                                'produk_jadi'     => 'Produk Jadi',
+                                'produk_tambahan' => 'Produk Tambahan',
+                                'tambahan_gratis' => 'Tambahan Gratis',
+                                'kemasan'         => 'Kemasan',
+                                default           => 'Lainnya',
                             };
                         @endphp
                         <span class="badge {{ $tipeBadge }}" style="font-size:0.72rem">{{ $tipeLabel }}</span>
@@ -329,17 +342,24 @@
                 <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
                     <span class="fw-semibold" style="color:#1e293b">{{ $item->nama_item }}</span>
                     @php
+                        // Sprint 4.33 (2026-10-01) — mobile card view, mirror desktop mapping.
                         $tipeBadge = match($item->tipe) {
-                            'bahan_baku'  => 'bg-warning-subtle text-warning',
-                            'produk_jadi' => 'bg-success-subtle text-success',
-                            'kemasan'     => 'bg-info-subtle text-info',
-                            default       => 'bg-secondary-subtle text-secondary',
+                            'bahan_baku'      => 'bg-warning-subtle text-warning',
+                            'produk_jual',
+                            'produk_jadi'     => 'bg-success-subtle text-success',
+                            'produk_tambahan' => 'bg-primary-subtle text-primary',
+                            'tambahan_gratis' => 'bg-info-subtle text-info',
+                            'kemasan'         => 'bg-secondary-subtle text-secondary',
+                            default           => 'bg-light text-muted',
                         };
                         $tipeLabel = match($item->tipe) {
-                            'bahan_baku'  => 'Bahan Baku',
-                            'produk_jadi' => 'Produk Jadi',
-                            'kemasan'     => 'Kemasan',
-                            default       => 'Lainnya',
+                            'bahan_baku'      => 'Bahan Baku',
+                            'produk_jual'     => 'Produk Jual',
+                            'produk_jadi'     => 'Produk Jadi',
+                            'produk_tambahan' => 'Produk Tambahan',
+                            'tambahan_gratis' => 'Tambahan Gratis',
+                            'kemasan'         => 'Kemasan',
+                            default           => 'Lainnya',
                         };
                     @endphp
                     <span class="badge {{ $tipeBadge }}" style="font-size:0.7rem">{{ $tipeLabel }}</span>
