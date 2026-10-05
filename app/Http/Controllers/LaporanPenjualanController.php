@@ -7,6 +7,7 @@ use App\Exports\LaporanPenjualanExport;
 use App\Models\Cabang;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Services\AnalisisPenjualanService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -14,19 +15,29 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class LaporanPenjualanController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request, AnalisisPenjualanService $analisisPenjualanService)
     {
         abort_unless(auth()->user()->can('laporan.view'), 403);
 
         $user = auth()->user();
 
-        // Default periode: bulan ini
-        $dari = $request->dari
-            ? Carbon::parse($request->dari)->startOfDay()
-            : Carbon::now()->startOfMonth();
-        $sampai = $request->sampai
-            ? Carbon::parse($request->sampai)->endOfDay()
-            : Carbon::now()->endOfDay();
+        // Sprint 4.32 — dropdown preset periode. Kalau user pilih preset,
+        // override `dari`/`sampai` dari preset itu (user masih bisa custom
+        // via 2 input date terpisah → preset otomatis jadi "custom" di UI).
+        $apPeriode = $request->get('ap_periode');
+        if ($apPeriode && !$request->filled('dari') && !$request->filled('sampai')) {
+            $resolved = AnalisisPenjualanService::presetPeriode($apPeriode);
+            $dari = $resolved['dari'];
+            $sampai = $resolved['sampai'];
+        } else {
+            // Default periode: bulan ini
+            $dari = $request->dari
+                ? Carbon::parse($request->dari)->startOfDay()
+                : Carbon::now()->startOfMonth();
+            $sampai = $request->sampai
+                ? Carbon::parse($request->sampai)->endOfDay()
+                : Carbon::now()->endOfDay();
+        }
 
         $query = Order::withoutGlobalScopes()
             ->with(['cabang', 'pelanggan'])
@@ -174,6 +185,21 @@ class LaporanPenjualanController extends Controller
 
         $cabangs = Cabang::aktif()->get();
 
+        // Sprint 4.32 — Analisis Penjualan utk section "Analisis Periode" di halaman
+        // Laporan Penjualan. Scope sama dgn filter cabang+periode halaman (konsisten
+        // dgn KPI + tabel di bawah).
+        $cabangIdAnalisis = $cabangId;
+        if (!$cabangIdAnalisis && !$user->canAccessAllBranches()) {
+            $cabangIdAnalisis = session('active_cabang_id') ?? $user->defaultCabangId();
+        }
+        $analisisPenjualan = $analisisPenjualanService->hitung($cabangIdAnalisis, $dari, $sampai);
+        $analisisPenjualanMeta = [
+            'periode_aktif' => $apPeriode ?: 'custom',
+            'label_periode' => $dari->format('d/m/Y') . ' — ' . $sampai->format('d/m/Y'),
+            'preset_list'   => AnalisisPenjualanService::daftarPreset(),
+            'cabang_id'     => $cabangId,
+        ];
+
         return view('laporan.penjualan.index', compact(
             'orders',
             'totalOmzet',
@@ -186,7 +212,9 @@ class LaporanPenjualanController extends Controller
             'cabangs',
             'dari',
             'sampai',
-            'cabangId'
+            'cabangId',
+            'analisisPenjualan',
+            'analisisPenjualanMeta'
         ));
     }
 

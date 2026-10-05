@@ -628,6 +628,41 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 
 **⚠️ 1 catatan penting**: adjustment audit trail masuk ke `stock_movements.catatan` sbg prefix `[Input: 5 pack] <catatan user>`. Tidak muncul di UI Adjustment histori (view existing belum highlight catatan movement) — sudah cukup utk audit manual via **Laporan Pergerakan Stok** yang menampilkan kolom catatan. Kalau nanti dibuat kolom terpisah `stock_movements.unit_input`/`qty_input` seperti PO, itu sprint kecil terpisah (~15 menit).
 
+### 4.32 🟢 Analisis Penjualan — 5 Metrik di 3 Halaman (Dashboard Pusat/Cabang + Laporan Penjualan) (2026-10-05)
+
+**Konteks**: Owner minta 5 widget metrik agregat untuk analisis cepat lintas periode (Rata-rata Nilai Transaksi, Rata-rata Jumlah Transaksi, Hari Nilai Tertinggi, Hari Jumlah Tertinggi, Rata-rata Omzet Harian) ditempatkan di 3 lokasi: Dashboard Pusat (scope all cabang), Dashboard Cabang (scope cabang aktif), Laporan Penjualan (section baru "Analisis Periode" sinkron filter cabang+tanggal halaman).
+
+**Arsitektur (1 query optimal + cache 5 menit)**:
+- `app/Services/AnalisisPenjualanService.php` — 1 query `selectRaw('DATE(tanggal_order), SUM(total_bayar), COUNT(*)')` group-by date, 5 metrik dihitung di memory dari Collection hasil (tidak ada subquery per metrik). Cache key `analisis_penjualan.{cabangId|all}.{dari}.{sampai}` TTL 300 detik. **Tanpa auto-invalidate** di order create/edit/batal — trade-off disetujui Owner: freshness 5 menit cukup, hindari kompleksitas hook di berbagai jalur mutasi order. Static `presetPeriode($key)` resolve 6 preset ke Carbon range (hari_ini / 7_hari / 30_hari / bulan_ini / bulan_lalu / tahun_ini).
+- Semua rata-rata di-cast `(float)` eksplisit — PHP int-division `6/3=2` dikembalikan int, kalau tidak di-cast API return type campur-aduk float|int yang bikin consumer sulit.
+
+**Helper baru** `fmt_rupiah_singkat()` di `app/helpers.php` — 3 tier format untuk card sempit:
+- `>= 1.000.000` → `Rp 8,5jt` (1 desimal, trailing zero dibuang: `1000000` → `Rp 1jt`, bukan `Rp 1,0jt`)
+- `>= 100.000` → `Rp 850rb` (bulat, no desimal)
+- `< 100.000` → `Rp 50.000` (full, delegasi ke `fmt_rupiah()`)
+Tooltip Bootstrap pada tiap card tampilkan full angka (`fmt_rupiah()`) via `data-bs-toggle="tooltip"` + `title`.
+
+**Component Blade** `resources/views/components/analisis-penjualan.blade.php` — 5 KPI card dalam 1 row responsive (col-6 mobile, col-lg auto desktop), dropdown preset di header card `onchange="this.form.submit()"`, support `formAction` prop (null = current URL, utk Laporan Penjualan di-set eksplisit ke `route('laporan.penjualan')`). Tooltip initializer via `@once @push('scripts')` biar tidak duplikat kalau component dipakai >1x di halaman.
+
+**Filter periode SCOPE TERPISAH dari widget existing (disetujui Owner)**: dropdown `ap_periode` HANYA mempengaruhi section "Analisis Penjualan" baru — 4 card snapshot existing (Total Hari Ini / Bulan Ini / Uang Belum Disetor / Kas HO) di Dashboard Pusat **TIDAK ikut filter**, tetap real-time snapshot. Konsekuensi: 1 halaman punya 2 basis waktu, label section "Analisis Penjualan" eksplisit menampilkan periode aktif biar user tidak bingung.
+
+**Integrasi Laporan Penjualan**: dropdown preset auto-override `dari`/`sampai` kalau user TIDAK isi 2 date field (`$request->filled('dari') && !$request->filled('sampai')` kondisi): user masih bisa custom date manual, saat itu preset otomatis masuk mode "custom" (ap_periode `null` → label jadi tanggal manual). KPI widget+tabel di bawah ikut filter yang sama (konsisten, 1 scope).
+
+**File yang diedit** (8 file):
+- Baru: `app/Services/AnalisisPenjualanService.php`, `resources/views/components/analisis-penjualan.blade.php`, `tests/Feature/Tahap7/AnalisisPenjualanTest.php`
+- Edit: `app/helpers.php` (helper baru), `app/Http/Controllers/DashboardController.php` (DI service + compute di `pusat()`/`cabang()`), `app/Http/Controllers/LaporanPenjualanController.php` (preset resolver + compute analisis), `resources/views/dashboard/pusat.blade.php`, `resources/views/dashboard/cabang.blade.php`, `resources/views/laporan/penjualan/index.blade.php` (embed component).
+
+**Verifikasi**: `AnalisisPenjualanTest.php` (12 test) — helper 3 tier format (termasuk edge: 99999→full, 100000→rb, 1jt→"1jt" tanpa koma), service 5 metrik akurat (fixture 3 hari 6 order), data kosong tidak div-by-zero, filter cabang isolate (cabA/cabB/all), cache hit (tambah data setelah populated, hasil kedua tetap sama), preset resolver (6 opsi + fallback invalid→bulan_ini), HTTP render di 3 halaman, dropdown 6 opsi, tooltip markup hadir, preset override tanggal di Laporan Penjualan. All 12 PASS.
+
+**Test manual Owner (5 skenario)**:
+1. Dashboard Pusat: cek section "Analisis Penjualan" (dropdown periode kanan atas) di antara "Snapshot" existing dan "Ringkasan Setoran & Kas HO". Ganti dropdown → 5 card update, widget 4 snapshot di atas TETAP (tidak ikut filter — by design).
+2. Dashboard Cabang: masuk sbg manajer_cabang → section Analisis muncul paling atas (sebelum STAT CARDS), data cuma dari cabang aktif.
+3. Laporan Penjualan: section "Analisis" muncul di antara filter dan Stat Cards. Pilih preset "7 Hari" → `dari`/`sampai` ikut berubah → KPI+tabel di bawah ikut update.
+4. Pilih preset lalu custom tanggal manual → preset auto "custom" (dropdown tetap bisa dipakai kembali).
+5. Hover 1 card → tooltip tampil full angka (misal `Rp 8.500.000` bukan `Rp 8,5jt`).
+
+**Instruksi deploy production**: `git pull` → akses `/clear-cache.php` di browser (lalu hapus file). Tidak ada migration baru, tidak ada perubahan skema DB — murni code+view.
+
 ### 4.31 🟢 Bug harga_jual → harga_beli_terakhir di Master Bumbu Pusat + Enhancement Picker Import (2026-09-29)
 
 **Konteks Owner**: preview harga bahan di halaman edit Master Bumbu Pusat tampil Rp 0 utk semua bahan baku (karena pakai `harga_jual` yang memang kosong utk `bahan_baku`). Sekaligus permintaan enhancement: picker "Import dari Bumbu Pusat" di form Produk Jual tampilkan detail bahan + harga per bumbu, bukan cuma nama.

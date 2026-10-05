@@ -22,6 +22,17 @@
     </div>
 </div>
 
+{{-- ===== Sprint 4.32 — Analisis Penjualan (section baru, filter periode terpisah) ===== --}}
+@isset($analisisPenjualan)
+    <x-analisis-penjualan
+        :data="$analisisPenjualan"
+        :periodeAktif="$analisisPenjualanMeta['periode_aktif']"
+        :labelPeriode="$analisisPenjualanMeta['label_periode']"
+        :presetList="$analisisPenjualanMeta['preset_list']"
+        :cabangId="$analisisPenjualanMeta['cabang_id']"
+    />
+@endisset
+
 <!-- ===== STAT CARDS ===== -->
 <div class="row g-3 mb-4">
     <div class="col-6 col-lg-3">

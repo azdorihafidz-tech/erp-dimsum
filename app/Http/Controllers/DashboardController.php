@@ -13,6 +13,7 @@ use App\Models\PurchaseOrder;
 use App\Models\Stock;
 use App\Models\StockRequest;
 use App\Models\StockTransfer;
+use App\Services\AnalisisPenjualanService;
 use App\Services\AssetDepreciationService;
 use App\Services\DashboardAnalyticsService;
 use App\Services\JamRamaiService;
@@ -35,6 +36,7 @@ class DashboardController extends Controller
         private JamRamaiService $jamRamaiService,
         private LoyaltyService $loyaltyService,
         private LoyaltyKlaimService $loyaltyKlaimService,
+        private AnalisisPenjualanService $analisisPenjualanService,
     ) {
     }
 
@@ -183,7 +185,24 @@ class DashboardController extends Controller
             ? $this->loyaltyKlaimService->getWidgetData()
             : null;
 
+        // Sprint 4.32 — Analisis Penjualan scoped ke cabang aktif.
+        $apPeriode = $request->get('ap_periode', 'bulan_ini');
+        $apResolved = AnalisisPenjualanService::presetPeriode($apPeriode);
+        $analisisPenjualan = $this->analisisPenjualanService->hitung(
+            $cabangId,
+            $apResolved['dari'],
+            $apResolved['sampai'],
+        );
+        $analisisPenjualanMeta = [
+            'periode_aktif' => $apPeriode,
+            'label_periode' => $apResolved['label'],
+            'preset_list'   => AnalisisPenjualanService::daftarPreset(),
+            'cabang_id'     => $cabangId,
+        ];
+
         return view('dashboard.cabang', compact(
+            'analisisPenjualan',
+            'analisisPenjualanMeta',
             'cabang',
             'omzetHariIni',
             'jumlahOrderHariIni',
@@ -425,6 +444,22 @@ class DashboardController extends Controller
             ? $this->loyaltyKlaimService->getWidgetData()
             : null;
 
+        // Sprint 4.32 — Analisis Penjualan (scope all cabang, filter periode terpisah
+        // dari widget existing — section baru, tidak mempengaruhi 4 card snapshot di atas)
+        $apPeriode = $request->get('ap_periode', 'bulan_ini');
+        $apResolved = AnalisisPenjualanService::presetPeriode($apPeriode);
+        $analisisPenjualan = $this->analisisPenjualanService->hitung(
+            null,
+            $apResolved['dari'],
+            $apResolved['sampai'],
+        );
+        $analisisPenjualanMeta = [
+            'periode_aktif' => $apPeriode,
+            'label_periode' => $apResolved['label'],
+            'preset_list'   => AnalisisPenjualanService::daftarPreset(),
+            'cabang_id'     => null,
+        ];
+
         return view('dashboard.pusat', compact(
             'dashboardOwner',
             'totalOmzetBulanIni',
@@ -432,6 +467,8 @@ class DashboardController extends Controller
             'totalKaryawan',
             'alertStokRendah',
             'alertPembelianMendesak',
+            'analisisPenjualan',
+            'analisisPenjualanMeta',
             'cabangs',
             'grafikPerCabangLabels',
             'grafikPerCabangData',

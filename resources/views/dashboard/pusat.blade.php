@@ -43,6 +43,17 @@
 </div>
 @endif
 
+{{-- ===== Sprint 4.32 — Analisis Penjualan (filter periode terpisah dari widget snapshot di atas) ===== --}}
+@isset($analisisPenjualan)
+    <x-analisis-penjualan
+        :data="$analisisPenjualan"
+        :periodeAktif="$analisisPenjualanMeta['periode_aktif']"
+        :labelPeriode="$analisisPenjualanMeta['label_periode']"
+        :presetList="$analisisPenjualanMeta['preset_list']"
+        :cabangId="$analisisPenjualanMeta['cabang_id']"
+    />
+@endisset
+
 {{-- ===== Tahap 6 D'mentai — Widget Dashboard Owner (Setoran + Kas HO) ===== --}}
 @if($dashboardOwner)
 <div class="d-flex justify-content-between align-items-center mb-2">

@@ -28,6 +28,35 @@ if (!function_exists('fmt_rupiah')) {
     }
 }
 
+if (!function_exists('fmt_rupiah_singkat')) {
+    /**
+     * Format rupiah ringkas untuk card sempit / overview dashboard.
+     * Sprint 4.32 (2026-10-05) — Analisis Penjualan.
+     *
+     * Rule:
+     *   >= 1.000.000  → "Rp 8,5jt"      (1 desimal, trailing zero dibuang)
+     *   >= 100.000    → "Rp 850rb"      (bulat, tanpa desimal)
+     *   < 100.000     → "Rp 50.000"     (full, pola fmt_rupiah)
+     *
+     * Full angka tetap tersedia via fmt_rupiah() utk tooltip hover.
+     */
+    function fmt_rupiah_singkat($amount): string
+    {
+        $num = (float) ($amount ?? 0);
+        if ($num >= 1_000_000) {
+            $jt = $num / 1_000_000;
+            $formatted = number_format($jt, 1, ',', '.');
+            $formatted = rtrim(rtrim($formatted, '0'), ',');
+            return 'Rp ' . $formatted . 'jt';
+        }
+        if ($num >= 100_000) {
+            $rb = (int) round($num / 1_000);
+            return 'Rp ' . number_format($rb, 0, ',', '.') . 'rb';
+        }
+        return fmt_rupiah($num);
+    }
+}
+
 if (!function_exists('fmt_qty')) {
     /**
      * Format angka qty dengan pemisah ribuan titik, desimal koma (format Indonesia).

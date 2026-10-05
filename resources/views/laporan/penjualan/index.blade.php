@@ -54,6 +54,18 @@
     </div>
 </x-date-range-filter>
 
+{{-- Sprint 4.32 — Section "Analisis Periode" (ikut filter cabang+tanggal halaman) --}}
+@isset($analisisPenjualan)
+    <x-analisis-penjualan
+        :data="$analisisPenjualan"
+        :periodeAktif="$analisisPenjualanMeta['periode_aktif']"
+        :labelPeriode="$analisisPenjualanMeta['label_periode']"
+        :presetList="$analisisPenjualanMeta['preset_list']"
+        :cabangId="$analisisPenjualanMeta['cabang_id']"
+        :formAction="route('laporan.penjualan')"
+    />
+@endisset
+
 <!-- Stat Cards -->
 <div class="row g-3 mb-4">
     <div class="col-6 col-md-4">
