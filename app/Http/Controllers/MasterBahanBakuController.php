@@ -71,8 +71,11 @@ class MasterBahanBakuController extends Controller
         abort_unless(auth()->user()->can('master.bahan_baku.create'), 403);
 
         $data = $request->safe()->except('stok_awal');
-        $data['kode_item'] = strtoupper($data['kode_item']);
-        $data['is_active'] = $request->boolean('is_active', true);
+        $data['kode_item']  = strtoupper($data['kode_item']);
+        $data['is_active']  = $request->boolean('is_active', true);
+        // Sprint 4.34 — checkbox-style: absen (unchecked) → false. Form create
+        // UI default checked, jadi kalau user tidak uncheck → kirim '1' → true.
+        $data['track_stok'] = $request->boolean('track_stok');
 
         $item = Item::create($data);
 
@@ -106,8 +109,10 @@ class MasterBahanBakuController extends Controller
         abort_unless(in_array($bahanBaku->tipe, self::TIPE_SCOPE, true), 404);
 
         $data = $request->safe()->except('stok_awal');
-        $data['kode_item'] = strtoupper($data['kode_item']);
-        $data['is_active'] = $request->boolean('is_active', true);
+        $data['kode_item']  = strtoupper($data['kode_item']);
+        $data['is_active']  = $request->boolean('is_active', true);
+        // Sprint 4.34 — checkbox-style konsisten dgn store(): absen → false.
+        $data['track_stok'] = $request->boolean('track_stok');
 
         $bahanBaku->update($data);
 

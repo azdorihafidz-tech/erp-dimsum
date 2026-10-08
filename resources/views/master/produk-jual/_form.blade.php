@@ -79,12 +79,17 @@
                             </div>
                             <div class="col-12 col-md-6">
                                 <label class="form-label small fw-semibold">Kategori</label>
-                                <select name="item_category_id" class="form-select">
-                                    <option value="">— Pilih —</option>
-                                    @foreach($categories as $cat)
-                                    <option value="{{ $cat->id }}" @selected(old('item_category_id', $item->item_category_id ?? null)==$cat->id)>{{ $cat->nama_kategori }}</option>
-                                    @endforeach
-                                </select>
+                                <div class="input-group">
+                                    <select name="item_category_id" class="form-select">
+                                        <option value="">— Pilih —</option>
+                                        @foreach($categories as $cat)
+                                        <option value="{{ $cat->id }}" @selected(old('item_category_id', $item->item_category_id ?? null)==$cat->id)>{{ $cat->nama_kategori }}</option>
+                                        @endforeach
+                                    </select>
+                                    <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalKategori" title="Tambah kategori baru">
+                                        <i class="bi bi-plus-lg"></i>
+                                    </button>
+                                </div>
                             </div>
                             <div class="col-12 col-md-6">
                                 <label class="form-label small fw-semibold">Satuan *</label>
@@ -255,6 +260,55 @@
 </form>
 @endcan
 @endif
+
+{{-- Sprint 4.34 — modal Tambah Kategori Baru (SIBLING, bukan nested — lihat CLAUDE.md [[4.14]]). --}}
+<div class="modal fade" id="modalKategori" tabindex="-1" aria-labelledby="modalKategoriLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="modalKategoriLabel">
+                    <i class="bi bi-tag me-2 text-primary"></i>Tambah Kategori Baru
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ route('item.kategori.store') }}">
+                @csrf
+                <input type="hidden" name="_redirect_back" value="1">
+                <div class="modal-body">
+                    <div class="alert alert-info py-2 small mb-3">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Kategori baru TIDAK langsung muncul sebagai filter di grid POS — chip kategori di POS
+                        cuma menampilkan kategori yang sudah punya minimal 1 produk AKTIF.
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" style="font-size:0.85rem">
+                            Nama Kategori <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" name="nama_kategori" class="form-control"
+                            placeholder="cth: Dimsum, Gyoza, Drink..."
+                            required autofocus>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label fw-semibold" style="font-size:0.85rem">
+                            Kode Kategori <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" name="kode_kategori" class="form-control"
+                            placeholder="cth: CAT-001"
+                            style="text-transform:uppercase" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" style="min-height:44px;min-width:100px">
+                        Batal
+                    </button>
+                    <button type="submit" class="btn btn-primary" style="min-height:44px;min-width:100px">
+                        <i class="bi bi-check-lg me-1"></i>Simpan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 {{-- Modal Import dari Bumbu Pusat (2026-09-17) --}}
 <div class="modal fade" id="modalImportBumbu" tabindex="-1">

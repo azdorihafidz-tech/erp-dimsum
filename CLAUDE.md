@@ -628,6 +628,36 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 
 **⚠️ 1 catatan penting**: adjustment audit trail masuk ke `stock_movements.catatan` sbg prefix `[Input: 5 pack] <catatan user>`. Tidak muncul di UI Adjustment histori (view existing belum highlight catatan movement) — sudah cukup utk audit manual via **Laporan Pergerakan Stok** yang menampilkan kolom catatan. Kalau nanti dibuat kolom terpisah `stock_movements.unit_input`/`qty_input` seperti PO, itu sprint kecil terpisah (~15 menit).
 
+### 4.35 🟢 Field "Jenis", "Lacak Stok", "Deskripsi" + Modal Tambah Kategori Dipindah ke Form Bahan Baku & Produk Jual (2026-10-08)
+
+**Konteks**: lanjutan [[4.34]]. Audit Owner menemukan 4 fitur yang sebelumnya cuma ada di form Master Barang Lengkap (sekarang read-only) belum dipindah ke 2 menu CRUD penerus:
+1. Radio **Jenis Item** (bahan_baku vs perlengkapan — axis orthogonal CLAUDE.md [[4.8]])
+2. Checkbox **Lacak Stok** (track_stok)
+3. Textarea **Deskripsi**
+4. Modal inline **"Tambah Kategori Baru"** (dgn tombol `+` di sebelah dropdown kategori)
+
+**Fix**:
+- `BahanBakuRequest` tambah validasi 3 field (`jenis` IN `[bahan_baku, perlengkapan]`, `track_stok` boolean, `deskripsi` string max 1000).
+- `MasterBahanBakuController::store()` + `update()`: `track_stok = $request->boolean('track_stok')` — pola checkbox-style (absen = false), konsisten dgn `is_active`.
+- `master/bahan-baku/create.blade.php` + `edit.blade.php`: tambah 3 field + tombol `+` di dropdown kategori + modal "Tambah Kategori Baru" sbg SIBLING form utama (bukan nested, lihat [[4.14]]). Edit form pakai `@php $jenisAktif` block utk resolve enum→string (hindari issue `JenisItem` BackedEnum vs string literal di `@checked`).
+- `master/produk-jual/_form.blade.php`: tambah tombol `+` di dropdown kategori + modal "Tambah Kategori Baru" sbg sibling (modal cuma ini, 3 field lain tidak relevan utk produk jual — jenis/track_stok tidak dipakai, deskripsi sudah ada).
+
+**Konfirmasi tetap sinkron**: modal POST ke `item.kategori.store` yang sudah ada sejak dulu di routes/web.php — tidak buat route baru. `ItemController::storeKategori()` sudah terima `kode_kategori` wajib ([[4.21]]), masih jalan apa adanya.
+
+**File yang diedit** (5 file + 1 test baru):
+- `app/Http/Requests/BahanBakuRequest.php` — 3 rule baru
+- `app/Http/Controllers/MasterBahanBakuController.php` — store+update ambil track_stok
+- `resources/views/master/bahan-baku/create.blade.php` — 3 field + tombol `+` + modal
+- `resources/views/master/bahan-baku/edit.blade.php` — sama, dgn `@php` enum→string
+- `resources/views/master/produk-jual/_form.blade.php` — tombol `+` + modal
+- `tests/Feature/Tahap7/BahanBakuFieldPindahanTest.php` — 8 test baru
+
+**Verifikasi**: 8 test PASS — form create render 4 field, form edit populate radio+textarea, modal rendered di produk jual, store perlengkapan menyimpan `jenis=perlengkapan` + `track_stok=false` + `deskripsi`, store bahan_baku default menyimpan `jenis=bahan_baku` + `track_stok=true`, update ubah jenis+track_stok, dropdown tipe bahan baku form **tanpa opsi produk_jual** (konfirmasi [[4.33]] jalan), modal kategori submit via `/item/kategori` sukses.
+
+Regresi 36 test lintas 4 suite related (BahanBaku + MasterBarangReadonly + FilterTipeDapatDibeli + MasterBarangTipeLabel) PASS, 0 regresi.
+
+**Instruksi deploy**: `git pull` → `/clear-cache.php` di browser (lalu hapus). Zero migration.
+
 ### 4.34 🔴 Master Barang Lengkap READ-ONLY + Dashboard/Laporan Stok Exclude Produk Jual + Harden Track Stok (2026-10-08)
 
 **Konteks**: lanjutan [[4.33]]. Owner laporkan 3 masalah lanjutan:

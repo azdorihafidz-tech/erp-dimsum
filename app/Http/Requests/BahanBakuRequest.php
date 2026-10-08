@@ -38,6 +38,10 @@ class BahanBakuRequest extends FormRequest
             'is_active'           => ['boolean'],
             'stok_awal'           => ['nullable', 'array'],
             'stok_awal.*'         => ['nullable', 'numeric', 'min:0'],
+            // Sprint 4.34 (2026-10-08) — 3 field dipindah dari Master Barang Lengkap.
+            'jenis'               => ['nullable', Rule::in(['bahan_baku', 'perlengkapan'])],
+            'track_stok'          => ['nullable', 'boolean'],
+            'deskripsi'           => ['nullable', 'string', 'max:1000'],
             // Sprint Unit Family (2026-09-27) — pasangan wajib atau keduanya kosong.
             'unit_beli'           => ['nullable', 'required_with:isi_per_unit_beli', 'string', 'max:20'],
             'isi_per_unit_beli'   => ['nullable', 'required_with:unit_beli', 'numeric', 'gt:0'],
