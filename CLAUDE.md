@@ -628,6 +628,30 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 
 **⚠️ 1 catatan penting**: adjustment audit trail masuk ke `stock_movements.catatan` sbg prefix `[Input: 5 pack] <catatan user>`. Tidak muncul di UI Adjustment histori (view existing belum highlight catatan movement) — sudah cukup utk audit manual via **Laporan Pergerakan Stok** yang menampilkan kolom catatan. Kalau nanti dibuat kolom terpisah `stock_movements.unit_input`/`qty_input` seperti PO, itu sprint kecil terpisah (~15 menit).
 
+### 4.33 🔴 Filter Tipe Item di PO/StockTransfer/StockRequest — Cegah Produk Jual Dibeli (2026-10-08)
+
+**Laporan Owner**: form PO (`/pembelian/create`) menampilkan item bertipe `produk_jual` (dimsum, dsb) di dropdown pilih barang — padahal produk jual **dibuat sendiri dari resep** di dapur, bukan dibeli dari supplier. Rawan terpilih tidak sengaja → PO masuk DB dgn item produk_jual → stok dobel-count saat PO diterima (nambah dari pembelian + nambah dari produksi via resep), HPP ketimpa harga PO sembarangan.
+
+**Audit menemukan pola yang sama di 3 controller**: `PurchaseOrderController::create()`, `StockTransferController::create()`, `StockRequestController::create()` — SEMUANYA `Item::aktif()` saja, 0 filter tipe. `StokController::adjustmentStore()` sengaja TIDAK difilter (opname fisik butuh semua tipe) — benar, dibiarkan.
+
+**Fix**:
+- Constant terpusat `Item::TIPE_DAPAT_DIBELI = ['bahan_baku', 'kemasan', 'tambahan_gratis']` + scope `scopeDapatDibeli()`. `tambahan_gratis` (sumpit/garpu/saus kecil) SENGAJA masuk — genuinely dibeli dari supplier walau gratis utk customer di POS. `produk_jual`/`produk_tambahan`/legacy TIDAK masuk.
+- 3 controller `create()` tambah `->dapatDibeli()` sebelum `->get()`.
+- 3 controller `store()` tambah guard rail backend: batch-load `Item` by id, kalau ada yang bukan `TIPE_DAPAT_DIBELI` → `back()->withErrors()` dgn pesan jelas. Hindari bypass via devtools (filter dropdown doang bisa di-skip kalau ada yang post direct).
+
+**File yang diedit** (5 file):
+- `app/Models/Item.php` (constant + scope baru di bawah `scopeProdukJual` existing)
+- `app/Http/Controllers/PurchaseOrderController.php` (create + store)
+- `app/Http/Controllers/StockTransferController.php` (create + store)
+- `app/Http/Controllers/StockRequestController.php` (create + store)
+- `tests/Feature/Tahap7/FilterTipeDapatDibeliTest.php` (10 test)
+
+**Verifikasi**: 10 test — constant isi benar, scope filter benar (bahan_baku/kemasan/tambahan_gratis masuk; produk_jual/produk_tambahan tidak), 3 form create dropdown exclude produk_jual, 3 store tolak item produk_jual (guard rail), PO store terima bahan_baku + tambahan_gratis (regresi). All 10 PASS.
+
+**Data historis**: tidak di-audit otomatis (keputusan Owner — Opsi C "filter + guard rail" dipilih tanpa B "audit data existing"). Kalau nanti ada laporan dobel-count stok produk jual, baru dicek manual via query `purchase_order_items.item_id IN (SELECT id FROM items WHERE tipe = 'produk_jual')`.
+
+**Instruksi deploy**: `git pull` → `/clear-cache.php` di browser (lalu hapus). Zero migration, zero DB touch.
+
 ### 4.32 🟢 Analisis Penjualan — 5 Metrik di 3 Halaman (Dashboard Pusat/Cabang + Laporan Penjualan) (2026-10-05)
 
 **Konteks**: Owner minta 5 widget metrik agregat untuk analisis cepat lintas periode (Rata-rata Nilai Transaksi, Rata-rata Jumlah Transaksi, Hari Nilai Tertinggi, Hari Jumlah Tertinggi, Rata-rata Omzet Harian) ditempatkan di 3 lokasi: Dashboard Pusat (scope all cabang), Dashboard Cabang (scope cabang aktif), Laporan Penjualan (section baru "Analisis Periode" sinkron filter cabang+tanggal halaman).

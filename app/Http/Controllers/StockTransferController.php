@@ -65,7 +65,10 @@ class StockTransferController extends Controller
         abort_unless(auth()->user()->can('stok.transfer'), 403);
 
         $lokasiList   = Cabang::aktif()->get();
-        $items        = Item::aktif()->with('category')->orderBy('nama_item')->get();
+        // Sprint 4.33 — filter 3 tipe yang dibeli/dipindah antar cabang.
+        // produk_jual/produk_tambahan dibuat on-demand di tiap cabang via resep,
+        // tidak di-transfer antar cabang.
+        $items        = Item::aktif()->dapatDibeli()->with('category')->orderBy('nama_item')->get();
         $stockRequest = null;
         $prefillItems = [];
         $defaultDariLokasiId = null;
@@ -103,6 +106,13 @@ class StockTransferController extends Controller
 
         if ($request->dari_lokasi_id === $request->ke_lokasi_id) {
             return back()->with('error','Lokasi asal dan tujuan tidak boleh sama.')->withInput();
+        }
+
+        // Sprint 4.33 — guard rail tipe item (hindari bypass devtools).
+        $itemIds = collect($request->items)->pluck('item_id')->unique()->all();
+        $invalidItems = Item::whereIn('id', $itemIds)->whereNotIn('tipe', Item::TIPE_DAPAT_DIBELI)->pluck('nama_item');
+        if ($invalidItems->isNotEmpty()) {
+            return back()->withInput()->with('error', "Item berikut tidak bisa ditransfer antar cabang (dibuat on-demand lewat resep): " . $invalidItems->join(', '));
         }
 
         $trfPrefix = 'TRF-' . date('Ymd');

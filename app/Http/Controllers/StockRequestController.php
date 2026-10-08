@@ -71,7 +71,9 @@ class StockRequestController extends Controller
     {
         abort_unless(auth()->user()->can('stok.request'), 403);
 
-        $items = Item::aktif()->with('category')->orderBy('nama_item')->get();
+        // Sprint 4.33 — filter tipe barang yang bisa di-request antar cabang
+        // (sama pola PO & Transfer: bahan baku + kemasan + tambahan gratis).
+        $items = Item::aktif()->dapatDibeli()->with('category')->orderBy('nama_item')->get();
         return view('stok.request.create', compact('items'));
     }
 
@@ -83,6 +85,13 @@ class StockRequestController extends Controller
 
         if (!$activeLokId) {
             return back()->with('error', 'Pilih cabang aktif terlebih dahulu.')->withInput();
+        }
+
+        // Sprint 4.33 — guard rail tipe item (hindari bypass devtools).
+        $itemIds = collect($request->items ?? [])->pluck('item_id')->filter()->unique()->all();
+        $invalidItems = Item::whereIn('id', $itemIds)->whereNotIn('tipe', Item::TIPE_DAPAT_DIBELI)->pluck('nama_item');
+        if ($invalidItems->isNotEmpty()) {
+            return back()->withInput()->with('error', "Item berikut tidak bisa di-request antar cabang: " . $invalidItems->join(', '));
         }
 
         $reqPrefix = 'REQ-' . date('Ymd');

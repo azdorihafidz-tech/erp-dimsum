@@ -115,8 +115,11 @@ class PurchaseOrderController extends Controller
         $authUser    = auth()->user();
         $cabangAktif = session('active_cabang_id') ?? $authUser->defaultCabangId();
 
-        // Ambil semua item beserta stok di semua lokasi
+        // Sprint 4.33 — HANYA tampilkan tipe yang genuinely dibeli dari supplier
+        // (bahan_baku + kemasan + tambahan_gratis). produk_jual/produk_tambahan
+        // dibuat sendiri lewat resep, bukan dibeli — lihat Item::TIPE_DAPAT_DIBELI.
         $items = Item::where('is_active', true)
+            ->dapatDibeli()
             ->with(['stocks.lokasi'])
             ->orderBy('nama_item')
             ->get()
@@ -150,6 +153,16 @@ class PurchaseOrderController extends Controller
         // dgn PO lama). qty_input + unit_input disimpan sbg audit trail.
         $itemIds = collect($data['items'])->pluck('item_id')->unique()->all();
         $itemMap = Item::whereIn('id', $itemIds)->get()->keyBy('id');
+
+        // Sprint 4.33 — guard rail: tolak item dgn tipe yang tidak boleh dibeli
+        // (produk_jual/produk_tambahan/legacy). Hindari bypass via devtools.
+        foreach ($itemMap as $it) {
+            if (!in_array($it->tipe, Item::TIPE_DAPAT_DIBELI, true)) {
+                return back()->withInput()->withErrors([
+                    'items' => "Item '{$it->nama_item}' bertipe '{$it->tipe}' tidak bisa dibeli lewat PO. Hanya bahan baku, kemasan, dan tambahan gratis yang dibeli dari supplier.",
+                ]);
+            }
+        }
 
         $data['items'] = array_map(function ($row) use ($itemMap) {
             $item = $itemMap[$row['item_id']] ?? null;

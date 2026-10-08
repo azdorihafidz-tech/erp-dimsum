@@ -207,6 +207,24 @@ class Item extends Model
         return $query->where('tipe', 'produk_jual');
     }
 
+    /**
+     * Sprint 4.33 (2026-10-08) — tipe barang yang GENUINELY DIBELI dari supplier
+     * (dipakai filter dropdown PO, Stock Transfer, Stock Request).
+     *
+     * `produk_jual` + `produk_tambahan` SENGAJA tidak masuk — keduanya dibuat
+     * sendiri di dapur lewat resep (CLAUDE.md [[4.30]]), bukan dibeli.
+     * `tambahan_gratis` (sumpit/garpu/saus kecil) MASUK — ini genuinely dibeli
+     * dari supplier walau di POS gratis utk customer.
+     * Legacy `produk_jadi`/`lainnya` tidak dimasukkan (sudah tidak dipakai
+     * data baru sejak Tahap 2.5 rename, lihat CLAUDE.md 8.3).
+     */
+    public const TIPE_DAPAT_DIBELI = ['bahan_baku', 'kemasan', 'tambahan_gratis'];
+
+    public function scopeDapatDibeli($query)
+    {
+        return $query->whereIn('tipe', self::TIPE_DAPAT_DIBELI);
+    }
+
     // ===== Fase 5 — Modul Perlengkapan (Rule #66), scope BARU, tidak
     // menyentuh scope existing di atas sama sekali =====
 
