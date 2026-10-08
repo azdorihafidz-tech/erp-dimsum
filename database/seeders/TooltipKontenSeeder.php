@@ -718,6 +718,34 @@ class TooltipKontenSeeder extends Seeder
             'urutan'  => 1,
             'aktif'   => true,
         ]);
+
+        // Sprint 4.35 (2026-10-08) — 3 tooltip baru untuk 3 field pindahan dari Master Barang Lengkap.
+        Tooltip::updateOrCreate(['key' => 'master_bahan_baku.jenis'], [
+            'key'     => 'master_bahan_baku.jenis',
+            'title'   => 'Jenis Item',
+            'content' => 'Bahan Baku = masuk produksi (tepung, daging, saus, bumbu). Perlengkapan = ATK/habis pakai yang tidak masuk produksi (nota kertas, label print, isolasi). Beda jenis mempengaruhi mapping COA di laporan akuntansi.',
+            'modul'   => 'master_bahan_baku',
+            'urutan'  => 2,
+            'aktif'   => true,
+        ]);
+
+        Tooltip::updateOrCreate(['key' => 'master_bahan_baku.track_stok'], [
+            'key'     => 'master_bahan_baku.track_stok',
+            'title'   => 'Lacak Stok',
+            'content' => 'Centang (default) kalau qty-nya perlu dihitung ketat per unit — mayoritas bahan baku & kemasan. Uncheck untuk ATK yang tidak perlu dihitung ketat (mis. isolasi, pena, karet gelang). Barang non-track tidak akan ikut dialert kalau stok habis.',
+            'modul'   => 'master_bahan_baku',
+            'urutan'  => 3,
+            'aktif'   => true,
+        ]);
+
+        Tooltip::updateOrCreate(['key' => 'master_bahan_baku.deskripsi'], [
+            'key'     => 'master_bahan_baku.deskripsi',
+            'title'   => 'Deskripsi',
+            'content' => 'Opsional. Catatan tambahan tentang barang: ukuran, merek pilihan, supplier preferensi, instruksi khusus, dll. Tampil di halaman detail item.',
+            'modul'   => 'master_bahan_baku',
+            'urutan'  => 4,
+            'aktif'   => true,
+        ]);
     }
 
     private function seedPosTransaksiTooltips(): void

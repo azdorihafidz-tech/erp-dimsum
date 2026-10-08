@@ -259,7 +259,7 @@ body.pos-tablet-mode #btnProses { padding: 0.45rem 0.75rem !important; font-size
                         @endforeach
                     </div>
                     @if($produkJadi->isEmpty())
-                        <p class="text-muted mb-0">Belum ada produk aktif. Tambahkan lewat menu Master Barang.</p>
+                        <p class="text-muted mb-0">Belum ada produk aktif. Tambahkan lewat menu <strong>Produk Jual</strong>.</p>
                     @endif
 
                     @if($itemTambahan->isNotEmpty())

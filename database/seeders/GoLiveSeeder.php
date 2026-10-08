@@ -55,6 +55,7 @@ class GoLiveSeeder extends Seeder
             PanduanPosSeeder::class,
             PanduanStubSeeder::class,
             PanduanKontenSeeder::class,
+            Sprint434PanduanUpdateSeeder::class,
             TooltipAdjustmentSeeder::class,
             TooltipKontenSeeder::class,
         ]);

@@ -22,7 +22,7 @@
                 <div class="alert alert-warning mb-0">
                     <i class="bi bi-exclamation-triangle me-1"></i>
                     Belum ada item berjenis <strong>Perlengkapan</strong> dengan Lacak Stok aktif.
-                    Tambah dulu lewat menu <a href="{{ route('item.create') }}">Master Barang</a>.
+                    Tambah dulu lewat menu <a href="{{ route('master.bahan-baku.create') }}">Bahan Baku &amp; Kemasan</a> (pilih Jenis = Perlengkapan).
                 </div>
                 @else
                 <form method="POST" action="{{ route('pemakaian-perlengkapan.store') }}">

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Daftar Item / Barang')
+@section('title', 'Semua Barang (Overview)')
 
 @push('styles')
 <style>
@@ -28,12 +28,15 @@
 <div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center justify-content-between gap-3 mb-4">
     <div>
         <h4 class="fw-bold mb-0" style="color:#1e293b">
-            <i class="bi bi-box-seam me-2 text-primary"></i>Daftar Item / Barang
+            <i class="bi bi-box-seam me-2 text-primary"></i>Semua Barang (Overview)
         </h4>
+        <small class="text-muted d-block mt-1" style="font-size:0.78rem">
+            <i class="bi bi-info-circle me-1"></i>Halaman read-only. CRUD lewat menu <strong>Bahan Baku &amp; Kemasan</strong> atau <strong>Produk Jual</strong>.
+        </small>
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb mb-0" style="font-size:0.8rem">
                 <li class="breadcrumb-item"><a href="{{ route('dashboard') }}" class="text-decoration-none">Dashboard</a></li>
-                <li class="breadcrumb-item active">Item</li>
+                <li class="breadcrumb-item active">Overview</li>
             </ol>
         </nav>
     </div>

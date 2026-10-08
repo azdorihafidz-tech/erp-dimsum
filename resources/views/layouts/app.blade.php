@@ -677,9 +677,10 @@
         @endcan
         @can('item.view')
         <a href="{{ route('item.index') }}"
-           class="nav-link {{ request()->routeIs('item.*') ? 'active' : '' }}">
+           class="nav-link {{ request()->routeIs('item.*') ? 'active' : '' }}"
+           title="Overview semua barang lintas tipe (read-only). CRUD lewat menu Bahan Baku atau Produk Jual.">
             <i class="bi bi-card-list"></i>
-            <span>Master Barang (Lengkap)</span>
+            <span>Semua Barang (Overview)</span>
         </a>
         @endcan
         @can('pemakaian_perlengkapan.view')

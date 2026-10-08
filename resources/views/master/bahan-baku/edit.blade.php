@@ -71,7 +71,7 @@
                 @endphp
                 <div class="row g-3 mt-1">
                     <div class="col-12 col-md-6">
-                        <label class="form-label small fw-semibold">Jenis Item</label>
+                        <label class="form-label small fw-semibold">Jenis Item <x-tooltip key="master_bahan_baku.jenis" /></label>
                         <div class="d-flex gap-3">
                             <div class="form-check">
                                 <input class="form-check-input" type="radio" name="jenis" id="jenisBahanBaku" value="bahan_baku" @checked($jenisAktif === 'bahan_baku')>
@@ -84,7 +84,7 @@
                         </div>
                     </div>
                     <div class="col-12 col-md-6">
-                        <label class="form-label small fw-semibold">Lacak Stok</label>
+                        <label class="form-label small fw-semibold">Lacak Stok <x-tooltip key="master_bahan_baku.track_stok" /></label>
                         <div class="form-check form-switch mt-1">
                             <input class="form-check-input" type="checkbox" name="track_stok" id="track_stok" value="1" @checked(old('track_stok', $item->track_stok))>
                             <label class="form-check-label" for="track_stok">Aktifkan tracking stok</label>
@@ -93,7 +93,7 @@
                 </div>
                 <div class="row g-3 mt-1">
                     <div class="col-12">
-                        <label class="form-label small fw-semibold">Deskripsi (opsional)</label>
+                        <label class="form-label small fw-semibold">Deskripsi (opsional) <x-tooltip key="master_bahan_baku.deskripsi" /></label>
                         <textarea name="deskripsi" rows="2" class="form-control">{{ old('deskripsi', $item->deskripsi) }}</textarea>
                     </div>
                 </div>

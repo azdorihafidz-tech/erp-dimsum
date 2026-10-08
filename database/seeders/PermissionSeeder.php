@@ -57,9 +57,14 @@ class PermissionSeeder extends Seeder
 
             // Item / Master Barang
             ['name' => 'item.view',   'display_name' => 'Lihat Master Barang',  'group' => 'stok'],
-            ['name' => 'item.create', 'display_name' => 'Tambah Master Barang', 'group' => 'stok'],
-            ['name' => 'item.edit',   'display_name' => 'Edit Master Barang',   'group' => 'stok'],
-            ['name' => 'item.delete', 'display_name' => 'Hapus Master Barang',  'group' => 'stok'],
+            // Sprint 4.34 (2026-10-08) — item.create/edit/delete DEPRECATED:
+            // menu Master Barang Lengkap jadi read-only overview. CRUD lewat
+            // menu Bahan Baku (`master.bahan_baku.*`) atau Produk Jual
+            // (`master.produk_jual.*`). Permission tetap di-seed utk backward
+            // compat (bookmark/panduan lama) tapi tombolnya sudah hilang dari UI.
+            ['name' => 'item.create', 'display_name' => 'Tambah Master Barang [DEPRECATED]', 'group' => 'stok'],
+            ['name' => 'item.edit',   'display_name' => 'Edit Master Barang [DEPRECATED]',   'group' => 'stok'],
+            ['name' => 'item.delete', 'display_name' => 'Hapus Master Barang [DEPRECATED]',  'group' => 'stok'],
 
             // Tahap 2.5 D'mentai — split menu Master Item jadi 2: Bahan Baku &
             // Kemasan (murni CRUD sederhana) vs Produk Jual (foto+resep+varian+

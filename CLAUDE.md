@@ -628,6 +628,58 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 
 **⚠️ 1 catatan penting**: adjustment audit trail masuk ke `stock_movements.catatan` sbg prefix `[Input: 5 pack] <catatan user>`. Tidak muncul di UI Adjustment histori (view existing belum highlight catatan movement) — sudah cukup utk audit manual via **Laporan Pergerakan Stok** yang menampilkan kolom catatan. Kalau nanti dibuat kolom terpisah `stock_movements.unit_input`/`qty_input` seperti PO, itu sprint kecil terpisah (~15 menit).
 
+### 4.36 🟢 Sinkron Panduan + Tooltip + Permission + Sidebar untuk Sprint 4.33/4.34/4.35 (2026-10-08)
+
+**Konteks**: setelah 3 sprint hari ini (filter PO/Transfer/Request [[4.33]], Master Barang read-only + Stok exclude produk_jual [[4.34]], 4 field pindahan ke Bahan Baku [[4.35]]), ada 4 hal yang perlu disinkronkan supaya UI/UX konsisten:
+1. Panduan existing yang terdampak belum mencerminkan perubahan.
+2. 3 field baru di form Bahan Baku belum ada tooltip.
+3. Permission `item.create`/`item.edit`/`item.delete` masih "aktif" di seeder padahal UI-nya sudah hilang.
+4. Sidebar + heading halaman masih sebut "Master Barang (Lengkap)" tanpa indikasi read-only.
+
+**Fix**:
+
+**A. Append section baru ke 9 panduan existing (seeder baru, idempotent)**
+- `database/seeders/Sprint434PanduanUpdateSeeder.php` — baca panduan existing, append section `## 🔄 Update 2026-10-08 — ...` di akhir dengan marker `<!-- SPRINT434 -->` utk cegah dobel append.
+- 9 slug diupdate: `master-barang` (read-only + 2 tombol baru), `bahan-baku` (4 fitur baru + tipe tanpa produk_jual), `produk-jual` (track_stok paksa false + konsep POS display + modal kategori), `pembelian` (whitelist 3 tipe + alur beli barang jadi via bahan_baku), `transfer-stok` (whitelist 3 tipe), `permintaan-stok` (whitelist 3 tipe), `dashboard-stok`/`stok-barang`/`laporan-stok` (scope 3 tipe + exclude produk_jual).
+- Didaftarkan di `DatabaseSeeder.php` (dev) dan `GoLiveSeeder.php` (production fresh install) setelah `PanduanKontenSeeder`.
+
+**B. 3 Tooltip baru di `TooltipKontenSeeder::seedMasterBahanBakuTooltips()`**
+- `master_bahan_baku.jenis` — jelaskan bahan_baku vs perlengkapan + implikasi COA
+- `master_bahan_baku.track_stok` — kapan uncheck (ATK yang tidak perlu dihitung ketat)
+- `master_bahan_baku.deskripsi` — opsional, catatan tambahan
+Embed di `master/bahan-baku/create.blade.php` + `edit.blade.php` di sebelah label 3 field (via `<x-tooltip key="..." />`).
+
+**C. Permission `item.*` CRUD ditandai DEPRECATED**
+- `PermissionSeeder.php`: display_name 3 permission (`item.create`/`item.edit`/`item.delete`) ditambah suffix `[DEPRECATED]`. Permission SENGAJA tidak dihapus (reversibel, backward compat utk Role & Hak Akses UI yang mungkin masih di-tweak Owner secara manual).
+- `item.view` TIDAK deprecated — menu overview tetap berguna.
+
+**D. Sidebar + heading halaman diperjelas**
+- `layouts/app.blade.php`: label menu "Master Barang (Lengkap)" → **"Semua Barang (Overview)"** + `title` attribute menjelaskan read-only.
+- `item/index.blade.php`: `@section('title')` + heading halaman + breadcrumb ikut rename, ditambah subtitle `<small>` info "read-only, CRUD lewat Bahan Baku/Produk Jual".
+- `pemakaian-perlengkapan/create.blade.php`: link `item.create` yg dulu buka Master Barang Lengkap diarahkan ke `master.bahan-baku.create` dgn hint "pilih Jenis = Perlengkapan".
+- `penjualan/pos.blade.php`: empty state "Tambah lewat Master Barang" → "Tambah lewat Produk Jual" (lebih akurat utk konteks POS).
+
+**File yang diedit** (8 file + 1 seeder baru + 1 test baru):
+- Baru: `database/seeders/Sprint434PanduanUpdateSeeder.php`
+- Baru: `tests/Feature/Tahap7/Sprint434PanduanTooltipTest.php` (5 test)
+- Edit: `database/seeders/TooltipKontenSeeder.php` (3 tooltip baru), `PermissionSeeder.php` (deprecated tag), `DatabaseSeeder.php` + `GoLiveSeeder.php` (register seeder baru)
+- Edit: `resources/views/master/bahan-baku/create.blade.php` + `edit.blade.php` (embed 3 tooltip)
+- Edit: `resources/views/layouts/app.blade.php` (rename menu), `item/index.blade.php` (heading+breadcrumb)
+- Edit: `pemakaian-perlengkapan/create.blade.php`, `penjualan/pos.blade.php` (link target)
+
+**Verifikasi**: `Sprint434PanduanTooltipTest.php` (5 test) — seeder append 9 panduan + idempotent (tidak dobel kalau dijalankan 2x), 3 tooltip ada di source seeder, tooltip ter-embed di view, permission `item.*` ber-tag DEPRECATED. All 5 PASS.
+
+Full regresi 6 suite today (Sprint434Panduan + BahanBakuField + MasterBarangReadonly + FilterTipeDapatDibeli + MasterBarangTipeLabel + AnalisisPenjualan) = 53 test PASS, 0 regresi.
+
+**Instruksi deploy production**:
+1. `git pull`
+2. Akses `https://erp.dmentaiindonesia.com/clear-cache.php` → **hapus file dari server**
+3. **WAJIB jalankan 3 seeder** utk apply perubahan di DB production (karena perubahan panduan + tooltip + permission label itu stored di DB, bukan code):
+   - Tambah ke `clear-cache.php` sekali-pakai: `Artisan::call('db:seed', ['--class' => 'PermissionSeeder', '--force' => true]); Artisan::call('db:seed', ['--class' => 'TooltipKontenSeeder', '--force' => true]); Artisan::call('db:seed', ['--class' => 'Sprint434PanduanUpdateSeeder', '--force' => true]);`
+   - Akses browser → hapus file. Alternatif: pakai akses SSH kalau tersedia.
+
+Zero migration DDL — murni data seed update (idempotent, aman dijalankan ulang).
+
 ### 4.35 🟢 Field "Jenis", "Lacak Stok", "Deskripsi" + Modal Tambah Kategori Dipindah ke Form Bahan Baku & Produk Jual (2026-10-08)
 
 **Konteks**: lanjutan [[4.34]]. Audit Owner menemukan 4 fitur yang sebelumnya cuma ada di form Master Barang Lengkap (sekarang read-only) belum dipindah ke 2 menu CRUD penerus:

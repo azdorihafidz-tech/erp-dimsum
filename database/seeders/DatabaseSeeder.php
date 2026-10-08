@@ -28,6 +28,7 @@ class DatabaseSeeder extends Seeder
             PanduanPosSeeder::class,        // Panduan percontohan modul POS
             PanduanStubSeeder::class,       // Panduan stub 46 menu + update modul POS → penjualan
             PanduanKontenSeeder::class,     // Isi konten nyata 46 panduan dari stub
+            Sprint434PanduanUpdateSeeder::class, // Append section 2026-10-08 ke 9 panduan existing
             TooltipKontenSeeder::class,     // Tooltip field-field bermakna seluruh aplikasi
         ]);
     }
