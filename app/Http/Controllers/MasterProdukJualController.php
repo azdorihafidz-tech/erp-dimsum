@@ -76,6 +76,11 @@ class MasterProdukJualController extends Controller
         $data['is_active']       = $request->boolean('is_active', true);
         $data['punya_varian']    = $request->boolean('punya_varian') && filled($request->input('atribut'));
         $data['stok_per_varian'] = $request->boolean('stok_per_varian');
+        // Sprint 4.34 (2026-10-08) — produk jual murni POS display, stok fisik
+        // selalu dihitung dari expand resep ke bahan_baku saat POS checkout
+        // (lihat PenjualanService::cekResepCukup). track_stok dipaksa false
+        // supaya tidak muncul di Dashboard/Laporan Stok.
+        $data['track_stok']      = false;
 
         if ($request->hasFile('foto')) {
             $data['foto'] = $this->simpanFoto($request->file('foto'));
@@ -129,6 +134,8 @@ class MasterProdukJualController extends Controller
         $data['kode_item']       = strtoupper($data['kode_item']);
         $data['is_active']       = $request->boolean('is_active', true);
         $data['stok_per_varian'] = $request->boolean('stok_per_varian');
+        // Sprint 4.34 — konsisten dgn store(): produk jual tidak track stok.
+        $data['track_stok']      = false;
 
         $punyaVarianBaru = $request->boolean('punya_varian') && filled($request->input('atribut'));
         $data['punya_varian'] = $punyaVarianBaru;

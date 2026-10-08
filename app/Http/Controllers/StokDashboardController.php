@@ -29,10 +29,12 @@ class StokDashboardController extends Controller
             ? Cabang::aktif()->orderBy('nama_cabang')->get()
             : collect();
 
-        // Filter tipe item (Semua/Bahan Baku/Kemasan/Produk Jual) — default
-        // null = semua tipe, perilaku persis seperti sebelum filter ini ada.
-        // Tahap 2.5 D'mentai: 'produk_jadi' -> 'produk_jual'.
-        $tipe = in_array($request->input('tipe'), ['bahan_baku', 'kemasan', 'produk_jual'], true)
+        // Sprint 4.34 (2026-10-08) — Dashboard Stok EXCLUDE produk_jual/produk_tambahan.
+        // Alasan (keputusan Owner): produk jual = POS display only, dibuat on-demand
+        // lewat resep dari bahan baku. Stok fisik real cuma di bahan_baku/kemasan/
+        // tambahan_gratis. 3 tipe itu = \App\Models\Item::TIPE_DAPAT_DIBELI, konsisten
+        // dgn [[4.33]] filter PO/Transfer/Request.
+        $tipe = in_array($request->input('tipe'), \App\Models\Item::TIPE_DAPAT_DIBELI, true)
             ? $request->input('tipe')
             : null;
 
@@ -45,6 +47,7 @@ class StokDashboardController extends Controller
             ->whereNull('stocks.deleted_at')
             ->whereNull('items.deleted_at')
             ->where('items.is_active', true)
+            ->whereIn('items.tipe', \App\Models\Item::TIPE_DAPAT_DIBELI)
             ->when($cabangId, fn($q) => $q->where('stocks.lokasi_id', $cabangId))
             ->when($tipe, fn($q) => $q->where('items.tipe', $tipe))
             ->select(
@@ -90,7 +93,7 @@ class StokDashboardController extends Controller
                 }
             })
             ->where('items.is_active', true)
-            ->whereIn('items.tipe', ['bahan_baku', 'kemasan', 'produk_jual'])
+            ->whereIn('items.tipe', \App\Models\Item::TIPE_DAPAT_DIBELI)
             ->when($tipe, fn($q) => $q->where('items.tipe', $tipe))
             ->whereNull('items.deleted_at')
             ->select(
@@ -195,6 +198,7 @@ class StokDashboardController extends Controller
             ->whereNull('stock_batches.deleted_at')
             ->whereNull('items.deleted_at')
             ->where('items.is_active', true)
+            ->whereIn('items.tipe', \App\Models\Item::TIPE_DAPAT_DIBELI)
             ->where('stock_batches.tanggal_masuk', '<=', $cutoff->toDateString())
             ->when($cabangId, fn($q) => $q->where('stock_batches.lokasi_id', $cabangId))
             ->select(
@@ -239,6 +243,7 @@ class StokDashboardController extends Controller
             ->where(fn($q) => $q->where('stock_movements.created_at', '>=', $since)
                                 ->orWhereNull('stock_movements.created_at'))
             ->whereNull('items.deleted_at')
+            ->whereIn('items.tipe', \App\Models\Item::TIPE_DAPAT_DIBELI)
             ->when($cabangId, fn($q) => $q->where('stock_movements.lokasi_asal_id', $cabangId))
             ->select(
                 'items.id',
@@ -281,7 +286,7 @@ class StokDashboardController extends Controller
         $allItems = DB::table('items')
             ->where('is_active', true)
             ->whereNull('deleted_at')
-            ->whereIn('tipe', ['bahan_baku', 'kemasan'])
+            ->whereIn('tipe', \App\Models\Item::TIPE_DAPAT_DIBELI)
             ->select('id', 'nama_item', 'satuan')
             ->orderBy('nama_item')
             ->get();
@@ -444,6 +449,7 @@ class StokDashboardController extends Controller
             ->whereNull('stock_batches.deleted_at')
             ->whereNull('items.deleted_at')
             ->where('items.is_active', true)
+            ->whereIn('items.tipe', \App\Models\Item::TIPE_DAPAT_DIBELI)
             ->where('stock_batches.tanggal_masuk', '<=', $threshold->toDateString())
             ->when($cabangId, fn($q) => $q->where('stock_batches.lokasi_id', $cabangId))
             ->when($tipe, fn($q) => $q->where('items.tipe', $tipe))
@@ -483,6 +489,7 @@ class StokDashboardController extends Controller
             ->where(fn($q) => $q->where('stock_movements.created_at', '>=', $since)
                                 ->orWhereNull('stock_movements.created_at'))
             ->whereNull('items.deleted_at')
+            ->whereIn('items.tipe', \App\Models\Item::TIPE_DAPAT_DIBELI)
             ->when($cabangId, fn($q) => $q->where('stock_movements.lokasi_asal_id', $cabangId))
             ->when($tipe, fn($q) => $q->where('items.tipe', $tipe))
             ->select(
@@ -515,7 +522,7 @@ class StokDashboardController extends Controller
         $items = DB::table('items')
             ->where('is_active', true)
             ->whereNull('deleted_at')
-            ->whereIn('tipe', ['bahan_baku', 'kemasan'])
+            ->whereIn('tipe', \App\Models\Item::TIPE_DAPAT_DIBELI)
             ->when($tipe, fn($q) => $q->where('tipe', $tipe))
             ->select('id', 'nama_item', 'satuan')
             ->get();
@@ -572,6 +579,7 @@ class StokDashboardController extends Controller
             ->whereNull('stocks.deleted_at')
             ->whereNull('items.deleted_at')
             ->where('items.is_active', true)
+            ->whereIn('items.tipe', \App\Models\Item::TIPE_DAPAT_DIBELI)
             ->when($cabangId, fn($q) => $q->where('stocks.lokasi_id', $cabangId))
             ->when($tipe, fn($q) => $q->where('items.tipe', $tipe))
             ->select(

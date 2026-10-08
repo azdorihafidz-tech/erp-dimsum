@@ -628,6 +628,66 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 
 **⚠️ 1 catatan penting**: adjustment audit trail masuk ke `stock_movements.catatan` sbg prefix `[Input: 5 pack] <catatan user>`. Tidak muncul di UI Adjustment histori (view existing belum highlight catatan movement) — sudah cukup utk audit manual via **Laporan Pergerakan Stok** yang menampilkan kolom catatan. Kalau nanti dibuat kolom terpisah `stock_movements.unit_input`/`qty_input` seperti PO, itu sprint kecil terpisah (~15 menit).
 
+### 4.34 🔴 Master Barang Lengkap READ-ONLY + Dashboard/Laporan Stok Exclude Produk Jual + Harden Track Stok (2026-10-08)
+
+**Konteks**: lanjutan [[4.33]]. Owner laporkan 3 masalah lanjutan:
+1. Label kolom "Tipe" di Dashboard Stok + Stok Index masih tampil "Lainnya" utk produk jual (bug sama pattern [[4.33]] tapi di 4 view stok yang kelewat).
+2. Produk jual tampil di Dashboard Stok padahal secara konsep dibuat on-demand lewat resep.
+3. "Beberapa model yang jadinya membingungkan" — Owner mau **1 model**: barang jadi tetap masuk ke bahan_baku, produk_jual = POS display + resep ke bahan baku. Master Barang Lengkap mau dibikin read-only, Edit redirect ke menu masing-masing.
+
+**Keputusan arsitektur Owner (jadi aturan permanen ke depan)**:
+- Produk jual = **POS display entity** saja. Tidak track stok fisik.
+- Stok real cuma di `bahan_baku` + `kemasan` + `tambahan_gratis` (= `Item::TIPE_DAPAT_DIBELI`, dari [[4.33]]).
+- Kalau Owner beli barang jadi (minuman kaleng, snack kemasan) → tetap input sebagai `bahan_baku` dgn satuan "kaleng"/"pcs" → bikin produk_jual dgn resep "1 bahan Fanta Kaleng". Konsekuensi: harga_beli dari PO tetap akurat, stok terpotong benar saat POS, 1 pattern utk semua tipe barang.
+- Master Barang Lengkap jadi **read-only overview**. CRUD cuma 2 menu: Bahan Baku (3 tipe non-POS) + Produk Jual (2 tipe POS).
+
+**Fix (3 bagian, 1 commit)**:
+
+**A. Dashboard & Laporan Stok EXCLUDE produk_jual/produk_tambahan**
+- `StokDashboardController`: 7 titik query (alertStok, nilaiStokPerCabang via tipe filter, stokItems list, slowMover, topMovement, agingStok, stokMati) semua tambah `whereIn('tipe', Item::TIPE_DAPAT_DIBELI)`.
+- `StokController::index()`: tambah `whereHas('item', ...)` filter.
+- `LaporanStokController::index()` + `stokMinimum()`: sama.
+- Dropdown filter tipe 3 opsi: Bahan Baku, Kemasan, Tambahan Gratis (buang Produk Jadi legacy).
+- View match block label (dashboard.blade.php, index.blade.php) di-expand ikut pola [[4.33]].
+
+**B. Master Barang Lengkap READ-ONLY**
+- `item/index.blade.php`:
+  - Tombol "Tambah Item" di header → diganti 2 tombol: "+ Bahan/Kemasan" (route `master.bahan-baku.create`) dan "+ Produk Jual" (route `master.produk-jual.create`). Masing-masing di-gate permission create menu-nya.
+  - Tombol "Hapus" di tiap baris DIHAPUS total (desktop + mobile).
+  - Tombol "Edit" tetap ada, link ke `item.edit` tapi controller sekarang **redirect by tipe**: `produk_jual`/`produk_tambahan` → `master.produk-jual.edit`, sisanya → `master.bahan-baku.edit`.
+  - Empty state buttons & mobile view ikut diupdate.
+- `ItemController::create()` + `store()` + `destroy()` + `update()` → redirect defensif (bukan abort), biar bookmark lama tidak tampil error page.
+- `ItemController::edit()` → redirect by tipe (gate permission diturunkan dari `item.edit` ke `item.view` krn user tidak lagi edit langsung di menu ini).
+- Routes `item.*` **TIDAK dihapus** — biar backward compat utk link eksternal/panduan lama. Semua jalur mutasi di controller sudah di-neutralize via redirect.
+
+**C. Harden Produk Jual — `track_stok` dipaksa `false`**
+- `MasterProdukJualController::store()` + `update()`: hardcode `$data['track_stok'] = false`, abaikan input user. Alasan: produk jual murni POS display, stok fisik real selalu dihitung dari expand resep ke bahan baku saat POS checkout (`PenjualanService::cekResepCukup`).
+
+**File yang diedit** (8 file):
+- `app/Models/Item.php` — tidak diedit sesi ini (constant TIPE_DAPAT_DIBELI dari [[4.33]])
+- `app/Http/Controllers/ItemController.php` — 4 method redirect
+- `app/Http/Controllers/StokController.php` — filter query + dropdown tipe
+- `app/Http/Controllers/StokDashboardController.php` — 7 titik query filter + whitelist $tipe
+- `app/Http/Controllers/LaporanStokController.php` — 2 titik query filter
+- `app/Http/Controllers/MasterProdukJualController.php` — `track_stok=false` di store+update
+- `resources/views/item/index.blade.php` — tombol header + action + empty state + mobile
+- `resources/views/stok/dashboard.blade.php` — dropdown + match block
+- `resources/views/stok/index.blade.php` — dropdown + match block
+
+**Verifikasi**: `tests/Feature/Tahap7/MasterBarangReadonlyDanStokFilterTest.php` (10 test):
+- Master Barang: tombol Tambah Item lama hilang (2 tombol baru muncul), `item.create` redirect ke bahan-baku index, `item.edit` bahan_baku → bahan-baku edit, `item.edit` produk_jual → produk-jual edit, `item.destroy` tidak hapus data.
+- Dashboard/Index/Laporan Stok: exclude produk_jual dari list meski ada stok.
+- Dashboard dropdown tipe: 3 opsi (bahan_baku/kemasan/tambahan_gratis) tanpa produk_jadi.
+- Produk Jual: track_stok dipaksa false meski user kirim `track_stok=1`.
+
+Full regresi related suites 30 test PASS (FilterTipeDapatDibeli + MasterBarangTipeLabel + AnalisisPenjualan), 0 regresi.
+
+**Instruksi deploy**: `git pull` → `/clear-cache.php` di browser (lalu hapus). Zero migration.
+
+**Catatan untuk Owner (data existing)**:
+- Produk jual lama yang mungkin punya `track_stok=true` + ada baris `stocks` dgn qty > 0 → tetap tersimpan di DB tapi sekarang **tidak muncul lagi** di UI Dashboard/Laporan Stok. Secara data: aman (tidak dihapus), secara UX: hidden.
+- Kalau Owner mau cleanup data (reset `track_stok=false` + hapus baris stocks produk jual) → butuh script 1-time, bilang nanti saya buatkan.
+
 ### 4.33 🔴 Filter Tipe Item di PO/StockTransfer/StockRequest — Cegah Produk Jual Dibeli (2026-10-08)
 
 **Laporan Owner**: form PO (`/pembelian/create`) menampilkan item bertipe `produk_jual` (dimsum, dsb) di dropdown pilih barang — padahal produk jual **dibuat sendiri dari resep** di dapur, bukan dibeli dari supplier. Rawan terpilih tidak sengaja → PO masuk DB dgn item produk_jual → stok dobel-count saat PO diterima (nambah dari pembelian + nambah dari produksi via resep), HPP ketimpa harga PO sembarangan.

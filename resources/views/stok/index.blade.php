@@ -125,9 +125,8 @@
                 <select name="tipe" class="form-select form-select-sm">
                     <option value="">Semua Tipe</option>
                     <option value="bahan_baku" {{ request('tipe') === 'bahan_baku' ? 'selected' : '' }}>Bahan Baku</option>
-                    <option value="produk_jadi" {{ request('tipe') === 'produk_jadi' ? 'selected' : '' }}>Produk Jadi</option>
                     <option value="kemasan" {{ request('tipe') === 'kemasan' ? 'selected' : '' }}>Kemasan</option>
-                    <option value="lainnya" {{ request('tipe') === 'lainnya' ? 'selected' : '' }}>Lainnya</option>
+                    <option value="tambahan_gratis" {{ request('tipe') === 'tambahan_gratis' ? 'selected' : '' }}>Tambahan Gratis</option>
                 </select>
             </div>
             @if($authUser->canAccessAllBranches())
@@ -222,16 +221,16 @@
                         @if($stock->item?->tipe)
                         @php
                             $tipeBadge = match($stock->item->tipe) {
-                                'bahan_baku'  => 'bg-warning-subtle text-warning',
-                                'produk_jadi' => 'bg-success-subtle text-success',
-                                'kemasan'     => 'bg-info-subtle text-info',
-                                default       => 'bg-secondary-subtle text-secondary',
+                                'bahan_baku'      => 'bg-warning-subtle text-warning',
+                                'kemasan'         => 'bg-info-subtle text-info',
+                                'tambahan_gratis' => 'bg-primary-subtle text-primary',
+                                default           => 'bg-secondary-subtle text-secondary',
                             };
                             $tipeLabel = match($stock->item->tipe) {
-                                'bahan_baku'  => 'Bahan Baku',
-                                'produk_jadi' => 'Produk Jadi',
-                                'kemasan'     => 'Kemasan',
-                                default       => 'Lainnya',
+                                'bahan_baku'      => 'Bahan Baku',
+                                'kemasan'         => 'Kemasan',
+                                'tambahan_gratis' => 'Tambahan Gratis',
+                                default           => 'Lainnya',
                             };
                         @endphp
                         <span class="badge {{ $tipeBadge }}" style="font-size:0.7rem">{{ $tipeLabel }}</span>

@@ -60,7 +60,7 @@
                 <option value="">Semua Tipe</option>
                 <option value="bahan_baku" {{ $tipe === 'bahan_baku' ? 'selected' : '' }}>Bahan Baku</option>
                 <option value="kemasan" {{ $tipe === 'kemasan' ? 'selected' : '' }}>Kemasan</option>
-                <option value="produk_jadi" {{ $tipe === 'produk_jadi' ? 'selected' : '' }}>Produk Jadi</option>
+                <option value="tambahan_gratis" {{ $tipe === 'tambahan_gratis' ? 'selected' : '' }}>Tambahan Gratis</option>
             </select>
             @if($cabangId || $tipe)
             <a href="{{ route('stok.dashboard') }}" class="btn btn-outline-secondary btn-sm">
@@ -273,16 +273,16 @@
                     <td>
                         @php
                             $tipeCls = match($item->tipe) {
-                                'bahan_baku'  => 'tipe-bahan',
-                                'produk_jadi' => 'tipe-produk',
-                                'kemasan'     => 'tipe-kemasan',
-                                default       => 'tipe-lain',
+                                'bahan_baku'      => 'tipe-bahan',
+                                'kemasan'         => 'tipe-kemasan',
+                                'tambahan_gratis' => 'tipe-bahan',
+                                default           => 'tipe-lain',
                             };
                             $tipeLabel = match($item->tipe) {
-                                'bahan_baku'  => 'Bahan Baku',
-                                'produk_jadi' => 'Produk Jadi',
-                                'kemasan'     => 'Kemasan',
-                                default       => 'Lainnya',
+                                'bahan_baku'      => 'Bahan Baku',
+                                'kemasan'         => 'Kemasan',
+                                'tambahan_gratis' => 'Tambahan Gratis',
+                                default           => 'Lainnya',
                             };
                         @endphp
                         <span class="badge {{ $tipeCls }}" style="font-size:0.7rem">{{ $tipeLabel }}</span>

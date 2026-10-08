@@ -38,10 +38,18 @@
         </nav>
     </div>
     <div class="d-flex gap-2 align-items-center flex-wrap">
-        @can('item.create')
-        <a href="{{ route('item.create') }}" class="btn btn-primary d-flex align-items-center gap-2">
+        {{-- Sprint 4.34 (2026-10-08) — Master Barang Lengkap jadi READ-ONLY overview.
+             Tambah barang diarahkan ke 2 menu khusus sesuai tipe. --}}
+        @can('master.bahan_baku.create')
+        <a href="{{ route('master.bahan-baku.create') }}" class="btn btn-outline-primary d-flex align-items-center gap-2" title="Buat bahan baku, kemasan, atau tambahan gratis">
             <i class="bi bi-plus-lg"></i>
-            <span>Tambah Item</span>
+            <span class="d-none d-md-inline">+ Bahan/Kemasan</span>
+        </a>
+        @endcan
+        @can('master.produk_jual.create')
+        <a href="{{ route('master.produk-jual.create') }}" class="btn btn-primary d-flex align-items-center gap-2" title="Buat produk jual untuk POS">
+            <i class="bi bi-plus-lg"></i>
+            <span class="d-none d-md-inline">+ Produk Jual</span>
         </a>
         @endcan
         <x-panduan-button slug="master-barang" />
@@ -272,6 +280,9 @@
                     </td>
                     <td class="text-center px-4">
                         <div class="d-flex align-items-center justify-content-center gap-1">
+                            {{-- Sprint 4.34 — tombol Edit redirect ke menu sesuai tipe
+                                 (lewat ItemController::edit() yg redirect). Tombol Hapus
+                                 dihapus — hapus barang lewat menu masing-masing. --}}
                             @can('item.view')
                             <a href="{{ route('item.show', $item) }}"
                                 class="btn btn-sm btn-outline-info px-2 py-1"
@@ -279,20 +290,13 @@
                                 <i class="bi bi-eye"></i>
                             </a>
                             @endcan
-                            @can('item.edit')
+                            @php $tipeMenu = in_array($item->tipe, ['produk_jual','produk_tambahan'], true) ? 'Produk Jual' : 'Bahan Baku'; @endphp
+                            @can('item.view')
                             <a href="{{ route('item.edit', $item) }}"
                                 class="btn btn-sm btn-outline-primary px-2 py-1"
-                                title="Edit" style="min-width:32px;min-height:32px">
+                                title="Edit ({{ $tipeMenu }})" style="min-width:32px;min-height:32px">
                                 <i class="bi bi-pencil"></i>
                             </a>
-                            @endcan
-                            @can('item.delete')
-                            <button type="button"
-                                class="btn btn-sm btn-outline-danger px-2 py-1"
-                                title="Hapus" style="min-width:32px;min-height:32px"
-                                onclick="confirmHapus('item', {{ $item->id }}, '{{ addslashes($item->nama_item) }}')">
-                                <i class="bi bi-trash3"></i>
-                            </button>
                             @endcan
                         </div>
                     </td>
@@ -306,9 +310,15 @@
                             @if(request()->hasAny(['search','tipe','jenis','kategori','status']))
                                 <a href="{{ route('item.index') }}" class="btn btn-sm btn-outline-primary mt-2">Reset Filter</a>
                             @else
-                                @can('item.create')
-                                <a href="{{ route('item.create') }}" class="btn btn-sm btn-primary mt-2">
-                                    <i class="bi bi-plus-lg me-1"></i>Tambah Item
+                                {{-- Sprint 4.34 — empty state: arahkan ke 2 menu khusus --}}
+                                @can('master.bahan_baku.create')
+                                <a href="{{ route('master.bahan-baku.create') }}" class="btn btn-sm btn-outline-primary mt-2">
+                                    <i class="bi bi-plus-lg me-1"></i>+ Bahan/Kemasan
+                                </a>
+                                @endcan
+                                @can('master.produk_jual.create')
+                                <a href="{{ route('master.produk-jual.create') }}" class="btn btn-sm btn-primary mt-2">
+                                    <i class="bi bi-plus-lg me-1"></i>+ Produk Jual
                                 </a>
                                 @endcan
                             @endif
@@ -394,9 +404,11 @@
                         <i class="bi bi-eye"></i>
                     </a>
                     @endcan
-                    @can('item.edit')
+                    {{-- Sprint 4.34 — redirect via ItemController::edit() --}}
+                    @can('item.view')
                     <a href="{{ route('item.edit', $item) }}"
                         class="btn btn-sm btn-outline-primary px-2"
+                        title="Edit (ke menu {{ in_array($item->tipe, ['produk_jual','produk_tambahan'], true) ? 'Produk Jual' : 'Bahan Baku' }})"
                         style="min-height:36px">
                         <i class="bi bi-pencil"></i>
                     </a>
@@ -409,8 +421,8 @@
     <div class="text-center py-5 text-muted">
         <i class="bi bi-inbox" style="font-size:2.5rem;opacity:0.3"></i>
         <p class="mt-2">Tidak ada item ditemukan.</p>
-        @can('item.create')
-        <a href="{{ route('item.create') }}" class="btn btn-primary btn-sm">
+        @can('master.bahan_baku.create')
+        <a href="{{ route('master.bahan-baku.create') }}" class="btn btn-primary btn-sm">
             <i class="bi bi-plus-lg me-1"></i>Tambah Item
         </a>
         @endcan

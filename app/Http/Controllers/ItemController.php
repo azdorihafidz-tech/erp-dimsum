@@ -59,27 +59,21 @@ class ItemController extends Controller
 
     public function create()
     {
-        abort_unless(auth()->user()->can('item.create'), 403);
-
-        $categories = ItemCategory::orderBy('nama_kategori')->get();
-        $tipes      = ['bahan_baku' => 'Bahan Baku', 'kemasan' => 'Kemasan', 'tambahan_gratis' => 'Tambahan Gratis', 'produk_jual' => 'Produk Jual', 'produk_tambahan' => 'Produk Tambahan'];
-        return view('item.create', compact('categories', 'tipes'));
+        // Sprint 4.34 (2026-10-08) — Master Barang Lengkap jadi READ-ONLY overview.
+        // Buat barang baru lewat 2 menu khusus: Bahan Baku (3 tipe non-POS) atau
+        // Produk Jual (2 tipe POS). Keputusan Owner: 1 model, produk jual = POS
+        // display saja; stok fisik real cuma di bahan_baku/kemasan/tambahan_gratis.
+        return redirect()->route('master.bahan-baku.index')
+            ->with('info', 'Master Barang Lengkap sekarang read-only. Buat barang baru lewat menu "Bahan Baku & Kemasan" (bahan/kemasan/tambahan) atau "Produk Jual" (menu POS).');
     }
 
     public function store(ItemRequest $request)
     {
-        abort_unless(auth()->user()->can('item.create'), 403);
-
-        $data = $request->validated();
-        $data['kode_item']  = strtoupper($data['kode_item']);
-        $data['is_active']  = $request->boolean('is_active', true);
-        // Fase 5 — Modul Perlengkapan (Rule #66): track_stok toggle, pola
-        // sama seperti is_active di atas (checkbox absen = false).
-        $data['track_stok'] = $request->boolean('track_stok', true);
-
-        Item::create($data);
-
-        return redirect()->route('item.index')->with('success', "Item {$data['nama_item']} berhasil ditambahkan.");
+        // Sprint 4.34 — route store tidak boleh dipanggil lagi; redirect defensif
+        // kalau ada bookmark/devtools lama. Guard sebagai pengganti abort 410
+        // (biar user tidak lihat error page tapi diarahkan ke tempat yg benar).
+        return redirect()->route('master.bahan-baku.index')
+            ->with('info', 'Tambah barang sekarang lewat menu "Bahan Baku & Kemasan" atau "Produk Jual".');
     }
 
     public function show(Item $item)
@@ -99,47 +93,29 @@ class ItemController extends Controller
 
     public function edit(Item $item)
     {
-        abort_unless(auth()->user()->can('item.edit'), 403);
+        // Sprint 4.34 — redirect ke menu yang bersangkutan berdasarkan tipe.
+        // Produk jual/tambahan → menu Produk Jual; sisanya → menu Bahan Baku.
+        abort_unless(auth()->user()->can('item.view'), 403);
 
-        $categories = ItemCategory::orderBy('nama_kategori')->get();
-        $tipes      = ['bahan_baku' => 'Bahan Baku', 'kemasan' => 'Kemasan', 'tambahan_gratis' => 'Tambahan Gratis', 'produk_jual' => 'Produk Jual', 'produk_tambahan' => 'Produk Tambahan'];
-        // Bug pre-existing ditemukan saat testing Tahap 2.5 (bukan disebabkan
-        // restructure ini): view butuh $authUser (danger zone) tapi tidak
-        // pernah di-compact -> selalu 500 di halaman ini. Fix minimal.
-        $authUser = auth()->user();
-        return view('item.edit', compact('item', 'categories', 'tipes', 'authUser'));
+        if (in_array($item->tipe, ['produk_jual', 'produk_tambahan'], true)) {
+            return redirect()->route('master.produk-jual.edit', $item);
+        }
+        return redirect()->route('master.bahan-baku.edit', $item);
     }
 
     public function update(ItemRequest $request, Item $item)
     {
-        abort_unless(auth()->user()->can('item.edit'), 403);
-
-        $data = $request->validated();
-        $data['kode_item'] = strtoupper($data['kode_item']);
-        $data['is_active'] = $request->boolean('is_active', true);
-        $data['track_stok'] = $request->boolean('track_stok', true);
-
-        $item->update($data);
-
-        return redirect()->route('item.index')->with('success', "Item {$item->nama_item} berhasil diperbarui.");
+        // Sprint 4.34 — tidak boleh update dari Master Barang Lengkap lagi;
+        // redirect defensif kalau ada POST langsung ke route lama.
+        return $this->edit($item);
     }
 
     public function destroy(Item $item, CascadeDeleteService $cascadeService)
     {
-        abort_unless(auth()->user()->can('item.delete'), 403);
-
-        try {
-            $nama    = $item->nama_item;
-            $deleted = $cascadeService->deleteItemCascade($item);
-
-            $labels    = ['order_item' => 'Item Order', 'purchase_order_item' => 'Item PO', 'stok' => 'Stok', 'item' => 'Barang'];
-            $ringkasan = collect($deleted)->map(fn($c, $k) => "{$c} " . ($labels[$k] ?? $k))->filter()->join(', ');
-
-            return redirect()->route('item.index')
-                ->with('success', "Item <strong>{$nama}</strong> beserta data terkait berhasil dihapus. ({$ringkasan})");
-        } catch (\Exception $e) {
-            return back()->with('error', "Gagal menghapus item: " . $e->getMessage());
-        }
+        // Sprint 4.34 — tidak boleh hapus dari Master Barang Lengkap lagi
+        // (sumber kekacauan [[4.33]] tipe item). Hapus lewat menu masing-masing.
+        return redirect()->route('item.index')
+            ->with('info', 'Hapus barang sekarang lewat menu "Bahan Baku & Kemasan" atau "Produk Jual" (sesuai tipe).');
     }
 
     // ===== KATEGORI (inline) =====
