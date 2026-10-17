@@ -557,7 +557,7 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 
 **Yang TIDAK dilakukan GoLiveSeeder**: tidak membuat outlet, kas, karyawan, item, modal owner (`neraca_settings` kosong → `getSetting()` membuat baris `modal_owner=0`). Semua diinput Owner lewat UI (alur di bawah).
 
-**⚠️ Setelah go-live**: hapus `public/golive.php` dari server, hapus semua baris `GOLIVE_*` dari `.env`, jalankan `public/clear-cache.php` (lalu hapus), ganti password Owner. Pastikan `.env` production: `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL=https://erp.dmentaiindonesia.com`.
+**⚠️ Setelah go-live**: hapus `public/golive.php` dari server, hapus semua baris `GOLIVE_*` dari `.env`, jalankan `public/clear-cache.php` (lalu hapus), ganti password Owner. Pastikan `.env` production: `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL=https://erp.dmentaiindonesia.com`. **(2026-10-17: `public/golive.php` sudah DIHAPUS dari repository — kalau suatu saat perlu go-live ulang, ambil dari riwayat git commit sebelum `bd8a63d`.)**
 
 **Urutan setup data real (15 langkah, sesuai dependency)**:
 1. Login Owner, ganti password/email. 2. Pengaturan Umum (nama perusahaan, logo). 3. Cabang (Gudang Pusat + outlet: alamat, GPS, config POS dine-in/takeaway/frozen/service charge/footer struk). 4. **Kas per cabang WAJIB** — tiap outlet 3 kas default `tunai`/`transfer`/`qris` (tanpa itu checkout POS error "Cabang belum punya Kas default…") + kas Gudang Pusat (tujuan Setoran Kasir); saldo awal otomatis jadi transaksi "Saldo Awal". 5. Modal Owner di halaman Neraca (manual, supaya BALANCE). 6. Karyawan → User login (role + cabang). 7. Cek Role & Hak Akses (`/role`; permission laporan baru Owner-only). 8. Kategori Item (7 default ada). 9. Master Bahan Baku & Kemasan (satuan harga = satuan stok! lihat [[4.19]]). 10. Stok awal per cabang (Pembelian/Adjustment → batch FIFO berharga; verifikasi HPP>0). 11. Master Bumbu Pusat (opsional, sebelum Produk Jual). 12. Master Produk Jual (resep, foto, varian, centang outlet `item_cabang`). 13. Aset awal. 14. Program Loyalty (opsional). 15. Verifikasi per outlet: 1 order tunai dgn kembalian → cek kas naik sebesar NILAI order ([[4.29]]), stok terpotong, HPP terisi, Setoran Kasir benar.
@@ -654,7 +654,7 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 
 **Verifikasi**: `ClosingPreviewTest` (13), `ClosingKunciTest` (17), `ClosingPanduanDashboardTest` (5) — 35 test. Regresi Tahap 2.5/5/6/7: hanya 11 kegagalan pre-existing di atas. Rollback 2 migration diverifikasi manual. Semua halaman closing + dashboard + export dicek 200 di data dev.
 
-**Deploy production**: `git pull` di server → buka `https://erp.dmentaiindonesia.com/deploy-closing.php?confirm=YES-CLOSING` (migrate + ClosingPermissionSeeder + ClosingPanduanSeeder + clear/rebuild cache, ada lock `storage/deploy-closing.lock`) → **hapus `public/deploy-closing.php`** dari server. Lalu isi Tanggal Mulai Periode di Pengaturan Umum.
+**Deploy production**: `git pull` di server → buka `https://erp.dmentaiindonesia.com/deploy-closing.php?confirm=YES-CLOSING` (migrate + ClosingPermissionSeeder + ClosingPanduanSeeder + clear/rebuild cache, ada lock `storage/deploy-closing.lock`) → **hapus `public/deploy-closing.php`** dari server. Lalu isi Tanggal Mulai Periode di Pengaturan Umum. **Sudah dijalankan di production 2026-10-17 (sukses); `public/deploy-closing.php` sudah dihapus dari repository.**
 
 ### 4.36 🟢 Sinkron Panduan + Tooltip + Permission + Sidebar untuk Sprint 4.33/4.34/4.35 (2026-10-08)
 
