@@ -22,6 +22,9 @@
     </div>
 </div>
 
+{{-- Closing / Tutup Buku — pengingat hari belum closing --}}
+<x-closing-pengingat :cabang-id="$cabang?->id" />
+
 {{-- ===== Sprint 4.32 — Analisis Penjualan (section baru, filter periode terpisah) ===== --}}
 @isset($analisisPenjualan)
     <x-analisis-penjualan

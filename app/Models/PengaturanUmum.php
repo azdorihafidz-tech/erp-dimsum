@@ -15,6 +15,11 @@ class PengaturanUmum extends Model
         'nama_perusahaan',
         'logo_path',
         'alamat_perusahaan',
+        'tanggal_mulai_periode',
+    ];
+
+    protected $casts = [
+        'tanggal_mulai_periode' => 'integer',
     ];
 
     /** Singleton getter — selalu return instance baris pertama/satu-satunya */

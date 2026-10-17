@@ -7,6 +7,7 @@ use App\Enums\StatusProduksi;
 use App\Enums\TipeOrder;
 use App\Enums\TipePembayaran;
 use App\Enums\TipeTransaksi;
+use App\Traits\DijagaClosing;
 use App\Traits\FillsDeletedBy;
 use App\Traits\HasAuditLog;
 use App\Traits\HasCabang;
@@ -16,7 +17,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Order extends Model
 {
-    use HasFactory, HasCabang, HasAuditLog, SoftDeletes, FillsDeletedBy;
+    use HasFactory, HasCabang, HasAuditLog, SoftDeletes, FillsDeletedBy, DijagaClosing;
 
     protected $fillable = [
         'cabang_id',
@@ -60,6 +61,27 @@ class Order extends Model
         'alasan_pembatalan_kategori',
         'alasan_pembatalan_detail',
     ];
+
+    // ===== Kunci Closing (DijagaClosing) =====
+    // Hanya kolom yang mempengaruhi angka closing yang dijaga — status
+    // antrian/produksi, catatan, dll tetap bebas diubah.
+    protected function closingKolomTanggal(): string
+    {
+        return 'tanggal_order';
+    }
+
+    protected function closingKonteks(): string
+    {
+        return 'Order';
+    }
+
+    protected function closingKolomDijaga(): ?array
+    {
+        return [
+            'cabang_id', 'tanggal_order', 'status', 'total_harga', 'diskon', 'service_charge',
+            'take_away_fee', 'total_bayar', 'tipe_pembayaran', 'kas_id', 'tipe_transaksi',
+        ];
+    }
 
     protected function casts(): array
     {

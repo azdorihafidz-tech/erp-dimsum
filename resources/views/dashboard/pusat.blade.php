@@ -43,6 +43,9 @@
 </div>
 @endif
 
+{{-- Closing / Tutup Buku — pengingat hari belum closing --}}
+<x-closing-pengingat />
+
 {{-- ===== Sprint 4.32 — Analisis Penjualan (filter periode terpisah dari widget snapshot di atas) ===== --}}
 @isset($analisisPenjualan)
     <x-analisis-penjualan

@@ -6,6 +6,7 @@ use App\Enums\KategoriPengeluaran;
 use App\Enums\KategoriTransaksi;
 use App\Enums\StatusSetoran;
 use App\Enums\TipeTransaksiKeuangan;
+use App\Traits\DijagaClosing;
 use App\Traits\FillsDeletedBy;
 use App\Traits\HasAuditLog;
 use App\Traits\HasCabang;
@@ -15,7 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class TransaksiKeuangan extends Model
 {
-    use HasFactory, HasCabang, HasAuditLog, SoftDeletes, FillsDeletedBy;
+    use HasFactory, HasCabang, HasAuditLog, SoftDeletes, FillsDeletedBy, DijagaClosing;
 
     protected $fillable = [
         'cabang_id',
@@ -39,6 +40,31 @@ class TransaksiKeuangan extends Model
         'created_by',
         'catatan',
     ];
+
+    // ===== Kunci Closing (DijagaClosing) =====
+    protected function closingKolomTanggal(): string
+    {
+        return 'tanggal_transaksi';
+    }
+
+    protected function closingKonteks(): string
+    {
+        return 'Transaksi keuangan';
+    }
+
+    /**
+     * Boleh berubah walau periode terkunci: status alur Transfer Dana
+     * (terima/tolak dicatat di status, angka tidak berubah), link pasangan,
+     * catatan/bukti, dan label kategori_pengeluaran (klasifikasi laporan
+     * Setoran Harian, tidak mempengaruhi angka closing).
+     */
+    protected function closingKolomBebas(): array
+    {
+        return [
+            'updated_at', 'status_setoran', 'alasan_tolak_setoran', 'diterima_oleh_id', 'waktu_diterima',
+            'setoran_pair_id', 'referensi_id', 'catatan', 'bukti_path', 'kategori_pengeluaran',
+        ];
+    }
 
     protected function casts(): array
     {

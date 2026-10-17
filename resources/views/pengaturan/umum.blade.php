@@ -64,6 +64,27 @@
                         @enderror
                     </div>
 
+                    <div class="mt-3 mb-0">
+                        <label for="tanggal_mulai_periode" class="form-label fw-medium">
+                            Tanggal Mulai Periode Bulanan (Closing)
+                            <x-tooltip key="pengaturan_umum.tanggal_mulai_periode" />
+                        </label>
+                        @php $tglMulai = (int) old('tanggal_mulai_periode', $setting->tanggal_mulai_periode ?? 1); @endphp
+                        <select id="tanggal_mulai_periode" name="tanggal_mulai_periode"
+                            class="form-select @error('tanggal_mulai_periode') is-invalid @enderror" style="max-width:220px">
+                            @for($d = 1; $d <= 28; $d++)
+                            <option value="{{ $d }}" @selected($tglMulai === $d)>Tanggal {{ $d }}</option>
+                            @endfor
+                        </select>
+                        <div class="form-text">
+                            Dipakai menu Closing / Tutup Buku. Contoh: pilih <strong>26</strong> = periode "Oktober" adalah
+                            26 September s/d 25 Oktober. Pilih <strong>1</strong> = bulan kalender biasa.
+                        </div>
+                        @error('tanggal_mulai_periode')
+                            <div class="invalid-feedback">{{ $message }}</div>
+                        @enderror
+                    </div>
+
                 </div>
             </div>
 

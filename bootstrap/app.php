@@ -22,5 +22,14 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        // Closing / Tutup Buku — perubahan data di periode terkunci tampil
+        // sebagai pesan, bukan halaman 500.
+        $exceptions->render(function (\App\Exceptions\PeriodeTerkunciException $e, \Illuminate\Http\Request $request) {
+            if ($request->expectsJson()) {
+                return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+            }
+
+            return redirect()->back()->withInput()->with('error', e($e->getMessage()));
+        });
+        $exceptions->dontReport([\App\Exceptions\PeriodeTerkunciException::class]);
     })->create();

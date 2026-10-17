@@ -28,6 +28,7 @@ class PengaturanUmumController extends Controller
         $validated = $request->validate([
             'nama_perusahaan'   => ['required', 'string', 'max:100'],
             'alamat_perusahaan' => ['nullable', 'string', 'max:1000'],
+            'tanggal_mulai_periode' => ['nullable', 'integer', 'min:1', 'max:28'],
             'logo'              => ['nullable', 'image', 'mimes:jpg,jpeg,png,svg,webp', 'max:2048'],
         ]);
 
@@ -37,6 +38,9 @@ class PengaturanUmumController extends Controller
 
         $setting->nama_perusahaan   = $validated['nama_perusahaan'];
         $setting->alamat_perusahaan = $validated['alamat_perusahaan'] ?? null;
+        if (isset($validated['tanggal_mulai_periode'])) {
+            $setting->tanggal_mulai_periode = (int) $validated['tanggal_mulai_periode'];
+        }
 
         if ($request->hasFile('logo') && $request->file('logo')->isValid()) {
             // Hapus logo lama jika ada

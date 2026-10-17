@@ -30,6 +30,7 @@ class DatabaseSeeder extends Seeder
             PanduanKontenSeeder::class,     // Isi konten nyata 46 panduan dari stub
             Sprint434PanduanUpdateSeeder::class, // Append section 2026-10-08 ke 9 panduan existing
             TooltipKontenSeeder::class,     // Tooltip field-field bermakna seluruh aplikasi
+            ClosingPanduanSeeder::class,    // Panduan + tooltip Closing / Tutup Buku (2026-10-17)
         ]);
     }
 }

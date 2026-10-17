@@ -717,7 +717,7 @@
         @endcanany
 
         <!-- KEUANGAN -->
-        @canany(['keuangan.view', 'keuangan.create', 'setoran.view', 'kategori.view', 'bep.view', 'coa.view', 'transfer_antar_kas.view'])
+        @canany(['keuangan.view', 'keuangan.create', 'setoran.view', 'kategori.view', 'bep.view', 'coa.view', 'transfer_antar_kas.view', 'closing.view'])
         <div class="nav-section-title">Keuangan</div>
         @can('keuangan.view')
         <a href="{{ route('keuangan.dashboard') }}" class="nav-link {{ request()->routeIs('keuangan.dashboard') ? 'active' : '' }}">
@@ -770,6 +770,12 @@
             <span class="badge bg-danger rounded-pill ms-auto" style="font-size:0.65rem">{{ $pendingSetoranKasir }}</span>
             @endif
             @endcan
+        </a>
+        @endcan
+        @can('closing.view')
+        <a href="{{ route('closing.index') }}" class="nav-link {{ request()->routeIs('closing.*') ? 'active' : '' }}">
+            <i class="bi bi-journal-check"></i>
+            <span>Closing / Tutup Buku</span>
         </a>
         @endcan
         @can('kategori.view')

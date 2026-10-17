@@ -70,6 +70,8 @@ class RolePermissionSeeder extends Seeder
             // Setoran Kasir + lihat dashboard/laporan owner
             'setoran_kasir.view', 'setoran_kasir.approve', 'setoran_kasir.reject',
             'dashboard.owner.view', 'laporan.setoran_kasir.view', 'laporan.setoran_kasir.export',
+            // Closing / Tutup Buku (2026-10-17)
+            ...ClosingPermissionSeeder::ROLE_DEFAULTS['admin_pusat'],
         ],
 
         'admin_gudang' => [
@@ -131,6 +133,8 @@ class RolePermissionSeeder extends Seeder
             // Tahap 5 D'mentai — manajer cabang bisa submit setoran (mewakili
             // kasir) + lihat riwayat setoran cabangnya sendiri
             'setoran_kasir.view', 'setoran_kasir.create',
+            // Closing / Tutup Buku (2026-10-17)
+            ...ClosingPermissionSeeder::ROLE_DEFAULTS['manajer_cabang'],
         ],
 
         'kasir' => [
@@ -152,6 +156,8 @@ class RolePermissionSeeder extends Seeder
             'loyalty.klaim.view', 'loyalty.klaim.buat',
             // Tahap 5 D'mentai — kasir submit Setoran Kasir harian
             'setoran_kasir.view', 'setoran_kasir.create',
+            // Closing / Tutup Buku (2026-10-17)
+            ...ClosingPermissionSeeder::ROLE_DEFAULTS['kasir'],
         ],
 
         'operator_produksi' => [

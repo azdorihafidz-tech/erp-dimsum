@@ -14,6 +14,7 @@ use App\Models\Setoran;
 use App\Models\SetoranApproval;
 use App\Models\SetoranDetail;
 use App\Models\TransaksiKeuangan;
+use App\Support\ClosingLock;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -156,12 +157,21 @@ class SetoranKasirService
         $kategoriIn = KategoriTransaksi::where('kode', 'SETORKSR-IN')->first();
         $nomorPrefix = 'SETKSR-' . $setoran->tanggal->format('Ymd') . '-' . $setoran->cabang_id;
 
-        return DB::transaction(function () use ($setoran, $userId, $catatanHo, $kasCabang, $kasHo, $tunaiSetor, $kategoriOut, $kategoriIn, $nomorPrefix) {
+        // Closing / Tutup Buku: kalau tanggal setoran sudah di-closing (di cabang
+        // atau di pusat), perpindahan uang dicatat pada tanggal persetujuan —
+        // uang memang baru berpindah saat HO menyetujui. Angka closing yang
+        // sudah dibekukan tidak berubah.
+        $tanggalTrx = (ClosingLock::terkunci((int) $setoran->cabang_id, $setoran->tanggal)
+            || ClosingLock::terkunci((int) $kasHo->cabang_id, $setoran->tanggal))
+            ? now()->startOfDay()
+            : $setoran->tanggal;
+
+        return DB::transaction(function () use ($setoran, $userId, $catatanHo, $kasCabang, $kasHo, $tunaiSetor, $kategoriOut, $kategoriIn, $nomorPrefix, $tanggalTrx) {
             $trxOut = TransaksiKeuangan::create([
                 'cabang_id' => $setoran->cabang_id,
                 'kas_id' => $kasCabang->id,
                 'nomor_transaksi' => $nomorPrefix . '-OUT',
-                'tanggal_transaksi' => $setoran->tanggal,
+                'tanggal_transaksi' => $tanggalTrx,
                 'tipe' => TipeTransaksiKeuangan::Pengeluaran,
                 'kategori' => KategoriEnum::Lainnya,
                 'kategori_id' => $kategoriOut?->id,
@@ -176,7 +186,7 @@ class SetoranKasirService
                 'cabang_id' => $kasHo->cabang_id,
                 'kas_id' => $kasHo->id,
                 'nomor_transaksi' => $nomorPrefix . '-IN',
-                'tanggal_transaksi' => $setoran->tanggal,
+                'tanggal_transaksi' => $tanggalTrx,
                 'tipe' => TipeTransaksiKeuangan::Pemasukan,
                 'kategori' => KategoriEnum::Lainnya,
                 'kategori_id' => $kategoriIn?->id,

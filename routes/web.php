@@ -540,6 +540,24 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
     Route::get('/keuangan/transfer-antar-kas/{transaksi}', [TransferAntarKasController::class, 'show'])->name('transfer-antar-kas.show');
     Route::delete('/keuangan/transfer-antar-kas/{transaksi}', [TransferAntarKasController::class, 'destroy'])->name('transfer-antar-kas.destroy');
 
+    // ===== CLOSING / TUTUP BUKU (harian/mingguan/bulanan, per cabang & keseluruhan) =====
+    Route::get('/keuangan/closing', [\App\Http\Controllers\ClosingController::class, 'index'])
+        ->name('closing.index')->middleware('can:closing.view');
+    Route::get('/keuangan/closing/riwayat', [\App\Http\Controllers\ClosingController::class, 'riwayat'])
+        ->name('closing.riwayat')->middleware('can:closing.view');
+    Route::get('/keuangan/closing/export', [\App\Http\Controllers\ClosingController::class, 'export'])
+        ->name('closing.export')->middleware('can:closing.export');
+    Route::get('/keuangan/closing/{closing}/export', [\App\Http\Controllers\ClosingController::class, 'exportArsip'])
+        ->whereNumber('closing')->name('closing.show.export')->middleware('can:closing.export');
+    Route::post('/keuangan/closing/harian', [\App\Http\Controllers\ClosingController::class, 'storeHarian'])
+        ->name('closing.harian.store')->middleware('can:closing.harian');
+    Route::post('/keuangan/closing/bulanan', [\App\Http\Controllers\ClosingController::class, 'storeBulanan'])
+        ->name('closing.bulanan.store')->middleware('can:closing.bulanan');
+    Route::get('/keuangan/closing/{closing}', [\App\Http\Controllers\ClosingController::class, 'show'])
+        ->whereNumber('closing')->name('closing.show')->middleware('can:closing.view');
+    Route::post('/keuangan/closing/{closing}/buka', [\App\Http\Controllers\ClosingController::class, 'buka'])
+        ->whereNumber('closing')->name('closing.buka')->middleware('can:closing.buka_kunci');
+
     // ===== KATEGORI TRANSAKSI =====
     Route::resource('kategori-transaksi', KategoriTransaksiController::class)->except(['show']);
     Route::get('/kategori-transaksi-untuk-tipe', [KategoriTransaksiController::class, 'forTipe'])->name('kategori-transaksi.for-tipe');

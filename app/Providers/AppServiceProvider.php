@@ -181,7 +181,13 @@ class AppServiceProvider extends ServiceProvider
                 ->get();
 
             foreach ($recurrings as $r) {
-                DB::transaction(fn () => $r->generateTransaksi());
+                // Per item: 1 gagal (mis. hari ini sudah di-closing) tidak
+                // menghentikan transaksi berulang lainnya.
+                try {
+                    DB::transaction(fn () => $r->generateTransaksi());
+                } catch (\App\Exceptions\PeriodeTerkunciException $e) {
+                    Log::info('Recurring #' . $r->id . ' dilewati: ' . $e->getMessage());
+                }
             }
         } catch (\Exception $e) {
             Log::error('Recurring auto-generate failed: ' . $e->getMessage());

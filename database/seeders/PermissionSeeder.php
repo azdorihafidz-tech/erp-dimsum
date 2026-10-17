@@ -249,6 +249,11 @@ class PermissionSeeder extends Seeder
             ['name' => 'setoran_kasir.approve', 'display_name' => 'Approve Setoran Kasir (HO)', 'group' => 'keuangan'],
             ['name' => 'setoran_kasir.reject',  'display_name' => 'Reject Setoran Kasir (HO)',  'group' => 'keuangan'],
 
+            // Closing / Tutup Buku (2026-10-17) — closing harian/mingguan/bulanan
+            // per cabang & keseluruhan. buka_kunci SENGAJA tidak di-assign ke
+            // role mana pun (Owner-only via Gate::before).
+            ...ClosingPermissionSeeder::PERMISSIONS,
+
             // Chart of Accounts (Fase 1 Akuntansi) — Owner-only default, sama
             // pola dengan master.resep_bumbu.* dan lihat_backup/dll. Kalau perlu
             // delegasi, Owner centang manual di UI Role & Hak Akses.
