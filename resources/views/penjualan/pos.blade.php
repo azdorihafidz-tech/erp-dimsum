@@ -359,7 +359,7 @@ body.pos-tablet-mode #btnProses { padding: 0.45rem 0.75rem !important; font-size
                             <label class="form-label small fw-semibold mb-1">Metode Bayar ke-2</label>
                             <div class="row g-2">
                                 <div class="col-6">
-                                    <select class="form-select form-select-sm" id="splitMetode2" onchange="hitungTotal()">
+                                    <select class="form-select form-select-sm" id="splitMetode2" onchange="hitungTotal(); updateBuktiSection()">
                                         <option value="tunai">Tunai</option>
                                         <option value="transfer">Transfer</option>
                                         <option value="qris">QRIS</option>
@@ -404,7 +404,7 @@ body.pos-tablet-mode #btnProses { padding: 0.45rem 0.75rem !important; font-size
                     <div id="sectionBuktiPembayaran" class="mb-3" style="display:none">
                         <label class="form-label fw-semibold">
                             Bukti Pembayaran
-                            <span class="text-danger">*</span>
+                            <span class="text-danger" id="buktiWajibMark">*</span>
                         </label>
 
                         {{-- Preview --}}
@@ -633,7 +633,7 @@ body.pos-tablet-mode #btnProses { padding: 0.45rem 0.75rem !important; font-size
                     <label class="form-label small fw-semibold mb-1">Metode ke-2 & Jumlah</label>
                     <div class="row g-2">
                         <div class="col-6">
-                            <select class="form-select form-select-sm" id="modalBillMetode2">
+                            <select class="form-select form-select-sm" id="modalBillMetode2" onchange="updateModalBillBukti()">
                                 <option value="tunai">Tunai</option>
                                 <option value="transfer">Transfer</option>
                                 <option value="qris">QRIS</option>
@@ -646,6 +646,11 @@ body.pos-tablet-mode #btnProses { padding: 0.45rem 0.75rem !important; font-size
                     <div class="form-text mb-0">Metode utama di atas jadi bagian pertama (sisa total), ini bagian kedua.</div>
                 </div>
 
+                <div id="modalBillBuktiSection" class="mt-2 d-none">
+                    <label class="form-label small fw-semibold mb-1">Bukti Pembayaran <span class="text-danger" id="modalBillBuktiMark">*</span></label>
+                    <input type="file" class="form-control form-control-sm" id="modalBillBukti" accept="image/*">
+                    <div class="form-text">Untuk Transfer / QRIS. JPG/PNG/WEBP, maks 5 MB.</div>
+                </div>
                 @if($kasList->isNotEmpty())
                 <label class="form-label small fw-semibold mt-2">Kas (opsional, default otomatis)</label>
                 <select class="form-select form-select-sm" id="modalBillKas">
@@ -760,6 +765,20 @@ const produkJadi = @json($produkJadiJson);
 window.POS_NOMOR_MEJA_AKTIF = {{ $cabangAktif?->nomor_meja_aktif ? 'true' : 'false' }};
 window.POS_SERVICE_CHARGE_PERSEN = {{ (float) ($cabangAktif?->service_charge_persen ?? 0) }};
 window.POS_TAKE_AWAY_FEE = {{ (float) ($cabangAktif?->take_away_fee ?? 0) }};
+// Tahap B 4.38 — wajib bukti bayar per cabang
+window.POS_WAJIB_BUKTI = { transfer: {{ ($cabangAktif?->wajib_bukti_transfer ?? true) ? 'true' : 'false' }}, qris: {{ ($cabangAktif?->wajib_bukti_qris ?? true) ? 'true' : 'false' }} };
+function butuhBukti(metodes) { return metodes.some(m => (m === 'transfer' && window.POS_WAJIB_BUKTI.transfer) || (m === 'qris' && window.POS_WAJIB_BUKTI.qris)); }
+function metodePosAktif() {
+    const tipe = document.getElementById('tipePembayaranInput').value;
+    const split = document.getElementById('splitPaymentCheck')?.checked;
+    return split ? [tipe, document.getElementById('splitMetode2')?.value] : [tipe];
+}
+function updateBuktiSection() {
+    const ms = metodePosAktif();
+    document.getElementById('sectionBuktiPembayaran').style.display = ms.some(m => m && m !== 'tunai') ? '' : 'none';
+    const mark = document.getElementById('buktiWajibMark');
+    if (mark) mark.style.display = butuhBukti(ms) ? '' : 'none';
+}
 
 let itemIdx = 0;
 
@@ -1023,17 +1042,32 @@ function bukaModalBayarBill(orderId, total, nomorOrder) {
     document.getElementById('modalBillJumlah2').value = 0;
     const kasSelect = document.getElementById('modalBillKas');
     if (kasSelect) kasSelect.value = '';
+    document.getElementById('modalBillBukti').value = '';
+    updateModalBillBukti();
     new bootstrap.Modal(document.getElementById('modalBayarBill')).show();
 }
 
 function setModalBillMetode(kode) {
     modalBillState.metode1 = kode;
     document.querySelectorAll('.modal-bill-metode-btn').forEach(b => b.classList.toggle('active', b.dataset.metode === kode));
+    updateModalBillBukti();
 }
 
 function toggleModalBillSplit() {
     const checked = document.getElementById('modalBillSplitCheck').checked;
     document.getElementById('modalBillSplitSection').classList.toggle('d-none', !checked);
+    updateModalBillBukti();
+}
+
+// Tahap B 4.38 — bukti bayar di modal Bayar Bill mengikuti saklar cabang.
+function metodeModalBill() {
+    const split = document.getElementById('modalBillSplitCheck').checked;
+    return split ? [modalBillState.metode1, document.getElementById('modalBillMetode2').value] : [modalBillState.metode1];
+}
+function updateModalBillBukti() {
+    const ms = metodeModalBill();
+    document.getElementById('modalBillBuktiSection').classList.toggle('d-none', !ms.some(m => m && m !== 'tunai'));
+    document.getElementById('modalBillBuktiMark').style.display = butuhBukti(ms) ? '' : 'none';
 }
 
 async function prosesModalBayarBill() {
@@ -1062,20 +1096,29 @@ async function prosesModalBayarBill() {
         payments = payments.map(p => ({ ...p, kas_id: Number(kasId) }));
     }
 
+    const buktiFile = document.getElementById('modalBillBukti').files[0] || null;
+    if (butuhBukti(payments.map(p => p.metode)) && !buktiFile) {
+        await window.showAlert('error', 'Bukti Pembayaran Wajib', 'Harap upload bukti pembayaran untuk metode Transfer/QRIS di outlet ini!');
+        return;
+    }
+
     const btn = document.getElementById('btnKonfirmasiBayarBill');
     const originalHtml = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Memproses...';
 
     try {
+        // FormData supaya file bukti ikut terkirim (payments tetap array).
+        const fd = new FormData();
+        payments.forEach((p, i) => Object.entries(p).forEach(([k, v]) => fd.append(`payments[${i}][${k}]`, v)));
+        if (buktiFile) fd.append('bukti_pembayaran', buktiFile);
         const response = await fetch(`{{ url('/penjualan') }}/${modalBillState.orderId}/charge`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
                 'Accept': 'application/json',
             },
-            body: JSON.stringify({ payments }),
+            body: fd,
         });
         const data = await response.json();
         if (!response.ok || !data.success) {
@@ -1268,6 +1311,7 @@ function toggleSplitPayment() {
     const on = document.getElementById('splitPaymentCheck').checked;
     document.getElementById('sectionSplitPayment').classList.toggle('d-none', !on);
     if (!on) document.getElementById('splitJumlah2').value = '0';
+    updateBuktiSection();
     hitungKembalian();
 }
 
@@ -1305,7 +1349,7 @@ function setTipePembayaran(tipe) {
     const isTunai = tipe === 'tunai';
     document.getElementById('sectionJumlahBayar').style.display = isTunai ? '' : 'none';
     document.getElementById('sectionKembalian').style.display = isTunai ? '' : 'none';
-    document.getElementById('sectionBuktiPembayaran').style.display = !isTunai ? '' : 'none';
+    updateBuktiSection();
 
     if (!isTunai) {
         // set jumlah_bayar = total untuk non-tunai
@@ -1472,15 +1516,15 @@ document.getElementById('formPos').addEventListener('submit', async function(e) 
 
     const tipe = document.getElementById('tipePembayaranInput').value;
     const isSplit = document.getElementById('splitPaymentCheck')?.checked;
-    // Wajib bukti untuk transfer/qris (metode utama), kecuali split
-    // (kombinasi metode, bukti tidak dipaksa salah satu jalur)
+    // Tahap B 4.38 — bukti wajib mengikuti saklar cabang (Transfer / QRIS),
+    // termasuk split payment. Server juga mengecek aturan yang sama.
+    const fileFoto = document.getElementById('buktiFotoInput').files;
+    if (butuhBukti(metodePosAktif()) && (!fileFoto || fileFoto.length === 0)) {
+        await window.showAlert('error', 'Bukti Pembayaran Wajib', 'Harap upload bukti pembayaran untuk metode Transfer/QRIS di outlet ini!');
+        document.getElementById('sectionBuktiPembayaran').scrollIntoView({behavior:'smooth'});
+        return;
+    }
     if (tipe !== 'tunai' && !isSplit) {
-        const fileFoto = document.getElementById('buktiFotoInput').files;
-        if (!fileFoto || fileFoto.length === 0) {
-            await window.showAlert('error', 'Bukti Pembayaran Wajib', 'Harap upload bukti pembayaran untuk metode non-tunai!');
-            document.getElementById('sectionBuktiPembayaran').scrollIntoView({behavior:'smooth'});
-            return;
-        }
         const totalText = document.getElementById('totalBayarDisplay').textContent.replace(/[^0-9]/g, '');
         document.getElementById('jumlahBayarInput').value = rupiahFmt(totalText);
     }

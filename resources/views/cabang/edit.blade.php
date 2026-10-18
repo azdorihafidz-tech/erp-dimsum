@@ -43,6 +43,7 @@
         </nav>
     </div>
     <div class="d-flex gap-2">
+        <x-panduan-button slug="cabang" />
         {{-- Toggle Aktif — form TERPISAH di luar semua form lain --}}
         <form method="POST" action="{{ route('cabang.toggle-aktif', $cabang) }}">
             @csrf @method('PATCH')
@@ -355,6 +356,23 @@
                                 <label class="form-label small fw-medium mb-1">Service Charge (%)</label>
                                 <input type="number" step="0.01" min="0" max="100" class="form-control form-control-sm"
                                     name="service_charge_persen" value="{{ old('service_charge_persen', $cabang->service_charge_persen ?? 0) }}">
+                            </div>
+                        </div>
+                        <div class="row g-2 mt-1">
+                            <div class="col-12 small fw-medium">Wajib upload bukti pembayaran di POS <x-tooltip key="cabang.wajib_bukti" /></div>
+                            <div class="col-6">
+                                <div class="form-check form-switch">
+                                    <input type="hidden" name="wajib_bukti_transfer" value="0">
+                                    <input class="form-check-input" type="checkbox" role="switch" id="wajibBuktiTransfer" name="wajib_bukti_transfer" value="1" {{ old('wajib_bukti_transfer', $cabang->wajib_bukti_transfer ?? true) ? 'checked' : '' }}>
+                                    <label class="form-check-label small" for="wajibBuktiTransfer">Transfer</label>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="form-check form-switch">
+                                    <input type="hidden" name="wajib_bukti_qris" value="0">
+                                    <input class="form-check-input" type="checkbox" role="switch" id="wajibBuktiQris" name="wajib_bukti_qris" value="1" {{ old('wajib_bukti_qris', $cabang->wajib_bukti_qris ?? true) ? 'checked' : '' }}>
+                                    <label class="form-check-label small" for="wajibBuktiQris">QRIS</label>
+                                </div>
                             </div>
                         </div>
                     </div>

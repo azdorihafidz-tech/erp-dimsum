@@ -45,6 +45,9 @@ class Cabang extends Model
         'nomor_meja_aktif',
         'take_away_fee',
         'service_charge_persen',
+        // Tahap B 4.38 — wajib bukti bayar non-tunai per cabang
+        'wajib_bukti_transfer',
+        'wajib_bukti_qris',
     ];
 
     protected function casts(): array
@@ -61,6 +64,8 @@ class Cabang extends Model
             'dine_in_aktif'          => 'boolean',
             'takeaway_aktif'         => 'boolean',
             'frozen_aktif'           => 'boolean',
+            'wajib_bukti_transfer'   => 'boolean',
+            'wajib_bukti_qris'       => 'boolean',
             'nomor_meja_aktif'       => 'boolean',
             'take_away_fee'          => 'decimal:2',
             'service_charge_persen'  => 'decimal:2',

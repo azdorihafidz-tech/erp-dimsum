@@ -41,6 +41,8 @@ class CabangRequest extends FormRequest
             'takeaway_aktif'          => ['sometimes', 'boolean'],
             'frozen_aktif'            => ['sometimes', 'boolean'],
             'nomor_meja_aktif'        => ['sometimes', 'boolean'],
+            'wajib_bukti_transfer'    => ['sometimes', 'boolean'],
+            'wajib_bukti_qris'        => ['sometimes', 'boolean'],
             'take_away_fee'           => ['nullable', 'numeric', 'min:0'],
             'service_charge_persen'   => ['nullable', 'numeric', 'min:0', 'max:100'],
         ];

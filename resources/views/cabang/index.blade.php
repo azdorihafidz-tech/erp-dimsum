@@ -42,6 +42,7 @@
             </ol>
         </nav>
     </div>
+    <x-panduan-button slug="cabang" />
     <a href="{{ route('cabang.create') }}" class="btn btn-primary d-flex align-items-center gap-2">
         <i class="bi bi-plus-lg"></i>
         <span>Tambah Cabang</span>

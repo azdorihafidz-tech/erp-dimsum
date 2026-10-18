@@ -18,6 +18,10 @@ class Perbaikan438PanduanSeeder extends Seeder
         $this->appendSections($this->sectionsTahapA(), '<!-- PERBAIKAN438-A -->');
         $this->tooltips($this->tooltipsTahapA());
 
+        $this->panduanBaru('cabang', 'Pengaturan Cabang', 'master', $this->panduanCabang());
+        $this->appendSections($this->sectionsTahapB(), '<!-- PERBAIKAN438-B -->');
+        $this->tooltips($this->tooltipsTahapB());
+
         $this->command?->info('✅ Panduan & tooltip Perbaikan 4.38 tersimpan (idempotent).');
     }
 
@@ -31,6 +35,14 @@ class Perbaikan438PanduanSeeder extends Seeder
             $panduan->konten = rtrim((string) $panduan->konten) . "\n\n" . $marker . "\n" . trim($konten) . "\n";
             $panduan->save();
         }
+    }
+
+    /** Panduan baru — firstOrCreate supaya editan Owner di menu Panduan tidak tertimpa. */
+    private function panduanBaru(string $slug, string $judul, string $modul, string $konten): void
+    {
+        Panduan::firstOrCreate(['slug' => $slug], [
+            'judul' => $judul, 'konten' => $konten, 'modul' => $modul, 'urutan' => 50, 'aktif' => true,
+        ]);
     }
 
     private function tooltips(array $rows): void
@@ -73,6 +85,52 @@ MD,
 ## 🔄 Update 2026-10-18 — Harga Modal Stok Transfer
 Stok yang diterima outlet dari transfer sekarang dinilai dengan **modal FIFO yang benar-benar keluar dari lokasi asal** (dulu memakai harga master). Membatalkan transfer yang sudah dikirim juga mengembalikan stok dengan modal yang sama (dulu tercatat Rp 0). Transfer biasa tetap **tanpa pembayaran**.
 MD,
+        ];
+    }
+
+    // =====================================================================
+    // Tahap B — Wajib bukti bayar per cabang
+    // =====================================================================
+
+    private function panduanCabang(): string
+    {
+        return <<<'MD'
+## Tujuan
+Mengelola data lokasi usaha (Gudang Pusat & outlet): identitas, lokasi absensi, dan pengaturan POS per outlet.
+
+## Langkah-langkah
+1. Buka menu **Cabang**, klik **Tambah Cabang** atau **Edit** pada cabang yang ada.
+2. Isi nama, kode, tipe (Gudang Pusat / Outlet), alamat, dan titik lokasi + radius absensi.
+3. Di bagian **Pengaturan POS**: aktif/nonaktifkan tipe transaksi (Dine-in, Takeaway, Frozen), input nomor meja, Takeaway Fee, dan Service Charge.
+4. **Wajib upload bukti pembayaran di POS**: nyalakan saklar **Transfer** dan/atau **QRIS** kalau kasir harus mengunggah foto bukti saat pelanggan membayar dengan metode itu. Matikan kalau boleh tanpa bukti.
+5. Klik **Simpan**.
+
+## Catatan Penting
+- Saklar wajib bukti berlaku untuk transaksi POS baru, bayar Bill Tersimpan, dan split payment (kalau salah satu bagiannya Transfer/QRIS yang wajib).
+- Aturan dicek di aplikasi **dan** di server, jadi tidak bisa dilewati.
+- Default saklar: **aktif** (sama dengan perilaku sebelumnya).
+
+## Troubleshooting
+- **Kasir tidak bisa bayar Transfer/QRIS tanpa foto?** Saklar wajib bukti outlet itu aktif — upload foto bukti atau matikan saklarnya.
+- **Perubahan belum terasa di POS?** Muat ulang halaman POS.
+MD;
+    }
+
+    private function sectionsTahapB(): array
+    {
+        return [
+            'pos' => <<<'MD'
+## 🔄 Update 2026-10-18 — Bukti Pembayaran Transfer/QRIS
+Wajib atau tidaknya upload bukti pembayaran sekarang diatur **per outlet** di menu Cabang (saklar Transfer dan QRIS). Tanda bintang merah di kolom Bukti Pembayaran muncul hanya kalau wajib. Berlaku juga untuk split payment dan tombol **Bayar** pada Bill Tersimpan (modalnya sekarang punya kolom upload bukti).
+MD,
+        ];
+    }
+
+    private function tooltipsTahapB(): array
+    {
+        return [
+            ['key' => 'cabang.wajib_bukti', 'modul' => 'cabang', 'title' => 'Wajib Bukti Pembayaran',
+                'content' => 'Aktif = kasir wajib upload foto bukti untuk pembayaran Transfer/QRIS di outlet ini (termasuk split payment & bayar Bill Tersimpan). Nonaktif = boleh tanpa bukti.'],
         ];
     }
 

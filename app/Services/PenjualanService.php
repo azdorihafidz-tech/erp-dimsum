@@ -171,9 +171,35 @@ class PenjualanService
         return $order;
     }
 
+    /**
+     * Tahap B 4.38 — bukti pembayaran wajib untuk Transfer/QRIS kalau saklar
+     * cabang aktif (default aktif). Berlaku juga utk split payment: cukup
+     * ada 1 bagian Transfer/QRIS yang wajib, maka bukti wajib.
+     */
+    private function pastikanBuktiPembayaran(?Cabang $cabang, array $payments, ?string $bukti): void
+    {
+        if (! $cabang || ! empty($bukti)) {
+            return;
+        }
+
+        $metode = collect($payments)->map(fn ($p) => is_object($p['metode'] ?? null) ? $p['metode']->value : (string) ($p['metode'] ?? ''));
+        $wajib = [];
+        if ($metode->contains('transfer') && ($cabang->wajib_bukti_transfer ?? true)) {
+            $wajib[] = 'Transfer';
+        }
+        if ($metode->contains('qris') && ($cabang->wajib_bukti_qris ?? true)) {
+            $wajib[] = 'QRIS';
+        }
+
+        if ($wajib) {
+            throw new \Exception('Bukti pembayaran wajib diupload untuk metode ' . implode(' / ', $wajib) . ' di outlet ini.');
+        }
+    }
+
     private function chargeBillInternal(Order $order, array $payments, array $data): Order
     {
         $cabangId = $order->cabang_id;
+        $this->pastikanBuktiPembayaran(Cabang::find($cabangId), $payments, $order->bukti_pembayaran);
         $items = $order->items()->get();
 
         // Cek ulang stok tepat sebelum potong — bisa saja berubah sejak

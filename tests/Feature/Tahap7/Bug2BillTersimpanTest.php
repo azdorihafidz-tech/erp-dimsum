@@ -22,6 +22,7 @@ class Bug2BillTersimpanTest extends TestCase
 {
     use DatabaseTransactions;
     use CreatesTahap25Users;
+/** Tahap B 4.38: saklar wajib bukti default aktif — test ini menguji hal lain (bukan bukti), jadi dimatikan. */    protected function setUp(): void    {        parent::setUp();        Cabang::query()->update(['wajib_bukti_transfer' => false, 'wajib_bukti_qris' => false]);    }
 
     private function cabangOperasional(): Cabang
     {

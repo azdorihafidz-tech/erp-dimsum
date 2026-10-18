@@ -304,7 +304,9 @@ class PenjualanController extends Controller
             'payments'          => 'required|array|min:1',
             'payments.*.metode' => 'required|in:tunai,transfer,qris',
             'payments.*.jumlah' => 'required|numeric|min:0.01',
+            'bukti_pembayaran'  => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
+        unset($data['bukti_pembayaran']);
 
         if ($request->hasFile('bukti_pembayaran')) {
             $order->update(['bukti_pembayaran' => $request->file('bukti_pembayaran')->store('bukti-pembayaran', 'public')]);
