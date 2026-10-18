@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\StatusOrder;
+use App\Enums\StatusPurchaseOrder;
 use App\Enums\TipeOrder;
 use App\Enums\TipePembayaran;
 use App\Enums\TipeTransaksi;
@@ -15,6 +16,7 @@ use App\Models\Kas;
 use App\Models\LoyaltyProgram;
 use App\Models\Order;
 use App\Models\Pelanggan;
+use App\Models\PurchaseOrder;
 use App\Models\ResepBumbu;
 use App\Models\Stock;
 use App\Notifications\PenjualanNotification;
@@ -102,9 +104,19 @@ class PenjualanController extends Controller
             ->orderByDesc('created_at')
             ->get();
 
+        // Tahap C 4.38 — PO cabang ke supplier internal lokasi ini (mis. Gudang
+        // Pusat) yang belum diproses: tampil di POS supaya keranjang bisa
+        // diisi otomatis. PO yang sudah punya nota aktif disembunyikan.
+        $poMasuk = PurchaseOrder::with(['items.item:id,nama_item,satuan', 'cabang:id,nama_cabang', 'supplier:id,nama_supplier,cabang_id'])
+            ->whereHas('supplier', fn ($q) => $q->where('cabang_id', $cabangId))
+            ->whereIn('status', [StatusPurchaseOrder::Disetujui->value, StatusPurchaseOrder::DikirimSupplier->value])
+            ->whereDoesntHave('ordersGudang', fn ($q) => $q->where('status', '!=', StatusOrder::Dibatalkan->value))
+            ->orderBy('tanggal_po')
+            ->get();
+
         return view('penjualan.pos', compact(
             'produkJadi', 'itemTambahan', 'categories', 'pelanggans', 'cabangId',
-            'cabangAktif', 'kasList', 'tipeTransaksiAktif', 'billTersimpan'
+            'cabangAktif', 'kasList', 'tipeTransaksiAktif', 'billTersimpan', 'poMasuk'
         ));
     }
 
@@ -271,6 +283,7 @@ class PenjualanController extends Controller
             'diskon'             => 'nullable|numeric|min:0',
             'catatan'            => 'nullable|string',
             'tampil_di_antrian'  => 'nullable|boolean',
+            'purchase_order_id'  => 'nullable|exists:purchase_orders,id', // Tahap C 4.38
             'items'              => 'required|array|min:1',
             'items.*.item_id'    => 'nullable|exists:items,id',
             'items.*.item_variant_id' => 'nullable|exists:item_variants,id',

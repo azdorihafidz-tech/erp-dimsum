@@ -34,6 +34,8 @@ class OrderRequest extends FormRequest
             'bukti_pembayaran'   => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
             'tampil_di_antrian'  => 'nullable|boolean',
             'parent_order_id'    => 'nullable|exists:orders,id',
+            // Tahap C 4.38 — nota gudang yang memproses PO cabang (supplier internal)
+            'purchase_order_id'  => 'nullable|exists:purchase_orders,id',
             'items'              => 'required|array|min:1',
             // Tahap 3 D'mentai — POS baru cuma jual produk jadi (dari
             // katalog atau custom item bebas), tidak ada lagi baris jasa

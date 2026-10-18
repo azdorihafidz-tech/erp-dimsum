@@ -155,8 +155,43 @@ body.pos-tablet-mode #btnProses { padding: 0.45rem 0.75rem !important; font-size
     </div>
 </div>
 
+{{-- Tahap C 4.38 — PO cabang ke supplier internal lokasi ini (mis. Gudang Pusat).
+     Klik "Isi Keranjang" → item & qty dari PO masuk keranjang dgn HARGA LOKASI INI. --}}
+@if($poMasuk->isNotEmpty())
+<div class="card mb-3 border-primary">
+    <div class="card-header d-flex align-items-center gap-2 py-2">
+        <i class="bi bi-inbox"></i>
+        <span class="fw-semibold">Pesanan PO dari Cabang</span>
+        <span class="badge bg-primary">{{ $poMasuk->count() }}</span>
+        <x-tooltip key="pos.po_masuk" />
+    </div>
+    <div class="card-body p-0">
+        <div class="list-group list-group-flush">
+            @foreach($poMasuk as $po)
+            <div class="list-group-item d-flex flex-wrap align-items-center gap-2">
+                <div class="flex-grow-1">
+                    <div class="fw-semibold small">{{ $po->nomor_po }} · {{ $po->cabang?->nama_cabang ?? '-' }}</div>
+                    <div class="text-muted" style="font-size:.75rem">
+                        {{ $po->tanggal_po?->format('d/m/Y') }} ·
+                        {{ $po->items->map(fn ($i) => ($i->item?->nama_item ?? '-') . ' × ' . rtrim(rtrim(number_format((float) $i->qty_pesan, 3, ',', '.'), '0'), ','))->implode(', ') }}
+                        · Total PO Rp {{ number_format((float) $po->total_harga, 0, ',', '.') }}
+                    </div>
+                </div>
+                <button type="button" class="btn btn-sm btn-primary" onclick="isiDariPo({{ $po->id }})">
+                    <i class="bi bi-cart-plus me-1"></i>Isi Keranjang
+                </button>
+            </div>
+            @endforeach
+        </div>
+    </div>
+</div>
+@endif
+
 <form method="POST" action="{{ route('penjualan.store') }}" id="formPos" enctype="multipart/form-data">
     @csrf
+    {{-- Tahap C 4.38 — diisi saat keranjang diisi dari PO cabang (supplier internal) --}}
+    <input type="hidden" name="purchase_order_id" id="inputPurchaseOrderId" value="">
+    <div id="infoPoAktif" class="alert alert-info small py-2 d-none"></div>
     <div class="row g-3">
         {{-- Kiri: Form Order --}}
         <div class="col-12 col-lg-7">
@@ -767,6 +802,69 @@ window.POS_SERVICE_CHARGE_PERSEN = {{ (float) ($cabangAktif?->service_charge_per
 window.POS_TAKE_AWAY_FEE = {{ (float) ($cabangAktif?->take_away_fee ?? 0) }};
 // Tahap B 4.38 — wajib bukti bayar per cabang
 window.POS_WAJIB_BUKTI = { transfer: {{ ($cabangAktif?->wajib_bukti_transfer ?? true) ? 'true' : 'false' }}, qris: {{ ($cabangAktif?->wajib_bukti_qris ?? true) ? 'true' : 'false' }} };
+// Tahap C 4.38 — PO cabang (supplier internal) → isi keranjang otomatis
+@php
+    $poMasukJson = $poMasuk->map(fn ($po) => [
+        'id' => $po->id,
+        'nomor' => $po->nomor_po,
+        'cabang' => $po->cabang?->nama_cabang ?? '-',
+        'items' => $po->items->map(fn ($i) => [
+            'item_id' => $i->item_id,
+            'nama' => $i->item?->nama_item ?? '-',
+            'qty' => (float) $i->qty_pesan,
+            'harga_po' => (float) $i->harga_satuan,
+        ])->values(),
+    ])->values();
+@endphp
+window.POS_PO_MASUK = @json($poMasukJson);
+
+async function isiDariPo(poId) {
+    const po = window.POS_PO_MASUK.find(p => p.id === poId);
+    if (!po) return;
+    if (document.querySelectorAll('.pos-item-row').length) {
+        const ok = await window.showConfirm('Ganti isi keranjang?', 'Keranjang sekarang akan dikosongkan dan diisi dari ' + po.nomor + '.',
+            { icon: 'question', confirmText: 'Ya, Isi dari PO', cancelText: 'Batal' });
+        if (!ok || (ok.isConfirmed === false)) return;
+        document.getElementById('itemContainer').innerHTML = '';
+    }
+
+    const dilewati = [], bedaHarga = [];
+    po.items.forEach(row => {
+        const item = produkJadi.find(p => p.id === row.item_id);
+        if (!item || !item.bisa_dijual) { dilewati.push(row.nama); return; }
+        tambahkanItemKeForm(item, null);
+        const idx = itemIdx - 1;
+        const qtyEl = document.querySelector(`[name="items[${idx}][qty]"]`);
+        if (qtyEl) qtyEl.value = row.qty;
+        hitungSubtotal(idx);
+        if (Math.round(Number(item.harga_jual)) !== Math.round(row.harga_po)) {
+            bedaHarga.push(`${row.nama}: PO Rp ${Math.round(row.harga_po).toLocaleString('id-ID')} ≠ harga di sini Rp ${Math.round(item.harga_jual).toLocaleString('id-ID')}`);
+        }
+    });
+    showEmptyMsg(!document.querySelectorAll('.pos-item-row').length);
+    hitungTotal();
+
+    setPelangganSelectValue('');
+    document.getElementById('namaPelangganInput').value = po.cabang;
+    document.getElementById('inputPurchaseOrderId').value = po.id;
+
+    let html = `<i class="bi bi-inbox me-1"></i>Keranjang diisi dari <strong>${escHtml(po.nomor)}</strong> (${escHtml(po.cabang)}). `
+        + `<a href="#" onclick="batalPakaiPo(); return false;">Lepas tautan PO</a>`;
+    if (bedaHarga.length) html += `<div class="text-danger mt-1"><i class="bi bi-exclamation-triangle me-1"></i>Harga berbeda dgn PO — cabang perlu mengedit PO-nya:<br>${bedaHarga.map(escHtml).join('<br>')}</div>`;
+    if (dilewati.length) html += `<div class="text-warning mt-1">Tidak dijual di POS lokasi ini (dilewati): ${dilewati.map(escHtml).join(', ')}</div>`;
+    const info = document.getElementById('infoPoAktif');
+    info.innerHTML = html;
+    info.classList.remove('d-none');
+    document.getElementById('formPos').scrollIntoView({ behavior: 'smooth' });
+}
+
+function batalPakaiPo() {
+    document.getElementById('inputPurchaseOrderId').value = '';
+    const info = document.getElementById('infoPoAktif');
+    info.innerHTML = '';
+    info.classList.add('d-none');
+}
+
 function butuhBukti(metodes) { return metodes.some(m => (m === 'transfer' && window.POS_WAJIB_BUKTI.transfer) || (m === 'qris' && window.POS_WAJIB_BUKTI.qris)); }
 function metodePosAktif() {
     const tipe = document.getElementById('tipePembayaranInput').value;
@@ -1653,6 +1751,7 @@ function resetPosForm() {
     // Cart item
     document.getElementById('itemContainer').innerHTML = '';
     showEmptyMsg(true);
+    batalPakaiPo(); // Tahap C 4.38
 
     // Pelanggan
     setPelangganSelectValue('');

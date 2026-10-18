@@ -149,6 +149,7 @@ class PenjualanService
             'status_produksi'   => $statusProduksi,
             'tampil_di_antrian' => $tampilDiAntrian,
             'parent_order_id'   => $data['parent_order_id'] ?? null,
+            'purchase_order_id' => $this->poInternalValid($data['purchase_order_id'] ?? null, $cabangId),
         ]);
 
         foreach ($itemRows as $row) {
@@ -169,6 +170,20 @@ class PenjualanService
         }
 
         return $order;
+    }
+
+    /**
+     * Tahap C 4.38 — tautan nota ke PO cabang hanya disimpan kalau PO itu
+     * memang ditujukan ke supplier internal lokasi ini (cegah salah tautan).
+     */
+    private function poInternalValid($poId, int $cabangId): ?int
+    {
+        if (! $poId) {
+            return null;
+        }
+        $po = \App\Models\PurchaseOrder::with('supplier:id,cabang_id')->find((int) $poId);
+
+        return $po && (int) $po->supplier?->cabang_id === $cabangId ? $po->id : null;
     }
 
     /**

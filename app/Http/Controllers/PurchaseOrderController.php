@@ -118,8 +118,11 @@ class PurchaseOrderController extends Controller
         // Sprint 4.33 — HANYA tampilkan tipe yang genuinely dibeli dari supplier
         // (bahan_baku + kemasan + tambahan_gratis). produk_jual/produk_tambahan
         // dibuat sendiri lewat resep, bukan dibeli — lihat Item::TIPE_DAPAT_DIBELI.
+        // Tahap C 4.38 — produk jual/tambahan ikut dimuat, tapi di form hanya
+        // muncul kalau supplier-nya internal (lokasi kita, mis. Gudang Pusat)
+        // dan produk itu dijual di lokasi tsb (lihat JS itemsUntukSupplier).
         $items = Item::where('is_active', true)
-            ->dapatDibeli()
+            ->whereIn('tipe', array_merge(Item::TIPE_DAPAT_DIBELI, Item::TIPE_PRODUK_INTERNAL))
             ->with(['stocks.lokasi', 'itemCabang'])
             ->orderBy('nama_item')
             ->get()
@@ -156,8 +159,14 @@ class PurchaseOrderController extends Controller
 
         // Sprint 4.33 — guard rail: tolak item dgn tipe yang tidak boleh dibeli
         // (produk_jual/produk_tambahan/legacy). Hindari bypass via devtools.
+        // Tahap C 4.38 — pengecualian: PO ke supplier INTERNAL boleh berisi
+        // produk jual/tambahan yang dijual di lokasi supplier itu.
+        $supplierInternal = \App\Models\Supplier::find($data['supplier_id'])?->cabang_id;
         foreach ($itemMap as $it) {
-            if (!in_array($it->tipe, Item::TIPE_DAPAT_DIBELI, true)) {
+            $produkInternalOk = $supplierInternal
+                && in_array($it->tipe, Item::TIPE_PRODUK_INTERNAL, true)
+                && $it->tersediaDiCabang((int) $supplierInternal);
+            if (!$produkInternalOk && !in_array($it->tipe, Item::TIPE_DAPAT_DIBELI, true)) {
                 return back()->withInput()->withErrors([
                     'items' => "Item '{$it->nama_item}' bertipe '{$it->tipe}' tidak bisa dibeli lewat PO. Hanya bahan baku, kemasan, dan tambahan gratis yang dibeli dari supplier.",
                 ]);

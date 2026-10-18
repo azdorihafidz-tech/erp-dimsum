@@ -243,6 +243,9 @@ class Item extends Model
      */
     public const TIPE_DAPAT_DIBELI = ['bahan_baku', 'kemasan', 'tambahan_gratis'];
 
+    /** Tahap C 4.38 — produk yang boleh dipesan cabang lewat PO ke supplier INTERNAL (lokasi kita). */
+    public const TIPE_PRODUK_INTERNAL = ['produk_jual', 'produk_tambahan'];
+
     public function scopeDapatDibeli($query)
     {
         return $query->whereIn('tipe', self::TIPE_DAPAT_DIBELI);

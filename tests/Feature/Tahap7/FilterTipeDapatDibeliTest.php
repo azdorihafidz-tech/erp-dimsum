@@ -94,7 +94,11 @@ class FilterTipeDapatDibeliTest extends TestCase
         $html = $response->getContent();
 
         $this->assertStringContainsString('FT-PO Tepung Unik', $html);
-        $this->assertStringNotContainsString('FT-PO Dimsum Unik', $html);
+        // Tahap C 4.38: produk jual ikut dimuat TAPI ditandai khusus_internal —
+        // JS itemsUntukSupplier() hanya menampilkannya utk supplier internal.
+        $this->assertMatchesRegularExpression('/"nama_item":"FT-PO Dimsum Unik"[^}]*"khusus_internal":true/', $html);
+        $this->assertMatchesRegularExpression('/"nama_item":"FT-PO Tepung Unik"[^}]*"khusus_internal":false/', $html);
+        $this->assertStringContainsString('function itemsUntukSupplier', $html);
     }
 
     public function test_po_store_tolak_item_produk_jual(): void

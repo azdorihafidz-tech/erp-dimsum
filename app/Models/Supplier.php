@@ -20,6 +20,7 @@ class Supplier extends Model
         'email',
         'alamat',
         'kota',
+        'cabang_id', // Tahap C 4.38 — supplier internal (lokasi kita, mis. Gudang Pusat)
         'catatan',
         'is_active',
     ];
@@ -34,6 +35,17 @@ class Supplier extends Model
     public function purchaseOrders()
     {
         return $this->hasMany(PurchaseOrder::class);
+    }
+
+    /** Lokasi kita kalau supplier ini internal (mis. Gudang Pusat). */
+    public function cabang()
+    {
+        return $this->belongsTo(Cabang::class);
+    }
+
+    public function isInternal(): bool
+    {
+        return $this->cabang_id !== null;
     }
 
     public function scopeAktif($query)

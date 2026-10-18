@@ -36,8 +36,8 @@
                             <select name="supplier_id" class="form-select @error('supplier_id') is-invalid @enderror">
                                 <option value="">-- Pilih Supplier --</option>
                                 @foreach($suppliers as $sup)
-                                <option value="{{ $sup->id }}" @selected(old('supplier_id') == $sup->id)>
-                                    {{ $sup->nama_supplier }} ({{ $sup->kode_supplier }})
+                                <option value="{{ $sup->id }}" data-cabang-internal="{{ $sup->cabang_id }}" @selected(old('supplier_id') == $sup->id)>
+                                    {{ $sup->nama_supplier }} ({{ $sup->kode_supplier }}){{ $sup->cabang_id ? ' — internal' : '' }}
                                 </option>
                                 @endforeach
                             </select>
@@ -150,6 +150,9 @@ $itemsJson = $items->map(function($i) {
         'isi_per_unit_beli'   => $i->isi_per_unit_beli !== null ? (float) $i->isi_per_unit_beli : null,
         'harga_beli_terakhir' => (float) ($i->harga_beli_terakhir ?? 0), // Harga Standar per satuan pakai
         'harga_cabang'        => $i->itemCabang->whereNotNull('harga_beli')->mapWithKeys(fn ($r) => [$r->cabang_id => (float) $r->harga_beli]),
+        // Tahap C 4.38 — produk jual hanya utk supplier internal di lokasi yg menjualnya
+        'khusus_internal'     => in_array($i->tipe, \App\Models\Item::TIPE_PRODUK_INTERNAL, true),
+        'tersedia_di'         => $i->itemCabang->isEmpty() ? null : $i->itemCabang->where('is_active', true)->pluck('cabang_id')->values(),
         'total_stok'          => $i->total_stok ?? 0,
         'stok_per_lokasi'     => $i->stok_per_lokasi ?? [],
     ];
@@ -169,9 +172,7 @@ function tambahItem() {
     const container = document.getElementById('itemContainer');
     const idx = itemIndex++;
 
-    const options = itemsData.map(i =>
-        `<option value="${i.id}" data-harga="${i.harga_beli_terakhir}" data-satuan="${i.satuan}">${i.nama_item} (${i.kode_item})</option>`
-    ).join('');
+    const options = opsiBarangHtml();
 
     const row = document.createElement('div');
     row.className = 'row g-2 align-items-end mb-3 item-row';
@@ -268,6 +269,44 @@ function onItemChange(selectEl, idx) {
     }
     hitungSubtotal(idx);
 }
+
+// ===== Tahap C 4.38 — barang sesuai supplier =====
+// Supplier luar: hanya bahan/kemasan/tambahan gratis. Supplier internal
+// (mis. Gudang Pusat): ditambah produk jual yang dijual di lokasi itu.
+function supplierInternalCabang() {
+    const opt = document.querySelector('select[name="supplier_id"]')?.selectedOptions[0];
+    return opt ? (opt.dataset.cabangInternal || '') : '';
+}
+
+function itemsUntukSupplier() {
+    const c = supplierInternalCabang();
+    return itemsData.filter(i => {
+        if (!i.khusus_internal) return true;
+        if (!c) return false;
+        return i.tersedia_di === null || i.tersedia_di.map(String).includes(String(c));
+    });
+}
+
+function opsiBarangHtml() {
+    return itemsUntukSupplier().map(i =>
+        `<option value="${i.id}" data-harga="${i.harga_beli_terakhir}" data-satuan="${i.satuan}">${i.nama_item} (${i.kode_item})${i.khusus_internal ? ' — produk gudang' : ''}</option>`
+    ).join('');
+}
+
+document.querySelector('select[name="supplier_id"]')?.addEventListener('change', function () {
+    const boleh = new Set(itemsUntukSupplier().map(i => String(i.id)));
+    document.querySelectorAll('.item-row select[name$="[item_id]"]').forEach(sel => {
+        const nilai = sel.value;
+        sel.innerHTML = '<option value="">-- Pilih Barang --</option>' + opsiBarangHtml();
+        if (nilai && boleh.has(nilai)) {
+            sel.value = nilai;
+        } else if (nilai) {
+            sel.value = '';
+            const m = sel.name.match(/items\[(\d+)\]/);
+            if (m) onItemChange(sel, parseInt(m[1]));
+        }
+    });
+});
 
 // ===== Harga otomatis per cabang & konversi unit (CLAUDE.md 4.38) =====
 function cabangTujuanId() {

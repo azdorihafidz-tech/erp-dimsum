@@ -57,6 +57,18 @@
                     @error('kota')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
 
+                <div class="col-12 col-md-6">
+                    <label class="form-label fw-semibold">Supplier Internal (lokasi kita) <x-tooltip key="supplier.cabang_id" /></label>
+                    <select name="cabang_id" class="form-select @error('cabang_id') is-invalid @enderror">
+                        <option value="">— Bukan, supplier luar —</option>
+                        @foreach(\App\Models\Cabang::aktif()->orderBy('nama_cabang')->get() as $c)
+                        <option value="{{ $c->id }}" @selected((string) old('cabang_id', $supplier->cabang_id) === (string) $c->id)>{{ $c->nama_cabang }}</option>
+                        @endforeach
+                    </select>
+                    <div class="form-text">Pilih lokasi (mis. Gudang Pusat) kalau supplier ini adalah lokasi kita sendiri. PO cabang ke supplier ini akan tampil di POS lokasi tersebut.</div>
+                    @error('cabang_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                </div>
+
                 <div class="col-12">
                     <label class="form-label fw-semibold">Alamat</label>
                     <textarea name="alamat" class="form-control @error('alamat') is-invalid @enderror"

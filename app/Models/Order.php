@@ -60,6 +60,8 @@ class Order extends Model
         'parent_order_id',
         'alasan_pembatalan_kategori',
         'alasan_pembatalan_detail',
+        // Tahap C 4.38 — nota POS gudang yang memproses PO cabang
+        'purchase_order_id',
     ];
 
     // ===== Kunci Closing (DijagaClosing) =====
@@ -143,6 +145,12 @@ class Order extends Model
     public function dikerjakanOleh()
     {
         return $this->belongsTo(Karyawan::class, 'dikerjakan_oleh_id');
+    }
+
+    /** Tahap C 4.38 — PO cabang yang diproses lewat nota POS ini. */
+    public function purchaseOrder()
+    {
+        return $this->belongsTo(PurchaseOrder::class);
     }
 
     /** Order asli yang digantikan oleh order ini (kalau order ini pengganti) */

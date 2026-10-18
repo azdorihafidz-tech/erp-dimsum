@@ -59,6 +59,12 @@ class PurchaseOrder extends Model
         return $this->hasMany(PurchaseOrderItem::class);
     }
 
+    /** Tahap C 4.38 — nota POS gudang (supplier internal) yang memproses PO ini. */
+    public function ordersGudang()
+    {
+        return $this->hasMany(Order::class, 'purchase_order_id');
+    }
+
     public function approvedBy()
     {
         return $this->belongsTo(User::class, 'approved_by');

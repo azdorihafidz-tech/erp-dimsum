@@ -22,6 +22,7 @@ class SupplierRequest extends FormRequest
             'email'         => 'nullable|email|max:255',
             'alamat'        => 'nullable|string',
             'kota'          => 'nullable|string|max:100',
+            'cabang_id'     => 'nullable|exists:cabangs,id', // Tahap C 4.38 — supplier internal
             'catatan'       => 'nullable|string',
         ];
     }

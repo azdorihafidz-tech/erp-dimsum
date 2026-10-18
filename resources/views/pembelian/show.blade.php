@@ -46,6 +46,31 @@
             </div>
         </div>
 
+        {{-- Tahap C 4.38 — PO ke supplier internal: nota POS lokasi supplier --}}
+        @if($po->supplier?->cabang_id)
+        @php
+            $notaGudang = $po->ordersGudang()->where('status', '!=', \App\Enums\StatusOrder::Dibatalkan->value)->latest('id')->first();
+        @endphp
+        <div class="card mt-3 {{ $notaGudang && abs((float) $notaGudang->total_bayar - (float) $po->total_harga) >= 1 ? 'border-warning' : '' }}">
+            <div class="card-header"><i class="bi bi-shop me-1"></i>Nota dari {{ $po->supplier->nama_supplier }} <x-tooltip key="pembelian.nota_internal" /></div>
+            <div class="card-body small">
+                @if($notaGudang)
+                    Diproses di POS: <strong>{{ $notaGudang->nomor_order }}</strong>
+                    ({{ $notaGudang->tanggal_order?->format('d/m/Y') }}) — total nota
+                    <strong>Rp {{ number_format((float) $notaGudang->total_bayar, 0, ',', '.') }}</strong>.
+                    @if(abs((float) $notaGudang->total_bayar - (float) $po->total_harga) >= 1)
+                    <div class="alert alert-warning py-2 mt-2 mb-0">
+                        <i class="bi bi-exclamation-triangle me-1"></i>Total PO (Rp {{ number_format((float) $po->total_harga, 0, ',', '.') }}) berbeda dengan nota.
+                        Sesuaikan PO ini (edit atau buat ulang) sebelum diterima & dibayar.
+                    </div>
+                    @endif
+                @else
+                    <span class="text-muted">Belum diproses di POS {{ $po->supplier->nama_supplier }}.</span>
+                @endif
+            </div>
+        </div>
+        @endif
+
         {{-- Timeline Status --}}
         <div class="card mt-3">
             <div class="card-header">Timeline Status</div>
