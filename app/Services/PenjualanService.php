@@ -94,7 +94,7 @@ class PenjualanService
             throw new \Exception('Nomor meja wajib diisi untuk transaksi Dine-in di outlet ini.');
         }
 
-        [$itemRows, $totalHarga] = $this->resolveItemRows($data['items']);
+        [$itemRows, $totalHarga] = $this->resolveItemRows($data['items'], (int) $cabang->id);
 
         $diskon = (float) ($data['diskon'] ?? 0);
         $subtotalSetelahDiskon = max(0, $totalHarga - $diskon);
@@ -222,7 +222,7 @@ class PenjualanService
      *
      * @return array{0: array, 1: float} [$itemRows, $totalHarga]
      */
-    private function resolveItemRows(array $items): array
+    private function resolveItemRows(array $items, ?int $cabangId = null): array
     {
         $totalHarga = 0.0;
         $itemRows = [];
@@ -233,7 +233,8 @@ class PenjualanService
 
             $hargaSatuan = (float) $row['harga_satuan'];
             if ($variant && $variant->item_id === $masterItem?->id) {
-                $hargaSatuan = $variant->harga_efektif;
+                // Harga varian ikut harga outlet bila varian tanpa harga khusus (4.38)
+                $hargaSatuan = $variant->hargaEfektifDiCabang($cabangId);
             }
 
             // Defense-in-depth satuan (dipertahankan dari alur lama) — satuan

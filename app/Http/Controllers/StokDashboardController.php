@@ -388,7 +388,7 @@ class StokDashboardController extends Controller
                     'satuan'           => $item->satuan,
                     'tipe'             => $item->tipe,
                     'qty'              => $item->total_qty,
-                    'nilai'            => $item->total_qty * ($item->harga_beli_terakhir ?? 0),
+                    'nilai'            => $this->nilaiFifo($item->id, (int) $item->lokasi_id, (float) $item->total_qty, (float) ($item->harga_beli_terakhir ?? 0)),
                     'lokasi'           => $item->lokasi,
                     'hari_sejak_keluar' => $hari,
                     'pernah_keluar'    => $lastMovement !== null,
@@ -611,7 +611,7 @@ class StokDashboardController extends Controller
                     'nama_item'       => $item->nama_item,
                     'satuan'          => $item->satuan,
                     'qty'             => $item->qty,
-                    'nilai'           => $item->qty * ($item->harga_beli_terakhir ?? 0),
+                    'nilai'           => $this->nilaiFifo($item->id, (int) $item->lokasi_id, (float) $item->qty, (float) ($item->harga_beli_terakhir ?? 0)),
                     'hari_sejak_keluar' => $hariSejakKeluar,
                     'pernah_keluar'   => $movementTerakhir !== null,
                 ]);
@@ -619,6 +619,38 @@ class StokDashboardController extends Controller
         }
 
         return $stokMati->sortByDesc('hari_sejak_keluar')->take(10);
+    }
+
+    /** @var array<string, array{qty: float, nilai: float}>|null */
+    private ?array $petaNilaiBatch = null;
+
+    /**
+     * Nilai stok 1 item di 1 lokasi memakai batch FIFO (qty_sisa × harga
+     * batch) — sama dgn Neraca/Closing. Qty tanpa batch (data lama) dinilai
+     * dgn Harga Standar, sama dgn fallback StokService. CLAUDE.md 4.38.
+     */
+    private function nilaiFifo(int $itemId, int $lokasiId, float $qty, float $hargaStandar): float
+    {
+        if ($this->petaNilaiBatch === null) {
+            $this->petaNilaiBatch = DB::table('stock_batches')
+                ->where('qty_sisa', '>', 0)
+                ->whereNull('deleted_at')
+                ->selectRaw('item_id, lokasi_id, SUM(qty_sisa) as qty, SUM(qty_sisa * harga_beli_per_unit) as nilai')
+                ->groupBy('item_id', 'lokasi_id')
+                ->get()
+                ->mapWithKeys(fn ($r) => [$r->item_id . '|' . $r->lokasi_id => ['qty' => (float) $r->qty, 'nilai' => (float) $r->nilai]])
+                ->all();
+        }
+
+        $b = $this->petaNilaiBatch[$itemId . '|' . $lokasiId] ?? ['qty' => 0.0, 'nilai' => 0.0];
+        if ($b['qty'] <= 0) {
+            return $qty * $hargaStandar;
+        }
+        if ($qty <= $b['qty']) {
+            return $b['nilai'] * ($qty / $b['qty']);
+        }
+
+        return $b['nilai'] + ($qty - $b['qty']) * $hargaStandar;
     }
 
     public function itemBatches(Item $item, Request $request)

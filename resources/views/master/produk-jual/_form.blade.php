@@ -591,7 +591,7 @@ function renderKartuBumbu(b, idx) {
     var bodyDetail = rows
         ? '<table class="table table-sm mb-2"><thead><tr>'
             + '<th class="small">Bahan</th><th class="text-end small">Takaran</th>'
-            + '<th class="text-end small">Harga Beli</th><th class="text-end small">Subtotal</th>'
+            + '<th class="text-end small">Harga Standar</th><th class="text-end small">Subtotal</th>'
             + '</tr></thead><tbody>' + rows + '</tbody></table>'
             + '<div class="d-flex justify-content-between align-items-center pt-1 border-top">'
             + '<small class="text-muted"><i class="bi bi-info-circle me-1"></i>Preview per 1 unit produksi. HPP riil di POS pakai FIFO batch stok cabang.</small>'

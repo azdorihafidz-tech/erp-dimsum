@@ -193,7 +193,7 @@
                     <th>Tipe</th>
                     <th class="d-none d-lg-table-cell">Jenis</th>
                     <th class="d-none d-lg-table-cell">Satuan</th>
-                    <th class="text-end d-none d-lg-table-cell">Harga Beli</th>
+                    <th class="text-end d-none d-lg-table-cell">Harga Standar</th>
                     <th class="text-end d-none d-xl-table-cell">Harga Jual</th>
                     <th class="text-center">Status</th>
                     <th class="text-center px-4" style="width:100px">Aksi</th>

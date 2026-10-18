@@ -45,6 +45,9 @@ class BahanBakuRequest extends FormRequest
             // Sprint Unit Family (2026-09-27) — pasangan wajib atau keduanya kosong.
             'unit_beli'           => ['nullable', 'required_with:isi_per_unit_beli', 'string', 'max:20'],
             'isi_per_unit_beli'   => ['nullable', 'required_with:unit_beli', 'numeric', 'gt:0'],
+            // Perbaikan Harga 4.38 — harga beli per outlet (opsional).
+            'harga_cabang'        => ['nullable', 'array'],
+            'harga_cabang.*'      => ['nullable', 'numeric', 'min:0'],
         ];
     }
 

@@ -148,7 +148,8 @@ $itemsJson = $items->map(function($i) {
         'satuan'              => $i->satuan,
         'unit_beli'           => $i->unit_beli,
         'isi_per_unit_beli'   => $i->isi_per_unit_beli !== null ? (float) $i->isi_per_unit_beli : null,
-        'harga_beli_terakhir' => $i->harga_beli_terakhir ?? 0,
+        'harga_beli_terakhir' => (float) ($i->harga_beli_terakhir ?? 0), // Harga Standar per satuan pakai
+        'harga_cabang'        => $i->itemCabang->whereNotNull('harga_beli')->mapWithKeys(fn ($r) => [$r->cabang_id => (float) $r->harga_beli]),
         'total_stok'          => $i->total_stok ?? 0,
         'stok_per_lokasi'     => $i->stok_per_lokasi ?? [],
     ];
@@ -189,7 +190,7 @@ function tambahItem() {
         </div>
         <div class="col-4 col-md-1">
             <label class="form-label small">Unit</label>
-            <select name="items[${idx}][unit_input]" class="form-select form-select-sm unit-input" onchange="hitungSubtotal(${idx})">
+            <select name="items[${idx}][unit_input]" class="form-select form-select-sm unit-input" onchange="onUnitChange(${idx})">
                 <option value="">—</option>
             </select>
         </div>
@@ -227,9 +228,6 @@ function onItemChange(selectEl, idx) {
     const itemId = parseInt(opt.value);
     const item = itemsData.find(i => i.id === itemId);
     const row = selectEl.closest('.item-row');
-    const hargaInput = row.querySelector('.harga-input');
-    if (hargaInput && item) { hargaInput.value = rupiahFmt(item.harga_beli_terakhir); hargaInput.dispatchEvent(new Event('input')); }
-
     // Sprint Unit Family: populate dropdown Unit sesuai item.
     const unitSelect = row.querySelector('.unit-input');
     const unitLabel = row.querySelector('.unit-label');
@@ -249,6 +247,10 @@ function onItemChange(selectEl, idx) {
         if (unitLabel) unitLabel.textContent = unitSelect.value || item.satuan;
     }
 
+    // Harga awal = harga outlet tujuan (atau Harga Standar) per satuan pakai,
+    // dikali isi kalau unit yang dipilih adalah unit beli (pack/dus/dll).
+    if (item) setHargaOtomatis(row, item);
+
     // Tampilkan stok per lokasi
     const stokEl = document.getElementById(`stokInfo_${idx}`);
     if (stokEl && item) {
@@ -266,6 +268,80 @@ function onItemChange(selectEl, idx) {
     }
     hitungSubtotal(idx);
 }
+
+// ===== Harga otomatis per cabang & konversi unit (CLAUDE.md 4.38) =====
+function cabangTujuanId() {
+    const sel = document.querySelector('select[name="cabang_id"]');
+    return sel ? sel.value : '';
+}
+
+function isUnitBeli(item, unit) {
+    return !!(item && item.unit_beli && item.isi_per_unit_beli > 0 && unit
+        && String(unit).toLowerCase() === String(item.unit_beli).toLowerCase());
+}
+
+/** Harga per satuan pakai: harga outlet tujuan kalau diisi, else Harga Standar. */
+function hargaDasarPerPcs(item) {
+    const c = cabangTujuanId();
+    const hc = item.harga_cabang || {};
+    return (c && hc[c] !== undefined && hc[c] !== null) ? Number(hc[c]) : Number(item.harga_beli_terakhir || 0);
+}
+
+function setHargaOtomatis(row, item) {
+    const hargaInput = row.querySelector('.harga-input');
+    const unitSel = row.querySelector('.unit-input');
+    if (!hargaInput) return;
+    const unit = unitSel ? unitSel.value : item.satuan;
+    const harga = Math.round(hargaDasarPerPcs(item) * (isUnitBeli(item, unit) ? Number(item.isi_per_unit_beli) : 1));
+    hargaInput.value = rupiahFmt(harga);
+    hargaInput.dispatchEvent(new Event('input'));
+    row.dataset.unitPrev = unit || '';
+    row.dataset.hargaOtomatis = String(harga);
+}
+
+function itemDariRow(row) {
+    const sel = row.querySelector('select[name^="items"][name$="[item_id]"]');
+    const id = sel ? parseInt(sel.value) : 0;
+    return itemsData.find(i => i.id === id);
+}
+
+/** Ganti unit pcs <-> pack: harga ikut dikonversi (×isi / ÷isi). */
+function onUnitChange(idx) {
+    const row = document.querySelector(`[name="items[${idx}][qty_pesan]"]`)?.closest('.item-row');
+    if (!row) return;
+    const item = itemDariRow(row);
+    const unitSel = row.querySelector('.unit-input');
+    const hargaInput = row.querySelector('.harga-input');
+    if (item && unitSel && hargaInput) {
+        const prev = row.dataset.unitPrev || item.satuan;
+        const baru = unitSel.value;
+        const isi = Number(item.isi_per_unit_beli) || 1;
+        let harga = rupiahParse(hargaInput.value);
+        if (!isUnitBeli(item, prev) && isUnitBeli(item, baru)) harga = harga * isi;
+        if (isUnitBeli(item, prev) && !isUnitBeli(item, baru)) harga = harga / isi;
+        harga = Math.round(harga);
+        hargaInput.value = rupiahFmt(harga);
+        hargaInput.dispatchEvent(new Event('input'));
+        row.dataset.unitPrev = baru;
+        if (row.dataset.hargaOtomatis !== undefined) row.dataset.hargaOtomatis = String(harga);
+    }
+    hitungSubtotal(idx);
+}
+
+// Ganti outlet tujuan → harga baris yang belum diubah manual ikut harga outlet baru.
+document.querySelector('select[name="cabang_id"]')?.addEventListener('change', function () {
+    document.querySelectorAll('.item-row').forEach(row => {
+        const item = itemDariRow(row);
+        const hargaInput = row.querySelector('.harga-input');
+        if (!item || !hargaInput) return;
+        if (String(rupiahParse(hargaInput.value)) === row.dataset.hargaOtomatis) {
+            setHargaOtomatis(row, item);
+            const qtyEl = row.querySelector('.qty-input');
+            const m = qtyEl && qtyEl.name.match(/items\[(\d+)\]/);
+            if (m) hitungSubtotal(parseInt(m[1]));
+        }
+    });
+});
 
 function hitungSubtotal(idx) {
     const row = document.querySelector(`[name="items[${idx}][qty_pesan]"]`)?.closest('.item-row');

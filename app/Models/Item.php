@@ -26,7 +26,9 @@ class Item extends Model
         'tipe',
         'satuan',
         'harga_jual',
-        'harga_beli_terakhir',
+        'harga_beli_terakhir', // = Harga Standar (manual), lihat CLAUDE.md 4.38
+        'harga_po_terakhir',
+        'harga_po_terakhir_at',
         'qty_minimum',
         'deskripsi',
         'is_active',
@@ -50,6 +52,8 @@ class Item extends Model
         return [
             'harga_jual' => 'decimal:2',
             'harga_beli_terakhir' => 'decimal:2',
+            'harga_po_terakhir' => 'decimal:2',
+            'harga_po_terakhir_at' => 'datetime',
             'qty_minimum' => 'decimal:3',
             'is_active' => 'boolean',
             'jenis' => JenisItem::class,
@@ -147,6 +151,25 @@ class Item extends Model
             return (float) $row->harga_override;
         }
         return (float) ($this->harga_jual ?? 0);
+    }
+
+    /**
+     * Harga BELI bahan/kemasan di 1 cabang (harga awal PO cabang itu):
+     * item_cabang.harga_beli kalau diisi, else Harga Standar
+     * (`harga_beli_terakhir`, manual — tidak lagi ditimpa PO, CLAUDE.md 4.38).
+     */
+    public function hargaBeliDiCabang(?int $cabangId): float
+    {
+        if ($cabangId) {
+            $row = $this->relationLoaded('itemCabang')
+                ? $this->itemCabang->firstWhere('cabang_id', $cabangId)
+                : $this->itemCabang()->where('cabang_id', $cabangId)->first();
+            if ($row && $row->harga_beli !== null) {
+                return (float) $row->harga_beli;
+            }
+        }
+
+        return (float) ($this->harga_beli_terakhir ?? 0);
     }
 
     /**

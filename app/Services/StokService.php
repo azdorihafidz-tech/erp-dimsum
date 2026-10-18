@@ -126,15 +126,20 @@ class StokService
                     'user_id'          => auth()->id(),
                 ]);
 
-                // Consume batches FIFO di lokasi asal (HPP discarded untuk transfer)
-                $this->consumeBatchesFifo($item->item_id, $transfer->dari_lokasi_id, $item->qty_kirim);
+                // Consume batches FIFO di lokasi asal. Modal rata-rata yang benar-benar
+                // keluar disimpan di item transfer, dipakai sbg harga batch di lokasi
+                // tujuan (dulu memakai harga master global — CLAUDE.md 4.38).
+                $modal = $this->consumeBatchesFifo($item->item_id, $transfer->dari_lokasi_id, $item->qty_kirim);
+                if ((float) $item->qty_kirim > 0) {
+                    $item->update(['harga_per_unit' => round($modal / (float) $item->qty_kirim, 4)]);
+                }
             }
         });
     }
 
     /**
      * Proses penerimaan transfer: tambah stok tujuan + buat batch FIFO di tujuan.
-     * Harga batch menggunakan harga_beli_terakhir item sebagai referensi.
+     * Harga batch = modal FIFO yang keluar dari lokasi asal (harga_per_unit).
      */
     public function prosesTerimaTransfer(StockTransfer $transfer): void
     {
@@ -143,7 +148,11 @@ class StokService
                 $qtyTerima = $item->qty_terima ?? $item->qty_kirim;
                 if ($qtyTerima <= 0) continue;
 
-                $hargaBeli = (float) (Item::find($item->item_id)?->harga_beli_terakhir ?? 0);
+                // Modal FIFO dari lokasi asal (transfer lama sebelum kolom ini ada:
+                // fallback Harga Standar seperti perilaku lama).
+                $hargaBeli = $item->harga_per_unit !== null
+                    ? (float) $item->harga_per_unit
+                    : (float) (Item::find($item->item_id)?->harga_beli_terakhir ?? 0);
 
                 $this->masuk(
                     $item->item_id,

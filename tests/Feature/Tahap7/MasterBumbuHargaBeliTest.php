@@ -77,10 +77,10 @@ class MasterBumbuHargaBeliTest extends TestCase
         $response = $this->actingAs($owner)->get(route('master.resep-bumbu.edit', $bumbu));
 
         $response->assertOk();
-        $response->assertSee('<th class="text-end">Harga Beli</th>', false);
+        $response->assertSee('<th class="text-end">Harga Standar</th>', false);
         $response->assertSee('<th class="text-end">Subtotal</th>', false);
         $response->assertSee('data-harga-beli', false);
-        $response->assertSee('harga beli terakhir'); // caption
+        $response->assertSee('Harga Standar</strong> di Master Bahan Baku', false); // caption (label diganti 4.38)
         $response->assertDontSee('data-harga-jual', false);
         // 2 kg × 50.000 = 100.000
         $response->assertSee('Rp 100.000');

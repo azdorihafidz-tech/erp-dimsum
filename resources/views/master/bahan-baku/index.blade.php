@@ -84,7 +84,7 @@
                 <thead>
                     <tr>
                         <th>Kode</th><th>Nama</th><th>Tipe</th><th>Kategori</th>
-                        <th class="text-end">Harga Beli</th><th class="text-center">Status</th><th class="text-end">Aksi</th>
+                        <th class="text-end">Harga Standar</th><th class="text-end">PO Terakhir</th><th class="text-center">Status</th><th class="text-end">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -94,7 +94,8 @@
                         <td>{{ $item->nama_item }}</td>
                         <td><span class="badge bg-light text-dark">{{ $tipes[$item->tipe] ?? $item->tipe }}</span></td>
                         <td>{{ $item->category?->nama_kategori ?? '-' }}</td>
-                        <td class="text-end">Rp {{ number_format($item->harga_beli_terakhir ?? 0, 0, ',', '.') }}</td>
+                        <td class="text-end">Rp {{ number_format($item->harga_beli_terakhir ?? 0, 0, ',', '.') }}<div class="small text-muted">/ {{ $item->satuan }}</div></td>
+                        <td class="text-end small">@if($item->harga_po_terakhir !== null)Rp {{ number_format((float) $item->harga_po_terakhir, 0, ',', '.') }}<div class="text-muted">{{ $item->harga_po_terakhir_at?->format('d/m/Y') }}</div>@else<span class="text-muted">—</span>@endif</td>
                         <td class="text-center">
                             <span class="badge {{ $item->is_active ? 'bg-success' : 'bg-secondary' }}">
                                 {{ $item->is_active ? 'Aktif' : 'Nonaktif' }}
@@ -118,7 +119,7 @@
                         </td>
                     </tr>
                     @empty
-                    <tr><td colspan="7" class="text-center text-muted py-4">Belum ada data</td></tr>
+                    <tr><td colspan="8" class="text-center text-muted py-4">Belum ada data</td></tr>
                     @endforelse
                 </tbody>
             </table>

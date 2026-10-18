@@ -93,8 +93,12 @@
                             <td>Rp {{ number_format($item->harga_jual ?? 0, 0, ',', '.') }}</td>
                         </tr>
                         <tr>
-                            <th class="ps-3">Harga Beli Terakhir</th>
+                            <th class="ps-3">Harga Standar</th>
                             <td>Rp {{ number_format($item->harga_beli_terakhir ?? 0, 0, ',', '.') }}</td>
+                        </tr>
+                        <tr>
+                            <th class="ps-3">Harga PO Terakhir</th>
+                            <td>@if($item->harga_po_terakhir !== null)Rp {{ number_format((float) $item->harga_po_terakhir, 0, ',', '.') }} <small class="text-muted">({{ $item->harga_po_terakhir_at?->format('d/m/Y') }})</small>@else <span class="text-muted">—</span> @endif</td>
                         </tr>
                         <tr>
                             <th class="ps-3">Stok Min (Global)</th>

@@ -48,9 +48,21 @@ class PurchaseOrderService
                     (float) $poItem->harga_satuan, // FIFO: harga beli aktual per unit
                 );
 
-                // Auto-update harga_beli_terakhir di master item
-                Item::where('id', $poItem->item_id)
-                    ->update(['harga_beli_terakhir' => $poItem->harga_satuan]);
+                // Harga dari PO dicatat sbg INFO "Harga PO Terakhir". Harga
+                // Standar (`harga_beli_terakhir`) TIDAK ditimpa lagi — hanya
+                // diisi kalau masih kosong (pembelian pertama). HPP tetap FIFO
+                // per batch di atas (CLAUDE.md 4.38).
+                $master = Item::find($poItem->item_id);
+                if ($master) {
+                    $update = [
+                        'harga_po_terakhir'    => $poItem->harga_satuan,
+                        'harga_po_terakhir_at' => now(),
+                    ];
+                    if ((float) ($master->harga_beli_terakhir ?? 0) <= 0) {
+                        $update['harga_beli_terakhir'] = $poItem->harga_satuan;
+                    }
+                    $master->update($update);
+                }
             }
 
             $po->update([

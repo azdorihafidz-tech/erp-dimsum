@@ -272,11 +272,18 @@ class StockTransferController extends Controller
                 if ($stockTransfer->status === StatusTransfer::Dikirim) {
                     $stockTransfer->load('items');
                     foreach ($stockTransfer->items as $item) {
+                        // Dikembalikan dgn modal FIFO yang dulu keluar (dulu tanpa
+                        // harga → batch Rp 0, nilai persediaan jadi salah).
                         $this->stokService->masuk(
                             $item->item_id,
                             $stockTransfer->dari_lokasi_id,
                             $item->qty_kirim,
-                            "Pembatalan transfer #{$stockTransfer->nomor_transfer} — stok dikembalikan"
+                            "Pembatalan transfer #{$stockTransfer->nomor_transfer} — stok dikembalikan",
+                            'stock_transfer',
+                            $stockTransfer->id,
+                            $item->harga_per_unit !== null
+                                ? (float) $item->harga_per_unit
+                                : (float) ($item->item?->harga_beli_terakhir ?? 0),
                         );
                     }
                 }

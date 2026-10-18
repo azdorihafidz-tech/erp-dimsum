@@ -18,6 +18,7 @@ class ItemCabang extends Model
         'item_id',
         'cabang_id',
         'harga_override',
+        'harga_beli',
         'is_active',
     ];
 
@@ -25,6 +26,7 @@ class ItemCabang extends Model
     {
         return [
             'harga_override' => 'decimal:2',
+            'harga_beli' => 'decimal:2',
             'is_active' => 'boolean',
         ];
     }

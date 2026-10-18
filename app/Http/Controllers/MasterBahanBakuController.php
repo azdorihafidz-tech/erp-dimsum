@@ -70,7 +70,7 @@ class MasterBahanBakuController extends Controller
     {
         abort_unless(auth()->user()->can('master.bahan_baku.create'), 403);
 
-        $data = $request->safe()->except('stok_awal');
+        $data = $request->safe()->except(['stok_awal', 'harga_cabang']);
         $data['kode_item']  = strtoupper($data['kode_item']);
         $data['is_active']  = $request->boolean('is_active', true);
         // Sprint 4.34 — checkbox-style: absen (unchecked) → false. Form create
@@ -78,6 +78,7 @@ class MasterBahanBakuController extends Controller
         $data['track_stok'] = $request->boolean('track_stok');
 
         $item = Item::create($data);
+        $this->syncHargaCabang($item, (array) $request->input('harga_cabang', []));
 
         foreach ((array) $request->input('stok_awal', []) as $cabangId => $qty) {
             $qty = (float) $qty;
@@ -99,8 +100,10 @@ class MasterBahanBakuController extends Controller
         abort_unless(in_array($bahanBaku->tipe, self::TIPE_SCOPE, true), 404);
 
         $categories = ItemCategory::orderBy('nama_kategori')->get();
+        $cabangList = Cabang::aktif()->orderBy('nama_cabang')->get();
+        $bahanBaku->load('itemCabang');
 
-        return view('master.bahan-baku.edit', ['item' => $bahanBaku, 'categories' => $categories]);
+        return view('master.bahan-baku.edit', ['item' => $bahanBaku, 'categories' => $categories, 'cabangList' => $cabangList]);
     }
 
     public function update(BahanBakuRequest $request, Item $bahanBaku)
@@ -108,16 +111,39 @@ class MasterBahanBakuController extends Controller
         abort_unless(auth()->user()->can('master.bahan_baku.edit'), 403);
         abort_unless(in_array($bahanBaku->tipe, self::TIPE_SCOPE, true), 404);
 
-        $data = $request->safe()->except('stok_awal');
+        $data = $request->safe()->except(['stok_awal', 'harga_cabang']);
         $data['kode_item']  = strtoupper($data['kode_item']);
         $data['is_active']  = $request->boolean('is_active', true);
         // Sprint 4.34 — checkbox-style konsisten dgn store(): absen → false.
         $data['track_stok'] = $request->boolean('track_stok');
 
         $bahanBaku->update($data);
+        $this->syncHargaCabang($bahanBaku, (array) $request->input('harga_cabang', []));
 
         return redirect()->route('master.bahan-baku.index')
             ->with('success', "Bahan/Kemasan {$bahanBaku->nama_item} berhasil diperbarui.");
+    }
+
+    /**
+     * Simpan harga beli per outlet ke item_cabang.harga_beli (kolom beda dari
+     * harga_override = harga JUAL produk). Baris baru dibuat is_active=true
+     * supaya ketersediaan item di POS (tambahan_gratis) tidak berubah.
+     * Kosong = null (pakai Harga Standar). CLAUDE.md 4.38.
+     */
+    private function syncHargaCabang(Item $item, array $hargaCabang): void
+    {
+        foreach ($hargaCabang as $cabangId => $harga) {
+            $harga = trim((string) $harga) === '' ? null : (float) $harga;
+            $row = \App\Models\ItemCabang::where('item_id', $item->id)->where('cabang_id', (int) $cabangId)->first();
+
+            if ($row) {
+                $row->update(['harga_beli' => $harga]);
+            } elseif ($harga !== null) {
+                \App\Models\ItemCabang::create([
+                    'item_id' => $item->id, 'cabang_id' => (int) $cabangId, 'harga_beli' => $harga, 'is_active' => true,
+                ]);
+            }
+        }
     }
 
     public function destroy(Item $bahanBaku, CascadeDeleteService $cascadeService)

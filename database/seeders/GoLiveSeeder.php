@@ -59,6 +59,7 @@ class GoLiveSeeder extends Seeder
             TooltipAdjustmentSeeder::class,
             TooltipKontenSeeder::class,
             ClosingPanduanSeeder::class,
+            Perbaikan438PanduanSeeder::class,
         ]);
 
         $gudang = Cabang::updateOrCreate(

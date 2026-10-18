@@ -224,7 +224,7 @@
                             <span class="input-group-text">Rp</span>
                             <input type="text" name="harga_custom" id="harga_custom"
                                 class="form-control"
-                                placeholder="Otomatis dari harga beli terakhir"
+                                placeholder="Otomatis dari Harga Standar"
                                 inputmode="numeric">
                         </div>
                         <div id="hargaAutoInfo" class="form-text" style="font-size:.76rem"></div>
@@ -701,8 +701,8 @@ function populateBatchExisting() {
 // ── Harga auto info ────────────────────────────────────────────────
 function updateHargaAutoInfo() {
     hargaAutoInfo.textContent = hargaTerakhir > 0
-        ? `Default: ${fmtRp(hargaTerakhir)}/unit (dari harga beli terakhir)`
-        : 'Harga beli terakhir belum tersedia, isi manual.';
+        ? `Default: ${fmtRp(hargaTerakhir)}/unit (dari Harga Standar)`
+        : 'Harga Standar belum diisi, isi manual.';
 }
 
 // ── Harga custom formatter ─────────────────────────────────────────

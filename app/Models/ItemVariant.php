@@ -58,6 +58,23 @@ class ItemVariant extends Model
         return (float) ($this->harga_override ?? $this->item?->harga_jual ?? 0);
     }
 
+    /**
+     * Harga efektif varian di 1 cabang: harga_override varian kalau diisi,
+     * else harga jual induk DI CABANG ITU (harga per outlet). Tanpa ini
+     * varian tanpa override selalu memakai harga jual default walau outlet
+     * punya harga khusus (CLAUDE.md 4.38).
+     */
+    public function hargaEfektifDiCabang(?int $cabangId): float
+    {
+        if ($this->harga_override !== null) {
+            return (float) $this->harga_override;
+        }
+
+        return $cabangId && $this->item
+            ? $this->item->hargaEfektifDiCabang($cabangId)
+            : (float) ($this->item?->harga_jual ?? 0);
+    }
+
     /** Label gabungan nilai atribut, mis. "M / Mentai" — dipakai UI Tahap 3. */
     public function getLabelAttribute(): string
     {

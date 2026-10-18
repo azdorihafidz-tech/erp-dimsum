@@ -62,6 +62,11 @@ class PenjualanController extends Controller
                 $item->stok_cabang = (float) $item->stokDiLokasi($cabangId);
                 $item->bisa_dijual = $item->bisaDijualDiCabang($cabangId);
                 $item->harga_jual  = $item->hargaEfektifDiCabang($cabangId);
+                // Harga varian ikut harga outlet kalau varian tanpa harga khusus (CLAUDE.md 4.38)
+                foreach ($item->variants as $v) {
+                    $v->setRelation('item', $item);
+                    $v->setAttribute('harga_cabang', $v->hargaEfektifDiCabang($cabangId));
+                }
                 return $item;
             })
             ->values();
@@ -111,7 +116,8 @@ class PenjualanController extends Controller
     {
         abort_unless($item->punya_varian, 404);
 
-        $item->load('attributes.values', 'variants.attributeValues');
+        $item->load('attributes.values', 'variants.attributeValues', 'itemCabang');
+        $cabangId = (int) (session('active_cabang_id') ?? auth()->user()->defaultCabangId()) ?: null;
 
         return response()->json([
             'item_id'    => $item->id,
@@ -123,7 +129,7 @@ class PenjualanController extends Controller
             ]),
             'variants' => $item->variants->where('is_active', true)->values()->map(fn ($v) => [
                 'id'                 => $v->id,
-                'harga_efektif'      => (float) $v->harga_efektif,
+                'harga_efektif'      => $v->setRelation('item', $item)->hargaEfektifDiCabang($cabangId),
                 'label'              => $v->label,
                 'attribute_value_ids'=> $v->attributeValues->pluck('id'),
             ]),

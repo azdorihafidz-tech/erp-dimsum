@@ -745,7 +745,7 @@ $produkJadiJson = $semuaItemDropdown->map(fn($i) => [
     'bisa_dijual'    => $i->bisa_dijual,
     'variants'       => $i->punya_varian ? $i->variants->map(fn($v) => [
         'id' => $v->id,
-        'harga_efektif' => (float) $v->harga_efektif,
+        'harga_efektif' => (float) ($v->harga_cabang ?? $v->harga_efektif),
         'label' => $v->label,
         'attribute_value_ids' => $v->attributeValues->pluck('id'),
     ]) : [],

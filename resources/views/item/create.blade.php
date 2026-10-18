@@ -196,7 +196,7 @@
             <div class="section-title mt-4"><i class="bi bi-currency-dollar me-1"></i>Harga</div>
             <div class="row g-3 mb-3">
                 <div class="col-12 col-md-6">
-                    <label class="form-label fw-semibold" style="font-size:0.85rem">Harga Beli Terakhir <x-tooltip key="item.harga_beli_terakhir" /></label>
+                    <label class="form-label fw-semibold" style="font-size:0.85rem">Harga Standar <x-tooltip key="item.harga_beli_terakhir" /></label>
                     <x-input-rupiah name="harga_beli_terakhir"
                         :value="old('harga_beli_terakhir', 0)"
                         placeholder="0" />

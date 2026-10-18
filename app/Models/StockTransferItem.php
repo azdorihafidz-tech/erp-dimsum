@@ -17,6 +17,7 @@ class StockTransferItem extends Model
         'item_id',
         'qty_kirim',
         'qty_terima',
+        'harga_per_unit',
         'catatan',
     ];
 

@@ -120,7 +120,7 @@ class PurchaseOrderController extends Controller
         // dibuat sendiri lewat resep, bukan dibeli — lihat Item::TIPE_DAPAT_DIBELI.
         $items = Item::where('is_active', true)
             ->dapatDibeli()
-            ->with(['stocks.lokasi'])
+            ->with(['stocks.lokasi', 'itemCabang'])
             ->orderBy('nama_item')
             ->get()
             ->map(function ($item) {

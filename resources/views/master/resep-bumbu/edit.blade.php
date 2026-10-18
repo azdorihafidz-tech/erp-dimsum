@@ -91,7 +91,7 @@
                             <th class="text-end">Takaran</th>
                             <th class="text-center">Wajib?</th>
                             <th class="text-center">Mode</th>
-                            <th class="text-end">Harga Beli</th>
+                            <th class="text-end">Harga Standar</th>
                             <th class="text-end">Subtotal</th>
                             <th class="text-center" style="width:50px"></th>
                         </tr>
@@ -151,7 +151,7 @@
                 </table>
             </div>
             <div class="card-body py-2 border-top">
-                <small class="text-muted"><i class="bi bi-info-circle me-1"></i>Kolom "Harga Beli" &amp; "Subtotal" murni pratinjau (tidak disimpan) — diambil live dari <strong>harga beli terakhir</strong> di Master Barang saat halaman ini dibuka. HPP riil saat penjualan tetap dihitung FIFO dari batch stok cabang.</small>
+                <small class="text-muted"><i class="bi bi-info-circle me-1"></i>Kolom "Harga Standar" &amp; "Subtotal" murni pratinjau (tidak disimpan) — diambil live dari <strong>Harga Standar</strong> di Master Bahan Baku saat halaman ini dibuka. HPP riil saat penjualan tetap dihitung FIFO dari batch stok cabang.</small>
             </div>
         </div>
 

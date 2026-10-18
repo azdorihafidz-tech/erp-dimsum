@@ -108,11 +108,8 @@
         <div class="card mb-3">
             <div class="card-header fw-semibold">Harga &amp; Stok Minimum</div>
             <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-12 col-md-6">
-                        <label class="form-label small fw-semibold">Harga Beli / HPP</label>
-                        <x-input-rupiah name="harga_beli_terakhir" :value="old('harga_beli_terakhir', 0)" />
-                    </div>
+                <x-harga-standar-section :cabang-list="$cabangList" />
+                <div class="row g-3 mt-1">
                     <div class="col-12 col-md-6">
                         <label class="form-label small fw-semibold">Qty Minimum</label>
                         <input type="number" name="qty_minimum" class="form-control" min="0" step="0.001" value="{{ old('qty_minimum', 0) }}">
