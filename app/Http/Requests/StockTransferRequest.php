@@ -8,7 +8,9 @@ class StockTransferRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return in_array($this->user()?->role?->value, ['owner','admin_pusat','admin_gudang']);
+        return in_array($this->user()?->role?->value, ['owner','admin_pusat','admin_gudang'])
+            // Tahap D 4.38 — role buatan (mis. Kru) boleh kalau diberi hak akses
+            || ($this->user()?->role instanceof \App\Support\CustomRoleValue && $this->user()->can('stok.transfer'));
     }
 
     public function rules(): array

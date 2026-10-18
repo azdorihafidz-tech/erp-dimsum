@@ -14,7 +14,9 @@ class ProdukJualRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return in_array($this->user()?->role?->value, ['owner', 'admin_pusat', 'admin_gudang', 'manajer_cabang']);
+        return in_array($this->user()?->role?->value, ['owner', 'admin_pusat', 'admin_gudang', 'manajer_cabang'])
+            // Tahap D 4.38 — role buatan (mis. Kru) boleh kalau diberi hak akses
+            || ($this->user()?->role instanceof \App\Support\CustomRoleValue && $this->user()->can($this->isMethod('post') ? 'master.produk_jual.create' : 'master.produk_jual.edit'));
     }
 
     protected function prepareForValidation(): void

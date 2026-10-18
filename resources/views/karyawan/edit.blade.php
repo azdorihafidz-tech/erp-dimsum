@@ -260,7 +260,7 @@
                 <div class="col-12 col-md-6">
                     <label class="form-label">Role</label>
                     <select name="user_role" class="form-select @error('user_role') is-invalid @enderror">
-                        @foreach(\App\Enums\RoleUser::cases() as $r)
+                        @foreach(\App\Support\Roles::semua() as $r)
                             @if($r !== \App\Enums\RoleUser::Owner)
                             <option value="{{ $r->value }}"
                                 {{ old('user_role', $karyawan->user->role->value) === $r->value ? 'selected' : '' }}>
@@ -294,7 +294,7 @@
                         <label class="form-label">Role <span class="text-danger">*</span></label>
                         <select name="user_role" class="form-select @error('user_role') is-invalid @enderror">
                             <option value="">-- Pilih Role --</option>
-                            @foreach(\App\Enums\RoleUser::cases() as $r)
+                            @foreach(\App\Support\Roles::semua() as $r)
                                 @if($r !== \App\Enums\RoleUser::Owner)
                                 <option value="{{ $r->value }}" {{ old('user_role') === $r->value ? 'selected' : '' }}>{{ $r->label() }}</option>
                                 @endif

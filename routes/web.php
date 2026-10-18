@@ -242,6 +242,10 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
         Route::get('/role', [RoleController::class, 'index'])->name('role.index');
         Route::post('/role/{role}/permissions', [RoleController::class, 'updatePermissions'])
             ->name('role.update-permissions');
+        // Tahap D 4.38 — role buatan Owner (mis. Kru)
+        Route::post('/role-buatan', [RoleController::class, 'storeCustom'])->name('role.custom.store');
+        Route::put('/role-buatan/{customRole}', [RoleController::class, 'updateCustom'])->name('role.custom.update');
+        Route::delete('/role-buatan/{customRole}', [RoleController::class, 'destroyCustom'])->name('role.custom.destroy');
 
         // Pengaturan Penggajian
         Route::get('/pengaturan/penggajian', [PengaturanGajiController::class, 'edit'])->name('pengaturan.penggajian');

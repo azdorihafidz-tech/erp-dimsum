@@ -3,8 +3,8 @@
 > **Untuk Claude Code**: File ini adalah **single source of truth** untuk seluruh project. WAJIB dibaca sebelum eksekusi apapun.
 > Isinya: keputusan bisnis, temuan audit, aturan teknis, dan filosofi kerja.
 
-**Versi**: 4.8  
-**Update terakhir**: 2026-10-17 (Closing / Tutup Buku, lihat [[4.37]])  
+**Versi**: 4.9  
+**Update terakhir**: 2026-10-18 (Perbaikan Harga, Wajib Bukti, PO ke Gudang, Role Bebas — lihat [[4.38]])  
 **Status**: 🎉 **PROJECT LIVE DI PRODUCTION** (https://erp.dmentaiindonesia.com — domain lama `erpdimsum.azwacore.com` sudah tidak dipakai; **GO-LIVE data real: lihat [[4.28]]**) — Tahap 1-7 SELESAI SEMUA + rangkaian bug fix & improvement lintas sesi (lihat section 4 utk detail lengkap tiap item): Bug Fix Ronde 2, Rename Jenis Menu/Master Bumbu Pusat, Fitur Import dari Bumbu Pusat, Rename Label & Hapus Gojek/Grab, Fix Foto Produk Production, UI Preview Harga Master/Subtotal Resep (Ronde 3-5), Auto-isi Satuan Master Bumbu Pusat, Fix ENUM Kategori Saldo Awal, Fix Label Kode Kategori Wajib, Default Basis Program Loyalty ke Rp, Widget Total Pembelian Pelanggan, Fix Export Excel Laporan Keuangan. **Sprint 3 Batch 1 SELESAI SEMUA** (5 menu Prioritas 1 — Penjualan, Setoran Kasir, Setoran Harian/Rekap, Stok 3 sub-view, Laba Rugi Produksi — lihat [[4.24]], [[4.25]]) — Sprint 2 (konversi satuan resep) DIDEFER [[12.12]], Sprint 3 Batch 2/3 (17 menu Laporan Prioritas 2/3) + TODO tracking stock movement [[12.14]] MENYUSUL [[12.13]].
 
 ---
@@ -627,6 +627,35 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 3. Test 1 PO: pilih bahan yg sudah ada unit_beli → dropdown Unit muncul otomatis → input `10 pack × Rp 5.000` → cek info live "= 1000 pcs @ Rp 50/pcs" → simpan → cek di **Pembelian → detail PO** ada label "(input: 10 pack)" di kolom Qty.
 
 **⚠️ 1 catatan penting**: adjustment audit trail masuk ke `stock_movements.catatan` sbg prefix `[Input: 5 pack] <catatan user>`. Tidak muncul di UI Adjustment histori (view existing belum highlight catatan movement) — sudah cukup utk audit manual via **Laporan Pergerakan Stok** yang menampilkan kolom catatan. Kalau nanti dibuat kolom terpisah `stock_movements.unit_input`/`qty_input` seperti PO, itu sprint kecil terpisah (~15 menit).
+
+### 4.38 🟢 Perbaikan Harga (Standar vs PO, per Outlet), Wajib Bukti Bayar per Cabang, PO ke Gudang di POS, Role Bebas (2026-10-18)
+
+**Latar belakang (laporan Owner)**: (1) harga master Bahan Baku "berubah sendiri" setelah PO diterima; (2) harga bahan beda per outlet; (3) harga jual produk beda per outlet; (4) semua menu terkait harus ikut tanpa error; (5) wajib bukti Transfer/QRIS diatur per cabang; (6) role bisa ditambah sendiri (mis. "Kru"); (7) PO cabang ke Gudang Pusat tampil di POS gudang. Didiskusikan panjang — Owner minta disederhanakan: prioritas poin 1–4, poin 7 hanya kemudahan tampilan.
+
+**Akar masalah harga**: `PurchaseOrderService::terima()` menimpa `items.harga_beli_terakhir` dgn harga PO + **bug form PO** (`pembelian/create.blade.php`): harga per pcs diisi ke kolom "Harga / pack" tanpa dikali isi & tidak ikut berubah saat ganti unit → PO tersimpan 1/isi kali harga → master tertimpa harga per pcs yang "aneh". HPP penjualan sendiri SELALU benar (FIFO per batch).
+
+**Tahap A — Harga** (`2026_10_18_100001`):
+- **`items.harga_beli_terakhir` sekarang = "Harga Standar"** (manual, TIDAK ditimpa PO; nama kolom sengaja dipertahankan supaya 44 file pembaca otomatis membaca harga yang stabil). PO terima hanya mengisi kalau masih kosong (pembelian pertama). Kolom baru `items.harga_po_terakhir`(+`_at`) = info dari PO.
+- **Harga beli per outlet**: `item_cabang.harga_beli` (BEDA dari `harga_override` = harga JUAL). Diisi di form Bahan Baku (komponen `<x-harga-standar-section>`: Harga Standar per satuan pakai + input "harga per pack" → dihitung per pcs + info PO terakhir + tabel per outlet). Baris baru dibuat `is_active=true` (ketersediaan POS tambahan_gratis tidak berubah). `Item::hargaBeliDiCabang()`.
+- **Form PO**: harga awal = harga outlet tujuan ?? Harga Standar, × isi bila unit beli; ganti unit → harga dikonversi; ganti outlet → baris yang belum diubah manual ikut harga outlet.
+- **Harga varian per outlet** (poin 3): `ItemVariant::hargaEfektifDiCabang()` — varian tanpa override ikut harga outlet (POS grid, AJAX varian, server `resolveItemRows(..., $cabangId)`). Harga produk non-varian per outlet sudah ada sejak Tahap 2.5. Catatan: harga di keranjang POS memang bisa diubah kasir (perilaku lama, tidak diubah).
+- **Transfer Stok**: `stock_transfer_items.harga_per_unit` = modal FIFO rata-rata yang keluar dari asal saat kirim → batch tujuan pakai itu (dulu harga master global). **Bug lama**: batal transfer setelah kirim mengembalikan stok dgn harga Rp 0 → sekarang modal yang sama.
+- **Dashboard Stok**: nilai stok mati & daftar per lokasi pakai FIFO (`nilaiFifo`, sama dgn Neraca/Closing; qty tanpa batch pakai Harga Standar).
+- Label "Harga Beli / Harga Beli Terakhir" diseragamkan jadi **"Harga Standar"** di semua view terkait (item/*, resep-bumbu, produk-jual picker, adjustment).
+
+**Tahap B — Wajib bukti** (`2026_10_18_100002`): `cabangs.wajib_bukti_transfer/qris` (default **true** = perilaku POS lama). Dicek di `PenjualanService::pastikanBuktiPembayaran()` (dipanggil `chargeBillInternal` → transaksi baru, bayar Bill Tersimpan, split payment). POS: tanda wajib & validasi ikut saklar; modal Bayar Bill kini punya upload bukti (dikirim FormData). Panduan BARU `cabang` + tombol Cara Pakai di halaman Cabang. 4 test lama yg menguji hal lain mematikan saklar di `setUp`.
+
+**Tahap C — PO ke Gudang di POS** (`2026_10_18_100003`): `suppliers.cabang_id` = supplier internal (lokasi kita). Form PO: supplier internal boleh berisi produk jual yg dijual di lokasi itu (`Item::TIPE_PRODUK_INTERNAL`; guard server tetap menolak ke supplier luar). POS lokasi supplier: panel "Pesanan PO dari Cabang" (PO status disetujui/dikirim_supplier tanpa nota aktif) → "Isi Keranjang" pakai **harga lokasi ini** + peringatan beda harga; nota tertaut `orders.purchase_order_id` (divalidasi PO memang utk lokasi ini). Detail PO cabang: kotak "Nota dari Gudang" + peringatan beda total (cabang yang edit/buat ulang PO). **Batasan diketahui**: stok produk jual yang diterima cabang via PO tercatat di stok cabang; di POS cabang produk ber-resep tetap memotong bahan resep (aturan [[4.34]]), produk tanpa resep memotong stoknya sendiri.
+
+**Tahap D — Role bebas** (`2026_10_18_100004`): tabel `custom_roles`; `users.role` ENUM→VARCHAR(50) (down: user role buatan → helper). Cast `App\Casts\RoleCast`: role sistem → enum `RoleUser` (perilaku lama), role buatan → `App\Support\CustomRoleValue` (punya `->value`, `label()`, `canAccessAllBranches()`). `App\Support\Roles::semua()/values()/find()` dipakai UserController/UserRequest/KaryawanController/form karyawan/RoleController. Halaman Role: Tambah/Ubah/Hapus role buatan (hapus ditolak bila masih dipakai user). BahanBaku/ProdukJual/StockTransfer FormRequest: role buatan boleh bila punya permission terkait. **Batasan**: 14 grup route `role:` (Cabang, User, Role, Supplier, Semua Barang, Jenis Menu, Shift, Hari Libur, Registrasi Wajah, kelola Absensi, Penggajian, buat Evaluasi, admin Panduan/Tooltip) tetap khusus role sistem. Panduan BARU `role-hak-akses` + tombol Cara Pakai.
+
+**Bug lain ditemukan & difix**: BahanBakuRequest mengubah harga kosong jadi `''` → error 500 saat kolom harga dikosongkan (sekarang null).
+
+**Panduan & tooltip**: `Perbaikan438PanduanSeeder` (marker per tahap, idempotent; terdaftar di DatabaseSeeder & GoLiveSeeder). Tidak ada permission baru.
+
+**Verifikasi**: `HargaTahapATest` (9), `BuktiBayarTahapBTest` (7), `PoGudangTahapCTest` (7), `RoleBuatanTahapDTest` (9). Regresi per tahap: hanya 11 kegagalan pre-existing ([[4.37]]). Rollback 4 migration diverifikasi manual. Halaman terkait dicek 200 di data dev.
+
+**Deploy production**: `git pull` → `https://erp.dmentaiindonesia.com/deploy-perbaikan438.php?confirm=YES-PERBAIKAN` (migrate + seeder panduan + cache, lock `storage/deploy-perbaikan438.lock`) → hapus `public/deploy-perbaikan438.php`. Setelah itu: buat supplier "Gudang Pusat" dgn Supplier Internal = Gudang Pusat; cek saklar wajib bukti tiap cabang; koreksi Harga Standar bahan yang terlanjur tertimpa (Owner sendiri).
 
 ### 4.37 🟢 Closing / Tutup Buku — Snapshot + Kunci Periode, Harian/Mingguan/Bulanan, Per Cabang & Keseluruhan (2026-10-17)
 

@@ -240,7 +240,7 @@
                         <label class="form-label">Role <span class="text-danger">*</span> <x-tooltip key="karyawan.user_role" /></label>
                         <select name="user_role" class="form-select @error('user_role') is-invalid @enderror">
                             <option value="">-- Pilih Role --</option>
-                            @foreach(\App\Enums\RoleUser::cases() as $r)
+                            @foreach(\App\Support\Roles::semua() as $r)
                                 @if($r !== \App\Enums\RoleUser::Owner)
                                 <option value="{{ $r->value }}" {{ old('user_role') === $r->value ? 'selected' : '' }}>{{ $r->label() }}</option>
                                 @endif

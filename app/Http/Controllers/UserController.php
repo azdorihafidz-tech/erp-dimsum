@@ -56,7 +56,7 @@ class UserController extends Controller
             ? Cabang::aktif()->orderBy('nama_cabang')->get()
             : $authUser->cabangs()->aktif()->get();
 
-        $roles = RoleUser::cases();
+        $roles = \App\Support\Roles::semua()->all(); // Tahap D 4.38: + role buatan
 
         $stats = [
             'total'  => User::count(),
@@ -71,7 +71,7 @@ class UserController extends Controller
     public function create(Request $request)
     {
         $authUser = $request->user();
-        $roles = RoleUser::cases();
+        $roles = \App\Support\Roles::semua()->all(); // Tahap D 4.38: + role buatan
         $cabangs = $authUser->canAccessAllBranches()
             ? Cabang::aktif()->orderBy('nama_cabang')->get()
             : $authUser->cabangs()->aktif()->get();
@@ -127,7 +127,7 @@ class UserController extends Controller
             }
         }
 
-        $roles   = RoleUser::cases();
+        $roles   = \App\Support\Roles::semua()->all(); // Tahap D 4.38
         $cabangs = $authUser->canAccessAllBranches()
             ? Cabang::aktif()->orderBy('nama_cabang')->get()
             : $authUser->cabangs()->aktif()->get();

@@ -25,6 +25,9 @@ class Perbaikan438PanduanSeeder extends Seeder
         $this->appendSections($this->sectionsTahapC(), '<!-- PERBAIKAN438-C -->');
         $this->tooltips($this->tooltipsTahapC());
 
+        $this->panduanBaru('role-hak-akses', 'Role & Hak Akses', 'master', $this->panduanRole());
+        $this->tooltips($this->tooltipsTahapD());
+
         $this->command?->info('✅ Panduan & tooltip Perbaikan 4.38 tersimpan (idempotent).');
     }
 
@@ -172,6 +175,48 @@ MD,
                 'content' => 'PO cabang yang ditujukan ke lokasi ini. Klik Isi Keranjang untuk memasukkan barang & qty-nya ke keranjang dengan harga lokasi ini.'],
             ['key' => 'pembelian.nota_internal', 'modul' => 'pembelian', 'title' => 'Nota dari Supplier Internal',
                 'content' => 'Nota POS lokasi supplier yang memproses PO ini. Kalau totalnya berbeda, sesuaikan PO (edit/buat ulang) sebelum diterima & dibayar.'],
+        ];
+    }
+
+    // =====================================================================
+    // Tahap D — Role bebas
+    // =====================================================================
+
+    private function panduanRole(): string
+    {
+        return <<<'MD'
+## Tujuan
+Mengatur siapa boleh membuka menu apa. Ada **7 role sistem** (Owner, Admin Pusat, Admin Gudang, Manajer Cabang, Kasir, Operator Produksi, Helper) dan Anda bisa **menambah role sendiri** (mis. "Kru").
+
+## Langkah-langkah
+### Menambah role sendiri
+1. Buka **Role & Hak Akses** (khusus Owner), klik **Tambah Role**.
+2. Isi **Nama Role** (mis. Kru), deskripsi (opsional), dan pilih apakah role ini **boleh melihat semua cabang** atau hanya cabangnya sendiri.
+3. Simpan → role baru muncul sebagai **tab** di bawah. Role baru **belum punya hak akses apa pun**.
+4. Buka tab role itu, **centang hak akses** yang dibutuhkan (mis. Lihat Order, Buat Order, Lihat Stok), klik **Simpan Permissions**.
+5. Pasang role ke orangnya lewat menu **User** atau **Karyawan** (pilihan role sekarang memuat role buatan).
+
+### Mengubah / menghapus role buatan
+- Di kartu **Role Buatan**: **Ubah** untuk ganti nama/akses cabang. **Hapus** hanya bisa kalau tidak ada user yang memakai role itu.
+
+## Catatan Penting
+- 7 role sistem tidak bisa dihapus atau diganti namanya.
+- Beberapa menu **manajemen** tetap khusus role sistem walau hak aksesnya dicentang untuk role buatan: Cabang, User, Role & Hak Akses, Supplier, Semua Barang (overview), Jenis Menu, Shift, Hari Libur, Registrasi Wajah, kelola Absensi, Penggajian, membuat Evaluasi, dan admin Panduan/Tooltip. Menu operasional (POS, order, stok, PO, keuangan, laporan, closing, Bahan Baku, Produk Jual, Transfer Stok) mengikuti hak akses yang dicentang.
+- Perubahan hak akses berlaku paling lambat 5 menit (cache) — atau minta user logout-login.
+
+## Troubleshooting
+- **User role buatan dapat pesan 403?** Cek hak akses yang dicentang di tab role tersebut, atau menu itu termasuk menu manajemen khusus role sistem.
+- **Tombol Hapus role tidak aktif?** Masih ada user yang memakai role itu — pindahkan user ke role lain dulu.
+MD;
+    }
+
+    private function tooltipsTahapD(): array
+    {
+        return [
+            ['key' => 'role.custom', 'modul' => 'role', 'title' => 'Role Buatan',
+                'content' => 'Role yang Anda tambahkan sendiri (mis. Kru). Hak aksesnya diatur di tab role tersebut. Bisa dihapus kalau tidak dipakai user mana pun.'],
+            ['key' => 'role.akses_semua_cabang', 'modul' => 'role', 'title' => 'Akses Semua Cabang',
+                'content' => 'Aktif = user dengan role ini bisa melihat data semua cabang. Nonaktif = hanya cabang yang terhubung ke user tersebut.'],
         ];
     }
 

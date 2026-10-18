@@ -19,9 +19,15 @@
             <li class="breadcrumb-item active">Role</li>
         </ol></nav>
     </div>
-    <a href="{{ route('user.index') }}" class="btn btn-outline-secondary">
-        <i class="bi bi-people me-1"></i><span class="d-none d-sm-inline">Daftar User</span>
-    </a>
+    <div class="d-flex gap-2 flex-wrap">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalTambahRole">
+            <i class="bi bi-plus-lg me-1"></i><span class="d-none d-sm-inline">Tambah Role</span>
+        </button>
+        <a href="{{ route('user.index') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-people me-1"></i><span class="d-none d-sm-inline">Daftar User</span>
+        </a>
+        <x-panduan-button slug="role-hak-akses" />
+    </div>
 </div>
 
 @if(session('success'))
@@ -30,10 +36,87 @@
     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
 </div>
 @endif
+@if($errors->any())
+<div class="alert alert-danger small">@foreach($errors->all() as $err)<div>{{ $err }}</div>@endforeach</div>
+@endif
 
 <div class="alert alert-info d-flex gap-2 mb-4" style="font-size:0.85rem">
     <i class="bi bi-info-circle-fill flex-shrink-0 mt-1"></i>
-    <span>Role bersifat tetap (enum) dan tidak dapat ditambah/dihapus. Yang bisa diatur adalah <strong>permissions</strong> yang dimiliki setiap role.</span>
+    <span>7 role sistem tidak bisa dihapus. Anda bisa <strong>menambah role sendiri</strong> (mis. "Kru") lewat tombol Tambah Role, lalu centang <strong>permissions</strong>-nya di tab role tersebut.</span>
+</div>
+
+{{-- Tahap D 4.38 — daftar role buatan (form ubah/hapus terpisah, tidak nested) --}}
+@if($customRoles->isNotEmpty())
+<div class="card mb-4">
+    <div class="card-header fw-semibold"><i class="bi bi-person-badge me-1"></i>Role Buatan <x-tooltip key="role.custom" /></div>
+    <div class="card-body p-0 table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+            <thead class="table-light"><tr><th>Nama</th><th>Kode</th><th>Akses Cabang</th><th class="text-center">User</th><th class="text-end">Aksi</th></tr></thead>
+            <tbody>
+                @foreach($customRoles as $cr)
+                <tr>
+                    <td>{{ $cr->nama }}@if($cr->deskripsi)<div class="small text-muted">{{ $cr->deskripsi }}</div>@endif</td>
+                    <td><code>{{ $cr->kode }}</code></td>
+                    <td class="small">{{ $cr->akses_semua_cabang ? 'Semua cabang' : 'Cabang sendiri' }}</td>
+                    <td class="text-center">{{ $cr->user_count }}</td>
+                    <td class="text-end text-nowrap">
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalUbahRole{{ $cr->id }}">Ubah</button>
+                        <form method="POST" action="{{ route('role.custom.destroy', $cr) }}" class="d-inline" onsubmit="return confirm('Hapus role {{ e($cr->nama) }}?')">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="btn btn-sm btn-outline-danger" @disabled($cr->user_count > 0) title="{{ $cr->user_count > 0 ? 'Masih dipakai user' : 'Hapus' }}">Hapus</button>
+                        </form>
+                    </td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@foreach($customRoles as $cr)
+<div class="modal fade" id="modalUbahRole{{ $cr->id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="POST" action="{{ route('role.custom.update', $cr) }}" class="modal-content">
+            @csrf @method('PUT')
+            <div class="modal-header"><h5 class="modal-title fw-bold">Ubah Role</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <label class="form-label small fw-semibold">Nama Role</label>
+                <input type="text" name="nama" class="form-control form-control-sm mb-2" maxlength="100" required value="{{ $cr->nama }}">
+                <label class="form-label small fw-semibold">Deskripsi (opsional)</label>
+                <input type="text" name="deskripsi" class="form-control form-control-sm mb-2" maxlength="255" value="{{ $cr->deskripsi }}">
+                <input type="hidden" name="akses_semua_cabang" value="0">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" name="akses_semua_cabang" value="1" id="aksesSemua{{ $cr->id }}" @checked($cr->akses_semua_cabang)>
+                    <label class="form-check-label small" for="aksesSemua{{ $cr->id }}">Boleh melihat semua cabang</label>
+                </div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-primary btn-sm">Simpan</button></div>
+        </form>
+    </div>
+</div>
+@endforeach
+@endif
+
+<div class="modal fade" id="modalTambahRole" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="POST" action="{{ route('role.custom.store') }}" class="modal-content">
+            @csrf
+            <div class="modal-header"><h5 class="modal-title fw-bold"><i class="bi bi-plus-lg me-1"></i>Tambah Role</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <label class="form-label small fw-semibold">Nama Role <span class="text-danger">*</span></label>
+                <input type="text" name="nama" class="form-control form-control-sm mb-2" maxlength="100" required placeholder="cth: Kru">
+                <label class="form-label small fw-semibold">Deskripsi (opsional)</label>
+                <input type="text" name="deskripsi" class="form-control form-control-sm mb-2" maxlength="255" placeholder="cth: Kru dapur outlet">
+                <input type="hidden" name="akses_semua_cabang" value="0">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" name="akses_semua_cabang" value="1" id="aksesSemuaBaru">
+                    <label class="form-check-label small" for="aksesSemuaBaru">Boleh melihat semua cabang <x-tooltip key="role.akses_semua_cabang" /></label>
+                </div>
+                <div class="form-text">Setelah disimpan, role baru muncul sebagai tab di bawah — centang hak aksesnya di sana. Role baru belum punya hak akses apa pun.</div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button><button type="submit" class="btn btn-primary btn-sm">Simpan</button></div>
+        </form>
+    </div>
 </div>
 
 {{-- Role tabs --}}

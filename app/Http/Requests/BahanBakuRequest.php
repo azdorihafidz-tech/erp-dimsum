@@ -13,13 +13,17 @@ class BahanBakuRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return in_array($this->user()?->role?->value, ['owner', 'admin_pusat', 'admin_gudang', 'manajer_cabang']);
+        return in_array($this->user()?->role?->value, ['owner', 'admin_pusat', 'admin_gudang', 'manajer_cabang'])
+            // Tahap D 4.38 — role buatan (mis. Kru) boleh kalau diberi hak akses
+            || ($this->user()?->role instanceof \App\Support\CustomRoleValue && $this->user()->can($this->isMethod('post') ? 'master.bahan_baku.create' : 'master.bahan_baku.edit'));
     }
 
     protected function prepareForValidation(): void
     {
+        // Kosong → null (dulu '' masuk ke kolom DECIMAL → error 500 saat harga dikosongkan)
+        $harga = preg_replace('/\D/', '', (string) ($this->harga_beli_terakhir ?? ''));
         $this->merge([
-            'harga_beli_terakhir' => preg_replace('/\D/', '', $this->harga_beli_terakhir ?? ''),
+            'harga_beli_terakhir' => $harga === '' ? null : $harga,
         ]);
     }
 
