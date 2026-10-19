@@ -52,6 +52,9 @@ class BahanBakuRequest extends FormRequest
             // Perbaikan Harga 4.38 — harga beli per outlet (opsional).
             'harga_cabang'        => ['nullable', 'array'],
             'harga_cabang.*'      => ['nullable', 'numeric', 'min:0'],
+            // 4.38-E — qty minimum per lokasi (stocks.qty_minimum).
+            'minimum_cabang'      => ['nullable', 'array'],
+            'minimum_cabang.*'    => ['nullable', 'numeric', 'min:0'],
         ];
     }
 

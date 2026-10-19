@@ -64,7 +64,7 @@ class LaporanStokController extends Controller
 
         // Statistik
         $totalItem = Stock::when($lokasiId, fn($q) => $q->where('lokasi_id', $lokasiId))->count();
-        $stokRendah = Stock::whereColumn('qty', '<=', 'qty_minimum')
+        $stokRendah = Stock::whereColumn('qty', '<=', 'qty_minimum')->where('qty_minimum', '>', 0)
             ->when($lokasiId, fn($q) => $q->where('lokasi_id', $lokasiId))
             ->count();
         $stokKosong = Stock::where('qty', '<=', 0)
@@ -155,6 +155,7 @@ class LaporanStokController extends Controller
         $baseQuery = Stock::with(['item', 'item.category', 'lokasi'])
             ->whereHas('item', fn($q) => $q->whereIn('tipe', \App\Models\Item::TIPE_DAPAT_DIBELI))
             ->whereColumn('qty', '<=', 'qty_minimum')
+            ->where('qty_minimum', '>', 0)
             ->when($lokasiId, fn($q) => $q->where('lokasi_id', $lokasiId))
             ->orderByRaw('qty / NULLIF(qty_minimum, 0) ASC');
 
@@ -181,7 +182,7 @@ class LaporanStokController extends Controller
 
         $stocks = $baseQuery->paginate(30)->withQueryString();
 
-        $totalStokRendah = Stock::whereColumn('qty', '<=', 'qty_minimum')
+        $totalStokRendah = Stock::whereColumn('qty', '<=', 'qty_minimum')->where('qty_minimum', '>', 0)
             ->when($lokasiId, fn($q) => $q->where('lokasi_id', $lokasiId))
             ->count();
 

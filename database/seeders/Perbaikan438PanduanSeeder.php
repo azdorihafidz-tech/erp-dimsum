@@ -28,6 +28,9 @@ class Perbaikan438PanduanSeeder extends Seeder
         $this->panduanBaru('role-hak-akses', 'Role & Hak Akses', 'master', $this->panduanRole());
         $this->tooltips($this->tooltipsTahapD());
 
+        $this->appendSections($this->sectionsTahapE(), '<!-- PERBAIKAN438-E -->');
+        $this->tooltips($this->tooltipsTahapE());
+
         $this->command?->info('✅ Panduan & tooltip Perbaikan 4.38 tersimpan (idempotent).');
     }
 
@@ -229,6 +232,54 @@ MD;
                 'content' => 'Harga per satuan pakai dari PO terakhir yang diterima. Hanya informasi — tidak mengubah Harga Standar.'],
             ['key' => 'master_bahan_baku.harga_cabang', 'modul' => 'master_bahan_baku', 'title' => 'Harga Beli per Outlet',
                 'content' => 'Isi kalau harga beli di outlet tertentu berbeda. Kosong = memakai Harga Standar. Dipakai sebagai harga awal saat outlet itu membuat PO.'],
+        ];
+    }
+    // =====================================================================
+    // Tahap E — Pengaturan per Outlet (harga pack, qty minimum, HPP outlet)
+    // =====================================================================
+
+    private function sectionsTahapE(): array
+    {
+        return [
+            'bahan-baku' => <<<'MD'
+## 🔄 Update 2026-10-19 — Tab "Pengaturan per Outlet"
+Form Bahan Baku sekarang punya 2 tab: **Data Barang** dan **Pengaturan per Outlet**.
+- **Harga per outlet**: isi harga per pcs **atau** per pack (kalau Unit Beli diisi) — kolom lainnya terhitung otomatis. Yang disimpan harga per satuan pakai. Kosong = memakai Harga Standar.
+- **Qty Minimum per outlet**: batas stok minimum masing-masing lokasi (mis. Gudang 100, Outlet 1 20). Dipakai untuk peringatan stok menipis, Dashboard, dan Laporan Stok Minimum.
+- **Qty Minimum di tab Data Barang** sekarang berarti **nilai awal** — dipakai otomatis untuk outlet yang stoknya baru pertama kali tercatat dan belum diatur sendiri.
+- Saat **menambah** barang, stok awal per outlet juga diisi di tab ini.
+- Harga beli outlet juga dipakai sebagai nilai stok saat **Adjustment Stok** menambah stok tanpa harga, dan untuk perkiraan HPP Produk Jual di outlet itu.
+MD,
+            'produk-jual' => <<<'MD'
+## 🔄 Update 2026-10-19 — Tab "Pengaturan per Outlet"
+Form Produk Jual sekarang punya 2 tab: **Data Produk** dan **Pengaturan per Outlet**. Di tab outlet, per lokasi:
+- **Dijual** — centang kalau produk tampil di POS outlet itu.
+- **Harga Jual** — kosong = memakai Harga Jual (default).
+- **HPP** — perkiraan dari resep, memakai **harga beli bahan di outlet itu** (diatur di Bahan Baku → tab Pengaturan per Outlet), termasuk bahan di dalam Bumbu Pusat.
+- **Untung** & **Margin** — terhitung otomatis dari harga jual dan HPP. Untung minus tampil merah.
+
+HPP di sini **perkiraan** untuk menentukan harga. HPP riil setiap transaksi tetap dihitung FIFO dari stok outlet.
+MD,
+            'stok-barang' => <<<'MD'
+## 🔄 Update 2026-10-19 — Qty Minimum per Lokasi
+Qty Minimum setiap baris stok adalah milik **lokasi itu** (bisa diubah lewat tombol Set Minimum, atau sekaligus untuk semua outlet di Bahan Baku → tab Pengaturan per Outlet). Barang yang minimumnya 0 tidak dihitung sebagai "stok rendah". Kartu Stok sekarang menampilkan stok & minimum lokasi yang dipilih.
+MD,
+            'laporan-stok' => <<<'MD'
+## 🔄 Update 2026-10-19 — Stok Minimum per Lokasi
+Laporan Stok Minimum hanya menampilkan barang yang Qty Minimum-nya **diatur (> 0)** di lokasi tersebut. Atur minimum per outlet di Bahan Baku → tab Pengaturan per Outlet.
+MD,
+        ];
+    }
+
+    private function tooltipsTahapE(): array
+    {
+        return [
+            ['key' => 'master_bahan_baku.pengaturan_outlet', 'modul' => 'master_bahan_baku', 'title' => 'Pengaturan per Outlet',
+                'content' => 'Harga beli dan Qty Minimum masing-masing lokasi. Harga bisa diisi per pcs atau per pack — kolom lain terhitung otomatis. Kosong = memakai nilai di tab Data Barang.'],
+            ['key' => 'master_bahan_baku.qty_minimum_awal', 'modul' => 'master_bahan_baku', 'title' => 'Qty Minimum (nilai awal)',
+                'content' => 'Dipakai otomatis untuk outlet yang belum diatur sendiri saat stoknya pertama kali tercatat. Minimum per outlet diatur di tab Pengaturan per Outlet.'],
+            ['key' => 'master_produk_jual.hpp_outlet', 'modul' => 'master_produk_jual', 'title' => 'HPP per Outlet',
+                'content' => 'Perkiraan HPP dari resep memakai harga beli bahan di outlet itu (atau Harga Standar kalau tidak diatur). HPP riil transaksi tetap FIFO dari stok outlet.'],
         ];
     }
 }

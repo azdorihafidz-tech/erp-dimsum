@@ -333,6 +333,54 @@ class MasterProdukJualController extends Controller
     }
 
     /**
+     * Perkiraan HPP per outlet dari isi resep di form (CLAUDE.md 4.38-E) —
+     * dipakai tab "Pengaturan per Outlet" (HPP, untung, margin). Rumus SAMA
+     * dgn Total HPP di form (baris manual: qty × harga; baris Bumbu Pusat:
+     * expand ke bahan), bedanya harga bahan = harga beli di outlet itu
+     * (item_cabang.harga_beli, fallback Harga Standar). Estimasi — HPP riil
+     * transaksi tetap FIFO batch stok outlet.
+     */
+    public function hppPerOutlet(Request $request)
+    {
+        $user = auth()->user();
+        abort_unless($user->can('master.produk_jual.create') || $user->can('master.produk_jual.edit'), 403);
+
+        $rows = $this->normalisasiResepDariForm((array) $request->input('resep', []));
+        $cabangIds = Cabang::aktif()->pluck('id');
+
+        $itemIds = collect();
+        foreach ($rows as $row) {
+            if ($row['is_linked'] && $row['resep_bumbu_ref']) {
+                $itemIds = $itemIds->merge($row['resep_bumbu_ref']->items->pluck('item_id'));
+            } elseif (! $row['is_linked'] && $row['item']) {
+                $itemIds->push($row['item']->id);
+            }
+        }
+        $hargaOutlet = ItemCabang::whereIn('item_id', $itemIds->filter()->unique())
+            ->whereNotNull('harga_beli')->get()
+            ->groupBy('item_id')->map(fn ($g) => $g->pluck('harga_beli', 'cabang_id'));
+        $harga = fn (Item $item, int $cabangId) => (float) ($hargaOutlet[$item->id][$cabangId] ?? $item->harga_beli_terakhir ?? 0);
+
+        $hasil = [];
+        foreach ($cabangIds as $cabangId) {
+            $total = 0.0;
+            foreach ($rows as $row) {
+                if ($row['is_linked']) {
+                    foreach ($row['resep_bumbu_ref']?->items ?? [] as $inner) {
+                        if (! $inner->item || $inner->mode_harga !== 'pakai_master') continue;
+                        $total += $inner->qty_per_unit_dalam_kg * $row['qty_per_unit'] * $harga($inner->item, $cabangId);
+                    }
+                } elseif ($row['item']) {
+                    $total += $row['qty_per_unit'] * $harga($row['item'], $cabangId);
+                }
+            }
+            $hasil[$cabangId] = round($total, 2);
+        }
+
+        return response()->json(['hpp' => $hasil]);
+    }
+
+    /**
      * AJAX picker "Import dari Bumbu Pusat" — list Master Bumbu aktif
      * (ResepBumbu tanpa item_id) utk dipilih di form Produk Jual. Reuse
      * permission master.produk_jual.edit (bukan bikin permission baru,

@@ -290,7 +290,8 @@ class StokService
                         ]);
                 } else {
                     // batch_baru (default)
-                    $hargaBeli = (float) ($options['harga_custom'] ?? $item->harga_beli_terakhir ?? 0);
+                    // 4.38-E — tanpa harga custom: harga beli outlet ini (fallback Harga Standar)
+                    $hargaBeli = (float) ($options['harga_custom'] ?? $item->hargaBeliDiCabang($lokasiId));
 
                     StockBatch::create([
                         'item_id'             => $itemId,
@@ -450,9 +451,9 @@ class StokService
             $sisaQty  -= $consume;
         }
 
-        // Fallback: qty tanpa batch (data lama sebelum FIFO) → harga_beli_terakhir
+        // Fallback: qty tanpa batch (data lama sebelum FIFO) → harga beli outlet (fallback Harga Standar)
         if ($sisaQty > 0) {
-            $hargaFallback = (float) (Item::find($itemId)?->harga_beli_terakhir ?? 0);
+            $hargaFallback = (float) (Item::find($itemId)?->hargaBeliDiCabang($lokasiId) ?? 0);
             $totalHpp     += $sisaQty * $hargaFallback;
         }
 
@@ -495,7 +496,7 @@ class StokService
 
         // Sisa yang tidak teralokasi oleh distribusi manual → fallback harga_beli_terakhir
         if ($sisaQty > 0.001) {
-            $totalNilai += $sisaQty * (float) (Item::find($itemId)?->harga_beli_terakhir ?? 0);
+            $totalNilai += $sisaQty * (float) (Item::find($itemId)?->hargaBeliDiCabang($lokasiId) ?? 0);
         }
 
         return $totalNilai;

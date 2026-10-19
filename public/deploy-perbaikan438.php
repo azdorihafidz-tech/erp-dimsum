@@ -10,7 +10,9 @@
  *     - cabangs.wajib_bukti_transfer / wajib_bukti_qris (default aktif) (Tahap B)
  *     - suppliers.cabang_id, orders.purchase_order_id (Tahap C)
  *     - tabel custom_roles + users.role ENUM → VARCHAR (Tahap D)
- *  2. Perbaikan438PanduanSeeder → panduan + tooltip (idempotent)
+ *     (Tahap E — tab Pengaturan per Outlet — tanpa migration baru: memakai
+ *      item_cabang.harga_beli/harga_override & stocks.qty_minimum yang sudah ada)
+ *  2. Perbaikan438PanduanSeeder → panduan + tooltip Tahap A–E (idempotent)
  *  3. clear & rebuild cache
  *
  * Pengaman: wajib ?confirm=YES-PERBAIKAN dan storage/deploy-perbaikan438.lock belum ada.

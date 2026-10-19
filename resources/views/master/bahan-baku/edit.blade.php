@@ -19,6 +19,20 @@
 @method('PUT')
 <div class="row g-4">
     <div class="col-12 col-lg-8">
+        <ul class="nav nav-tabs mb-3" id="tabBahanBaku" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="tab-data-barang" data-bs-toggle="tab" data-bs-target="#paneDataBarang" type="button" role="tab">
+                    <i class="bi bi-box-seam me-1"></i>Data Barang
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-pengaturan-outlet" data-bs-toggle="tab" data-bs-target="#paneOutlet" type="button" role="tab">
+                    <i class="bi bi-shop me-1"></i>Pengaturan per Outlet
+                </button>
+            </li>
+        </ul>
+        <div class="tab-content">
+        <div class="tab-pane fade show active" id="paneDataBarang" role="tabpanel">
         <div class="card mb-3">
             <div class="card-header fw-semibold">Informasi Dasar</div>
             <div class="card-body">
@@ -108,12 +122,17 @@
                 <x-harga-standar-section :item="$item" :cabang-list="$cabangList" />
                 <div class="row g-3 mt-1">
                     <div class="col-12 col-md-6">
-                        <label class="form-label small fw-semibold">Qty Minimum</label>
+                        <label class="form-label small fw-semibold">Qty Minimum (nilai awal) <x-tooltip key="master_bahan_baku.qty_minimum_awal" /></label>
                         <input type="number" name="qty_minimum" class="form-control" min="0" step="0.001" value="{{ old('qty_minimum', $item->qty_minimum) }}">
                     </div>
                 </div>
                 <div class="form-text mt-2">Stok per outlet dikelola lewat menu <a href="{{ route('stok.index') }}">Stok &amp; Inventori</a> / Adjustment Stok.</div>
             </div>
+        </div>
+        </div>
+        <div class="tab-pane fade" id="paneOutlet" role="tabpanel">
+            <x-bahan-outlet-section :item="$item" :cabang-list="$cabangList" :stok-lokasi="$stokLokasi" />
+        </div>
         </div>
     </div>
 

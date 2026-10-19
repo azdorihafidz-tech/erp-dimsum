@@ -103,7 +103,7 @@ class StokDashboardController extends Controller
                 'items.tipe',
                 'items.satuan',
                 DB::raw('COALESCE(SUM(stocks.qty), 0) as total_qty'),
-                DB::raw('MAX(stocks.qty_minimum) as qty_minimum')
+                DB::raw('COALESCE(SUM(stocks.qty_minimum), 0) as qty_minimum')
             )
             ->groupBy('items.id', 'items.nama_item', 'items.kode_item', 'items.tipe', 'items.satuan')
             ->orderBy('items.nama_item');

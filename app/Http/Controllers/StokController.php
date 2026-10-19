@@ -117,7 +117,14 @@ class StokController extends Controller
             ? $this->stokService->getStok($item->id, $lokasi->id)
             : 0;
 
-        return view('stok.kartu', compact('items','lokasiList','movements','item','lokasi','stokSaat'));
+        // Minimum per lokasi (stocks.qty_minimum), bukan nilai awal di master barang
+        $minimumLokasi = ($item && $lokasi)
+            ? (float) (Stock::where('item_id', $item->id)->where('lokasi_id', $lokasi->id)->value('qty_minimum') ?? $item->qty_minimum ?? 0)
+            : 0;
+        $selectedItem = $item;
+        $selectedLokasi = $lokasi;
+
+        return view('stok.kartu', compact('items','lokasiList','movements','item','lokasi','stokSaat','minimumLokasi','selectedItem','selectedLokasi'));
     }
 
     /**
@@ -251,7 +258,8 @@ class StokController extends Controller
             'qty'              => (float) $qty,
             'satuan'           => $item?->satuan ?? '',
             'qty_minimum'      => (float) $min,
-            'harga_beli_terakhir' => (float) ($item?->harga_beli_terakhir ?? 0),
+            // 4.38-E — harga beli di lokasi ini (fallback Harga Standar)
+            'harga_beli_terakhir' => (float) ($item?->hargaBeliDiCabang((int) $request->lokasi_id) ?? 0),
         ]);
     }
 

@@ -177,6 +177,8 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
         // 2026-09-19: subtotal 1 bumbu tidak butuh produk tersimpan, lihat
         // CLAUDE.md 4.19), jadi jalan di halaman Create maupun Edit.
         Route::post('/preview-bumbu/{bumbu}', [\App\Http\Controllers\MasterProdukJualController::class, 'previewSubtotalBumbu'])->name('preview-bumbu')->middleware('can:master.produk_jual.edit');
+        // 4.38-E — perkiraan HPP per outlet (tab Pengaturan per Outlet), jalan di Create & Edit.
+        Route::post('/hpp-outlet', [\App\Http\Controllers\MasterProdukJualController::class, 'hppPerOutlet'])->name('hpp-outlet');
         Route::get('/create', [\App\Http\Controllers\MasterProdukJualController::class, 'create'])->name('create')->middleware('can:master.produk_jual.create');
         Route::post('/', [\App\Http\Controllers\MasterProdukJualController::class, 'store'])->name('store')->middleware('can:master.produk_jual.create');
         Route::get('/{produkJual}/edit', [\App\Http\Controllers\MasterProdukJualController::class, 'edit'])->name('edit')->middleware('can:master.produk_jual.edit');

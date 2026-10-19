@@ -110,6 +110,7 @@ class DashboardController extends Controller
         $stokRendah = Stock::with('item')
             ->where('lokasi_id', $cabangId)
             ->whereColumn('qty', '<=', 'qty_minimum')
+            ->where('qty_minimum', '>', 0)
             ->get();
 
         // Order terbaru
@@ -248,6 +249,7 @@ class DashboardController extends Controller
         $stokRendah = Stock::with('item')
             ->where('lokasi_id', $gudangId)
             ->whereColumn('qty', '<=', 'qty_minimum')
+            ->where('qty_minimum', '>', 0)
             ->get();
 
         // Transfer terbaru
@@ -348,7 +350,7 @@ class DashboardController extends Controller
             ->count();
 
         // Alert stok rendah
-        $alertStokRendah = Stock::whereColumn('qty', '<=', 'qty_minimum')->count();
+        $alertStokRendah = Stock::whereColumn('qty', '<=', 'qty_minimum')->where('qty_minimum', '>', 0)->count();
 
         // Alert pembelian mendesak
         $alertPembelianMendesak = PurchaseOrder::withoutGlobalScopes()

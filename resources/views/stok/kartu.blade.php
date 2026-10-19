@@ -128,7 +128,7 @@
                     <div class="col-6">
                         <div style="background:white;border-radius:8px;padding:0.6rem 0.85rem;border:1px solid #e2e8f0;text-align:center">
                             <div class="fw-bold fs-5 lh-1 text-muted">
-                                {{ fmt_qty($selectedItem->qty_minimum ?? 0) }}
+                                {{ fmt_qty($minimumLokasi ?? 0) }}
                             </div>
                             <div class="text-muted" style="font-size:0.72rem">Minimum ({{ $selectedItem->satuan }})</div>
                         </div>

@@ -4,12 +4,12 @@
       TIDAK ditimpa PO). Bisa diisi lewat "harga per unit beli" (mis. per
       pack) → dihitung otomatis ke per satuan pakai.
     - Info Harga PO Terakhir (otomatis dari PO, read-only).
-    - Harga beli per outlet (opsional) → harga awal PO cabang itu.
+    - Harga beli per outlet ada di tab "Pengaturan per Outlet"
+      (komponen bahan-outlet-section).
     Variabel: $item (Item|null), $cabangList (Collection<Cabang>).
 --}}
 @props(['item' => null, 'cabangList' => collect()])
 @php
-    $hargaCabang = $item ? $item->itemCabang->whereNotNull('harga_beli')->pluck('harga_beli', 'cabang_id') : collect();
     $satuanAwal = old('satuan', $item?->satuan) ?: 'satuan';
 @endphp
 
@@ -49,34 +49,6 @@
     </div>
     @endif
 
-    @if($cabangList->isNotEmpty())
-    <div class="col-12">
-        <label class="form-label small fw-semibold mb-1">
-            Harga Beli per Outlet (opsional) <x-tooltip key="master_bahan_baku.harga_cabang" />
-        </label>
-        <div class="table-responsive">
-            <table class="table table-sm align-middle mb-1">
-                <thead class="table-light"><tr><th>Outlet</th><th style="width:55%">Harga per <span class="label-satuan-pakai">{{ $satuanAwal }}</span></th></tr></thead>
-                <tbody>
-                    @foreach($cabangList as $c)
-                    <tr>
-                        <td class="small">{{ $c->nama_cabang }}</td>
-                        <td>
-                            <div class="input-group input-group-sm">
-                                <span class="input-group-text bg-white text-muted">Rp</span>
-                                <input type="number" step="1" min="0" class="form-control" name="harga_cabang[{{ $c->id }}]"
-                                    value="{{ old('harga_cabang.' . $c->id, isset($hargaCabang[$c->id]) ? (int) round((float) $hargaCabang[$c->id]) : '') }}"
-                                    placeholder="pakai Harga Standar">
-                            </div>
-                        </td>
-                    </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-        <div class="form-text">Kosongkan = memakai Harga Standar. Dipakai sebagai harga awal saat outlet itu membuat PO.</div>
-    </div>
-    @endif
 </div>
 
 @once

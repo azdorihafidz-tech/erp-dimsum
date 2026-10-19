@@ -3,8 +3,8 @@
 > **Untuk Claude Code**: File ini adalah **single source of truth** untuk seluruh project. WAJIB dibaca sebelum eksekusi apapun.
 > Isinya: keputusan bisnis, temuan audit, aturan teknis, dan filosofi kerja.
 
-**Versi**: 4.9  
-**Update terakhir**: 2026-10-18 (Perbaikan Harga, Wajib Bukti, PO ke Gudang, Role Bebas — lihat [[4.38]])  
+**Versi**: 4.10  
+**Update terakhir**: 2026-10-19 (Perbaikan Harga, Wajib Bukti, PO ke Gudang, Role Bebas, Pengaturan per Outlet — lihat [[4.38]])  
 **Status**: 🎉 **PROJECT LIVE DI PRODUCTION** (https://erp.dmentaiindonesia.com — domain lama `erpdimsum.azwacore.com` sudah tidak dipakai; **GO-LIVE data real: lihat [[4.28]]**) — Tahap 1-7 SELESAI SEMUA + rangkaian bug fix & improvement lintas sesi (lihat section 4 utk detail lengkap tiap item): Bug Fix Ronde 2, Rename Jenis Menu/Master Bumbu Pusat, Fitur Import dari Bumbu Pusat, Rename Label & Hapus Gojek/Grab, Fix Foto Produk Production, UI Preview Harga Master/Subtotal Resep (Ronde 3-5), Auto-isi Satuan Master Bumbu Pusat, Fix ENUM Kategori Saldo Awal, Fix Label Kode Kategori Wajib, Default Basis Program Loyalty ke Rp, Widget Total Pembelian Pelanggan, Fix Export Excel Laporan Keuangan. **Sprint 3 Batch 1 SELESAI SEMUA** (5 menu Prioritas 1 — Penjualan, Setoran Kasir, Setoran Harian/Rekap, Stok 3 sub-view, Laba Rugi Produksi — lihat [[4.24]], [[4.25]]) — Sprint 2 (konversi satuan resep) DIDEFER [[12.12]], Sprint 3 Batch 2/3 (17 menu Laporan Prioritas 2/3) + TODO tracking stock movement [[12.14]] MENYUSUL [[12.13]].
 
 ---
@@ -655,6 +655,11 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 
 **Verifikasi**: `HargaTahapATest` (9), `BuktiBayarTahapBTest` (7), `PoGudangTahapCTest` (7), `RoleBuatanTahapDTest` (9). Regresi per tahap: hanya 11 kegagalan pre-existing ([[4.37]]). Rollback 4 migration diverifikasi manual. Halaman terkait dicek 200 di data dev.
 
+**Tahap E — Tab "Pengaturan per Outlet" (2026-10-19, tanpa migration)**: temuan test lokal Owner — qty minimum masih 1 angka untuk semua lokasi, harga per outlet belum bisa diisi per pack.
+- **Bahan Baku**: form dibagi tab **Data Barang** | **Pengaturan per Outlet** (komponen `<x-bahan-outlet-section>`; tabel harga per outlet dipindah keluar dari `<x-harga-standar-section>`). Per lokasi: harga per satuan pakai ↔ per unit beli (JS saling hitung, disimpan per pcs 2 desimal ke `item_cabang.harga_beli`), **Qty Minimum** (`minimum_cabang[id]` → `stocks.qty_minimum` via `MasterBahanBakuController::syncMinimumCabang()`: qty TIDAK disentuh, kosong = biarkan, baris stok qty 0 dibuat hanya kalau minimum > 0, baris soft-deleted diperbarui tanpa restore), stok awal (form tambah). `items.qty_minimum` dilabeli **"nilai awal"** (tetap dipakai `StokService::updateStok` saat baris stok baru).
+- **Produk Jual**: tab **Data Produk** | **Pengaturan per Outlet** — Dijual (`cabang_aktif[]`), Harga Jual (`cabang_harga`, dipindah dari section Ketersediaan Outlet), **HPP** (endpoint baru `POST master/produk-jual/hpp-outlet` → `hppPerOutlet()`, rumus sama dgn Total HPP form, harga bahan = harga beli outlet, termasuk expand Bumbu Pusat; izin create ATAU edit), Untung & Margin (JS). `syncCabang()` tidak berubah.
+- **Audit menu**: "stok rendah" di Dashboard (cabang/gudang/pusat) & Laporan Stok kini hanya `qty_minimum > 0` (konsisten `StokController`); Dashboard Stok "semua cabang" membandingkan total qty dgn **SUM** minimum (dulu MAX); **Kartu Stok** header info dulu tidak pernah tampil (variabel `selectedItem` tidak dikirim) — sekarang tampil + minimum lokasi; harga fallback batch tanpa harga (adjustment masuk, FIFO tanpa batch) & `api.stok.qty` pakai `hargaBeliDiCabang(lokasi)`.
+- Panduan/tooltip: section `<!-- PERBAIKAN438-E -->` (bahan-baku, produk-jual, stok-barang, laporan-stok) + 3 tooltip. Test `PengaturanOutletTahapETest` (9).
 **Deploy production**: `git pull` → `https://erp.dmentaiindonesia.com/deploy-perbaikan438.php?confirm=YES-PERBAIKAN` (migrate + seeder panduan + cache, lock `storage/deploy-perbaikan438.lock`) → hapus `public/deploy-perbaikan438.php`. Setelah itu: buat supplier "Gudang Pusat" dgn Supplier Internal = Gudang Pusat; cek saklar wajib bukti tiap cabang; koreksi Harga Standar bahan yang terlanjur tertimpa (Owner sendiri).
 
 ### 4.37 🟢 Closing / Tutup Buku — Snapshot + Kunci Periode, Harian/Mingguan/Bulanan, Per Cabang & Keseluruhan (2026-10-17)

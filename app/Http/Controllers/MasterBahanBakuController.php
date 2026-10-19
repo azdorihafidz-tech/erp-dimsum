@@ -70,7 +70,7 @@ class MasterBahanBakuController extends Controller
     {
         abort_unless(auth()->user()->can('master.bahan_baku.create'), 403);
 
-        $data = $request->safe()->except(['stok_awal', 'harga_cabang']);
+        $data = $request->safe()->except(['stok_awal', 'harga_cabang', 'minimum_cabang']);
         $data['kode_item']  = strtoupper($data['kode_item']);
         $data['is_active']  = $request->boolean('is_active', true);
         // Sprint 4.34 — checkbox-style: absen (unchecked) → false. Form create
@@ -80,15 +80,18 @@ class MasterBahanBakuController extends Controller
         $item = Item::create($data);
         $this->syncHargaCabang($item, (array) $request->input('harga_cabang', []));
 
+        $minimumCabang = (array) $request->input('minimum_cabang', []);
         foreach ((array) $request->input('stok_awal', []) as $cabangId => $qty) {
             $qty = (float) $qty;
             if ($qty <= 0) continue;
 
+            $min = trim((string) ($minimumCabang[$cabangId] ?? '')) !== '' ? (float) $minimumCabang[$cabangId] : ($item->qty_minimum ?? 0);
             Stock::updateOrCreate(
                 ['item_id' => $item->id, 'lokasi_id' => (int) $cabangId],
-                ['qty' => $qty, 'qty_minimum' => $item->qty_minimum ?? 0]
+                ['qty' => $qty, 'qty_minimum' => $min]
             );
         }
+        $this->syncMinimumCabang($item, $minimumCabang);
 
         return redirect()->route('master.bahan-baku.index')
             ->with('success', "Bahan/Kemasan {$item->nama_item} berhasil ditambahkan.");
@@ -102,8 +105,9 @@ class MasterBahanBakuController extends Controller
         $categories = ItemCategory::orderBy('nama_kategori')->get();
         $cabangList = Cabang::aktif()->orderBy('nama_cabang')->get();
         $bahanBaku->load('itemCabang');
+        $stokLokasi = Stock::withTrashed()->where('item_id', $bahanBaku->id)->get()->keyBy('lokasi_id');
 
-        return view('master.bahan-baku.edit', ['item' => $bahanBaku, 'categories' => $categories, 'cabangList' => $cabangList]);
+        return view('master.bahan-baku.edit', ['item' => $bahanBaku, 'categories' => $categories, 'cabangList' => $cabangList, 'stokLokasi' => $stokLokasi]);
     }
 
     public function update(BahanBakuRequest $request, Item $bahanBaku)
@@ -111,7 +115,7 @@ class MasterBahanBakuController extends Controller
         abort_unless(auth()->user()->can('master.bahan_baku.edit'), 403);
         abort_unless(in_array($bahanBaku->tipe, self::TIPE_SCOPE, true), 404);
 
-        $data = $request->safe()->except(['stok_awal', 'harga_cabang']);
+        $data = $request->safe()->except(['stok_awal', 'harga_cabang', 'minimum_cabang']);
         $data['kode_item']  = strtoupper($data['kode_item']);
         $data['is_active']  = $request->boolean('is_active', true);
         // Sprint 4.34 — checkbox-style konsisten dgn store(): absen → false.
@@ -119,6 +123,7 @@ class MasterBahanBakuController extends Controller
 
         $bahanBaku->update($data);
         $this->syncHargaCabang($bahanBaku, (array) $request->input('harga_cabang', []));
+        $this->syncMinimumCabang($bahanBaku, (array) $request->input('minimum_cabang', []));
 
         return redirect()->route('master.bahan-baku.index')
             ->with('success', "Bahan/Kemasan {$bahanBaku->nama_item} berhasil diperbarui.");
@@ -142,6 +147,38 @@ class MasterBahanBakuController extends Controller
                 \App\Models\ItemCabang::create([
                     'item_id' => $item->id, 'cabang_id' => (int) $cabangId, 'harga_beli' => $harga, 'is_active' => true,
                 ]);
+            }
+        }
+    }
+
+    /**
+     * Simpan Qty Minimum per lokasi ke stocks.qty_minimum (CLAUDE.md 4.38-E).
+     * Qty stok TIDAK disentuh. Kosong = biarkan (outlet yang belum punya baris
+     * stok nanti memakai nilai awal items.qty_minimum). Baris stok baru (qty 0)
+     * hanya dibuat kalau minimum > 0 supaya alert stok outlet langsung aktif.
+     * Baris yang soft-deleted ikut diperbarui (tidak di-restore) supaya tidak
+     * bentrok unique (item_id, lokasi_id).
+     */
+    private function syncMinimumCabang(Item $item, array $minimumCabang): void
+    {
+        $lokasiValid = Cabang::pluck('id')->all();
+        foreach ($minimumCabang as $cabangId => $min) {
+            if (trim((string) $min) === '' || ! in_array((int) $cabangId, $lokasiValid, true)) {
+                continue;
+            }
+            $min = (float) $min;
+            $stok = Stock::withTrashed()->where('item_id', $item->id)->where('lokasi_id', (int) $cabangId)->first();
+
+            if ($stok) {
+                if ((float) $stok->qty_minimum !== $min) {
+                    $stok->qty_minimum = $min;
+                    $stok->updated_at = now();
+                    $stok->save();
+                }
+            } elseif ($min > 0) {
+                $stok = new Stock(['item_id' => $item->id, 'lokasi_id' => (int) $cabangId, 'qty' => 0, 'qty_minimum' => $min]);
+                $stok->updated_at = now();
+                $stok->save();
             }
         }
     }
