@@ -221,28 +221,8 @@ class Item extends Model
      */
     public function bisaDijualDiCabang(int $cabangId): bool
     {
-        $resep = $this->resep;
-
-        if ($resep) {
-            foreach ($resep->items as $resepItem) {
-                if (! $resepItem->item_id) continue;
-                $butuh = $resepItem->qty_per_unit_dalam_kg; // kebutuhan utk 1 unit
-                if ($butuh <= 0) continue;
-                if ($this->stokDiLokasiItem($resepItem->item_id, $cabangId) < $butuh) return false;
-            }
-
-            return true;
-        }
-
-        if (! in_array($this->tipe, ['bahan_baku', 'kemasan', 'produk_jual'], true)) return true;
-
-        return $this->stokDiLokasi($cabangId) > 0;
-    }
-
-    /** Helper stok di lokasi untuk ITEM MANAPUN (bukan cuma $this) — dipakai bisaDijualDiCabang(). */
-    private function stokDiLokasiItem(int $itemId, int $lokasiId): float
-    {
-        return Stock::where('item_id', $itemId)->where('lokasi_id', $lokasiId)->value('qty') ?? 0;
+        // 4.40 — rumus sama dgn POS & pengecekan saat Bayar (termasuk bahan di dalam Bumbu Pusat)
+        return app(\App\Services\KetersediaanProdukService::class)->untuk(collect([$this]), $cabangId)[$this->id]['bisa_dijual'];
     }
 
     public function stokDiLokasi(int $lokasiId): float

@@ -780,6 +780,9 @@ $produkJadiJson = $semuaItemDropdown->map(fn($i) => [
     'satuan'         => $i->satuan,
     'harga_jual'     => $i->harga_jual ?? 0,
     'stok_cabang'    => $i->stok_cabang,
+    'stok_info'      => $i->stok_info ?? '',
+    'stok_singkat'   => $i->stok_singkat ?? '',
+    'stok_menipis'   => (bool) ($i->stok_menipis ?? false),
     'item_category_id' => $i->item_category_id,
     'punya_varian'   => (bool) $i->punya_varian,
     'bisa_dijual'    => $i->bisa_dijual,
@@ -885,8 +888,8 @@ function tambahProduk() {
     showEmptyMsg(false);
     const idx = itemIdx++;
     const opts = produkJadi.map(p =>
-        `<option value="${p.id}" data-harga="${p.harga_jual}" data-satuan="${p.satuan}" data-stok="${p.stok_cabang}">
-            ${p.nama_item} (${p.kode_item}) - Stok: ${p.stok_cabang}
+        `<option value="${p.id}" data-harga="${p.harga_jual}" data-satuan="${p.satuan}" data-stok="${p.stok_cabang}" data-stok-info="${escHtml(p.stok_info)}" data-menipis="${p.stok_menipis ? 1 : 0}">
+            ${p.nama_item} (${p.kode_item})${p.stok_singkat ? ' - Stok: ' + p.stok_singkat : ''}
         </option>`
     ).join('');
 
@@ -1302,7 +1305,6 @@ function onProdukChange(sel, idx) {
     if (!opt || !opt.value) return;
     const harga = opt.dataset.harga || 0;
     const satuan = opt.dataset.satuan || 'pcs';
-    const stok = opt.dataset.stok || 0;
     const row = sel.closest('.pos-item-row');
     row.querySelector('.harga-input').value = harga;
     const namaEl = document.getElementById(`namaItem_${idx}`);
@@ -1310,7 +1312,11 @@ function onProdukChange(sel, idx) {
     const satEl = document.getElementById(`satuan_${idx}`);
     if (satEl) satEl.value = satuan;
     const stokEl = document.getElementById(`stokInfo_${idx}`);
-    if (stokEl) stokEl.textContent = `Stok tersedia: ${stok} ${satuan}`;
+    // 4.40 — dari bahan resep di outlet ini (produk tanpa resep: stoknya sendiri)
+    if (stokEl) {
+        stokEl.textContent = opt.dataset.stokInfo || '';
+        stokEl.className = opt.dataset.menipis === '1' ? 'text-warning fw-semibold' : 'text-muted';
+    }
     hitungSubtotal(idx);
 }
 

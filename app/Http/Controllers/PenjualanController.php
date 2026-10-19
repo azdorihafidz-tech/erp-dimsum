@@ -62,17 +62,6 @@ class PenjualanController extends Controller
             ->orderBy('nama_item')
             ->get()
             ->filter(fn ($item) => $item->tersediaDiCabang($cabangId))
-            ->map(function ($item) use ($cabangId) {
-                $item->stok_cabang = (float) $item->stokDiLokasi($cabangId);
-                $item->bisa_dijual = $item->bisaDijualDiCabang($cabangId);
-                $item->harga_jual  = $item->hargaEfektifDiCabang($cabangId);
-                // Harga varian ikut harga outlet kalau varian tanpa harga khusus (CLAUDE.md 4.38)
-                foreach ($item->variants as $v) {
-                    $v->setRelation('item', $item);
-                    $v->setAttribute('harga_cabang', $v->hargaEfektifDiCabang($cabangId));
-                }
-                return $item;
-            })
             ->values();
 
         // Item Tambahan (kategori TMB: garpu gratis + saus extra berbayar).
@@ -87,11 +76,33 @@ class PenjualanController extends Controller
             ->orderBy('nama_item')
             ->get()
             ->filter(fn ($item) => $item->tersediaDiCabang($cabangId))
-            ->map(function ($item) use ($cabangId) {
-                $item->stok_cabang = (float) $item->stokDiLokasi($cabangId);
-                $item->bisa_dijual = $item->bisaDijualDiCabang($cabangId);
+            ->values();
+
+        // 4.40 — stok tersedia & Stok Habis dari bahan resep (rumus sama dgn saat Bayar)
+        $sedia = app(\App\Services\KetersediaanProdukService::class)->untuk($produkJadi->concat($itemTambahan), (int) $cabangId);
+        $pasangStok = function ($item) use ($sedia) {
+            $s = $sedia[$item->id];
+            $item->bisa_dijual  = $s['bisa_dijual'];
+            $item->stok_cabang  = (float) ($s['jumlah'] ?? 0);
+            $item->stok_info    = $s['info'];
+            $item->stok_singkat = $s['jumlah'] !== null ? fmt_qty($s['jumlah']) . ' ' . $s['satuan'] : '';
+            $item->stok_menipis = $s['menipis'];
+            return $item;
+        };
+        $itemTambahan = $itemTambahan->map($pasangStok);
+
+        $produkJadi = $produkJadi
+            ->map(function ($item) use ($cabangId, $pasangStok) {
+                $pasangStok($item);
+                $item->harga_jual  = $item->hargaEfektifDiCabang($cabangId);
+                // Harga varian ikut harga outlet kalau varian tanpa harga khusus (CLAUDE.md 4.38)
+                foreach ($item->variants as $v) {
+                    $v->setRelation('item', $item);
+                    $v->setAttribute('harga_cabang', $v->hargaEfektifDiCabang($cabangId));
+                }
                 return $item;
-            });
+            })
+            ->values();
 
         $pelanggans = Pelanggan::aktif()->orderBy('nama_pelanggan')->get();
 

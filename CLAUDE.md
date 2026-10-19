@@ -3,8 +3,8 @@
 > **Untuk Claude Code**: File ini adalah **single source of truth** untuk seluruh project. WAJIB dibaca sebelum eksekusi apapun.
 > Isinya: keputusan bisnis, temuan audit, aturan teknis, dan filosofi kerja.
 
-**Versi**: 4.11  
-**Update terakhir**: 2026-10-19 (Data barang terpisah per cabang — lihat [[4.39]]; Perbaikan Harga, Wajib Bukti, PO ke Gudang, Role Bebas — lihat [[4.38]])  
+**Versi**: 4.12  
+**Update terakhir**: 2026-10-19 (POS stok tersedia dari resep — [[4.40]]; Data barang terpisah per cabang — lihat [[4.39]]; Perbaikan Harga, Wajib Bukti, PO ke Gudang, Role Bebas — lihat [[4.38]])  
 **Status**: 🎉 **PROJECT LIVE DI PRODUCTION** (https://erp.dmentaiindonesia.com — domain lama `erpdimsum.azwacore.com` sudah tidak dipakai; **GO-LIVE data real: lihat [[4.28]]**) — Tahap 1-7 SELESAI SEMUA + rangkaian bug fix & improvement lintas sesi (lihat section 4 utk detail lengkap tiap item): Bug Fix Ronde 2, Rename Jenis Menu/Master Bumbu Pusat, Fitur Import dari Bumbu Pusat, Rename Label & Hapus Gojek/Grab, Fix Foto Produk Production, UI Preview Harga Master/Subtotal Resep (Ronde 3-5), Auto-isi Satuan Master Bumbu Pusat, Fix ENUM Kategori Saldo Awal, Fix Label Kode Kategori Wajib, Default Basis Program Loyalty ke Rp, Widget Total Pembelian Pelanggan, Fix Export Excel Laporan Keuangan. **Sprint 3 Batch 1 SELESAI SEMUA** (5 menu Prioritas 1 — Penjualan, Setoran Kasir, Setoran Harian/Rekap, Stok 3 sub-view, Laba Rugi Produksi — lihat [[4.24]], [[4.25]]) — Sprint 2 (konversi satuan resep) DIDEFER [[12.12]], Sprint 3 Batch 2/3 (17 menu Laporan Prioritas 2/3) + TODO tracking stock movement [[12.14]] MENYUSUL [[12.13]].
 
 ---
@@ -659,6 +659,13 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 
 **Deploy production**: digabung dgn [[4.39]] — lihat instruksi deploy di sana. Setelah itu: buat supplier "Gudang Pusat" dgn Supplier Internal = Gudang Pusat; cek saklar wajib bukti tiap cabang; koreksi Harga Standar bahan yang terlanjur tertimpa (Owner sendiri).
 
+### 4.40 🟢 POS "Stok tersedia" dari Bahan Resep (2026-10-19)
+
+**Laporan Owner** (setelah deploy 4.39): di baris item order POS tertulis "Stok tersedia: 0" padahal produk bisa diklik/dijual. **Bug lama** (sejak initial commit, angkanya selalu 0 sejak 4.34 produk jual tidak menyimpan stok sendiri): tulisan membaca stok produk itu sendiri, sedangkan tanda "Stok Habis" dihitung dari bahan resep.
+
+**Fix**: `App\Services\KetersediaanProdukService` — rumus SAMA dgn pengecekan saat Bayar (`PenjualanService::cekResepCukup` → `ResepBumbuItem::expandKeBahanMentah`): produk ber-resep = jumlah yang bisa dibuat dari bahan paling sedikit di outlet (stok ÷ kebutuhan per unit, **termasuk bahan di dalam Bumbu Pusat**), satuan = satuan produk, "(terbatas: nama bahan)" kalau resep > 1 bahan, oranye kalau ≤ 5; produk tanpa resep yg dipotong stok sendiri = stoknya; tambahan tanpa resep = tidak dibatasi. Dipakai POS (tulisan di baris order, dropdown "- Stok: …", tanda Stok Habis) & `Item::bisaDijualDiCabang()` (dulu mengabaikan bahan Bumbu Pusat → produk terlihat bisa dijual lalu ditolak saat Bayar). Stok bahan 1 query per buka POS. Tidak ada perubahan proses Bayar/potong stok, tanpa migration. Test `StokTersediaPosTest` (5).
+
+**Deploy**: `git pull` → buka `clear-cache.php` → hapus file itu. (`public/deploy-perbaikan438.php` sudah dihapus dari repository — deploy 4.38/4.39 selesai 2026-10-19 di DB `azwc7142_erp_dmentai`; pemecahan juga terjalankan di DB `azwc7142_erp_dimsum` — instalasi lain, menunggu konfirmasi Owner.)
 ### 4.39 🔴 Data Barang Terpisah per Cabang — Mengikuti Pilihan Cabang di Header (2026-10-19)
 
 **Keputusan Owner** (setelah Tahap E tab per outlet & Tahap F halaman "Harga Outlet" ditolak karena membingungkan orang awam): bahan baku, produk jual, resep, dan Bumbu Pusat **terpisah total per cabang**. Pilihan cabang di switcher pojok kanan atas menentukan data yang tampil di SEMUA menu; "Semua Cabang" (owner/admin pusat) = katalog lengkap + nama cabang.
