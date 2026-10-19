@@ -194,7 +194,7 @@
                     <th class="d-none d-lg-table-cell">Jenis</th>
                     <th class="d-none d-lg-table-cell">Satuan</th>
                     <th class="text-end d-none d-lg-table-cell">Harga Standar</th>
-                    <th class="text-end d-none d-xl-table-cell">Harga Jual</th>
+                    <th class="text-end d-none d-xl-table-cell">Harga Jual Umum</th>
                     <th class="text-center">Status</th>
                     <th class="text-center px-4" style="width:100px">Aksi</th>
                 </tr>
@@ -388,7 +388,7 @@
                 </div>
                 @if($item->harga_beli_terakhir)
                 <div class="mt-1" style="font-size:0.8rem">
-                    <span class="text-muted">Harga Beli:</span>
+                    <span class="text-muted">Harga Standar:</span>
                     <span class="fw-semibold ms-1">Rp {{ number_format($item->harga_beli_terakhir, 0, ',', '.') }}</span>
                 </div>
                 @endif

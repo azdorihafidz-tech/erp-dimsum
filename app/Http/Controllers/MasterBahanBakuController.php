@@ -24,7 +24,7 @@ class MasterBahanBakuController extends Controller
     {
         abort_unless(auth()->user()->can('master.bahan_baku.view'), 403);
 
-        $query = Item::with('category')->whereIn('tipe', self::TIPE_SCOPE)->latest();
+        $query = Item::with('category', 'itemCabang')->whereIn('tipe', self::TIPE_SCOPE)->latest();
 
         if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {
@@ -53,7 +53,15 @@ class MasterBahanBakuController extends Controller
             'tambahan_gratis' => Item::where('tipe', 'tambahan_gratis')->count(),
         ];
 
-        return view('master.bahan-baku.index', compact('items', 'categories', 'tipes', 'stats'));
+        // 4.38-F — harga di daftar selalu milik outlet yang disebut di banner
+        $outletLihat   = \App\Support\OutletTerpilih::untukDaftar($request);
+        $pilihanOutlet = \App\Support\OutletTerpilih::pilihan(auth()->user());
+        $bolehUmum     = auth()->user()->canAccessAllBranches();
+        $stokOutlet    = $outletLihat
+            ? Stock::where('lokasi_id', $outletLihat->id)->whereIn('item_id', $items->pluck('id'))->get()->keyBy('item_id')
+            : collect();
+
+        return view('master.bahan-baku.index', compact('items', 'categories', 'tipes', 'stats', 'outletLihat', 'pilihanOutlet', 'bolehUmum', 'stokOutlet'));
     }
 
     public function create()
@@ -105,9 +113,8 @@ class MasterBahanBakuController extends Controller
         $categories = ItemCategory::orderBy('nama_kategori')->get();
         $cabangList = Cabang::aktif()->orderBy('nama_cabang')->get();
         $bahanBaku->load('itemCabang');
-        $stokLokasi = Stock::withTrashed()->where('item_id', $bahanBaku->id)->get()->keyBy('lokasi_id');
 
-        return view('master.bahan-baku.edit', ['item' => $bahanBaku, 'categories' => $categories, 'cabangList' => $cabangList, 'stokLokasi' => $stokLokasi]);
+        return view('master.bahan-baku.edit', ['item' => $bahanBaku, 'categories' => $categories, 'cabangList' => $cabangList]);
     }
 
     public function update(BahanBakuRequest $request, Item $bahanBaku)
@@ -181,6 +188,49 @@ class MasterBahanBakuController extends Controller
                 $stok->save();
             }
         }
+    }
+
+    /**
+     * Halaman "Harga & Stok di [outlet]" (CLAUDE.md 4.38-F) — 1 outlet per
+     * tampilan supaya tidak rancu dgn harga lokasi lain. Outlet dipilih lewat
+     * Cabang Aktif / dropdown (manajer cabang hanya outletnya sendiri).
+     */
+    public function outlet(Request $request, Item $bahanBaku)
+    {
+        abort_unless(auth()->user()->can('master.bahan_baku.edit'), 403);
+        abort_unless(in_array($bahanBaku->tipe, self::TIPE_SCOPE, true), 404);
+
+        $outlet = \App\Support\OutletTerpilih::resolve($request, true);
+        abort_unless($outlet, 403, 'Anda belum terhubung ke outlet mana pun.');
+
+        $bahanBaku->load('itemCabang');
+        $stok = Stock::withTrashed()->where('item_id', $bahanBaku->id)->where('lokasi_id', $outlet->id)->first();
+
+        return view('master.bahan-baku.outlet', [
+            'item' => $bahanBaku, 'outlet' => $outlet, 'stok' => $stok,
+            'pilihanOutlet' => \App\Support\OutletTerpilih::pilihan(auth()->user()),
+            'hargaOutlet' => $bahanBaku->itemCabang->firstWhere('cabang_id', $outlet->id)?->harga_beli,
+        ]);
+    }
+
+    public function updateOutlet(Request $request, Item $bahanBaku)
+    {
+        abort_unless(auth()->user()->can('master.bahan_baku.edit'), 403);
+        abort_unless(in_array($bahanBaku->tipe, self::TIPE_SCOPE, true), 404);
+
+        $outlet = \App\Support\OutletTerpilih::resolve($request, true);
+        abort_unless($outlet, 403);
+
+        $data = $request->validate([
+            'harga_beli'  => ['nullable', 'numeric', 'min:0'],
+            'qty_minimum' => ['nullable', 'numeric', 'min:0'],
+        ], [], ['harga_beli' => 'Harga Beli', 'qty_minimum' => 'Qty Minimum']);
+
+        $this->syncHargaCabang($bahanBaku, [$outlet->id => $data['harga_beli'] ?? '']);
+        $this->syncMinimumCabang($bahanBaku, [$outlet->id => $data['qty_minimum'] ?? '']);
+
+        return redirect()->route('master.bahan-baku.index')
+            ->with('success', "Harga & stok {$bahanBaku->nama_item} di {$outlet->nama_cabang} berhasil disimpan.");
     }
 
     public function destroy(Item $bahanBaku, CascadeDeleteService $cascadeService)

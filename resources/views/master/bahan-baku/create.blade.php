@@ -18,20 +18,6 @@
 @csrf
 <div class="row g-4">
     <div class="col-12 col-lg-8">
-        <ul class="nav nav-tabs mb-3" id="tabBahanBaku" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="tab-data-barang" data-bs-toggle="tab" data-bs-target="#paneDataBarang" type="button" role="tab">
-                    <i class="bi bi-box-seam me-1"></i>Data Barang
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="tab-pengaturan-outlet" data-bs-toggle="tab" data-bs-target="#paneOutlet" type="button" role="tab">
-                    <i class="bi bi-shop me-1"></i>Pengaturan per Outlet
-                </button>
-            </li>
-        </ul>
-        <div class="tab-content">
-        <div class="tab-pane fade show active" id="paneDataBarang" role="tabpanel">
         <div class="card mb-3">
             <div class="card-header fw-semibold">Informasi Dasar</div>
             <div class="card-body">
@@ -120,21 +106,31 @@
         <x-unit-beli-section />
 
         <div class="card mb-3">
-            <div class="card-header fw-semibold">Harga &amp; Stok Minimum</div>
+            <div class="card-header fw-semibold">Harga Standar &amp; Qty Minimum Awal <span class="text-muted small fw-normal">(berlaku untuk semua outlet yang tidak diatur sendiri)</span></div>
             <div class="card-body">
                 <x-harga-standar-section :cabang-list="$cabangList" />
                 <div class="row g-3 mt-1">
                     <div class="col-12 col-md-6">
-                        <label class="form-label small fw-semibold">Qty Minimum (nilai awal) <x-tooltip key="master_bahan_baku.qty_minimum_awal" /></label>
+                        <label class="form-label small fw-semibold">Qty Minimum Awal <x-tooltip key="master_bahan_baku.qty_minimum_awal" /></label>
                         <input type="number" name="qty_minimum" class="form-control" min="0" step="0.001" value="{{ old('qty_minimum', 0) }}">
                     </div>
                 </div>
+                <div class="form-text mt-2"><i class="bi bi-shop me-1"></i>Harga beli &amp; Qty Minimum yang berbeda per outlet bisa diatur setelah disimpan, lewat tombol <strong>Harga Outlet</strong> di daftar Bahan Baku.</div>
             </div>
         </div>
-        </div>
-        <div class="tab-pane fade" id="paneOutlet" role="tabpanel">
-            <x-bahan-outlet-section :cabang-list="$cabangList" />
-        </div>
+
+        <div class="card mb-3">
+            <div class="card-header fw-semibold">Stok Awal per Outlet (opsional) <x-tooltip key="master_bahan_baku.stok_awal" /></div>
+            <div class="card-body">
+                <div class="row g-2">
+                    @foreach($cabangList as $cabang)
+                    <div class="col-6 col-md-4">
+                        <label class="form-label small">{{ $cabang->nama_cabang }}</label>
+                        <input type="number" name="stok_awal[{{ $cabang->id }}]" class="form-control form-control-sm" min="0" step="0.001" placeholder="0">
+                    </div>
+                    @endforeach
+                </div>
+            </div>
         </div>
     </div>
 

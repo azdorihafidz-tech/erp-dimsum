@@ -82,8 +82,9 @@ class CabangController extends Controller
             ->get();
 
         $tipes = TipeCabang::cases();
+        $cabangSumber = Cabang::aktif()->orderBy('nama_cabang')->get();
 
-        return view('cabang.create', compact('users', 'tipes'));
+        return view('cabang.create', compact('users', 'tipes', 'cabangSumber'));
     }
 
     /**
@@ -92,10 +93,15 @@ class CabangController extends Controller
     public function store(CabangRequest $request)
     {
         $data = $request->validated();
+        $salinDari = $data['salin_dari_cabang_id'] ?? null;
+        unset($data['salin_dari_cabang_id']);
         $data['kode_cabang'] = strtoupper($data['kode_cabang']);
         $data['is_active'] = true;
 
         $cabang = Cabang::create($data);
+        if ($salinDari) {
+            $this->salinPengaturanBarang((int) $salinDari, $cabang);
+        }
 
         // Auto-create 3 shift default untuk cabang baru
         $defaultShifts = [
@@ -125,6 +131,28 @@ class CabangController extends Controller
         return redirect()
             ->route('cabang.index')
             ->with('success', "Cabang <strong>{$cabang->nama_cabang}</strong> berhasil ditambahkan.");
+    }
+
+    /**
+     * Salin pengaturan barang dari cabang lain ke cabang baru (CLAUDE.md 4.38-F):
+     * produk dijual/tidak + harga jual outlet + harga beli outlet (item_cabang),
+     * dan Qty Minimum (stocks, qty 0). Stok & transaksi TIDAK disalin.
+     */
+    private function salinPengaturanBarang(int $sumberId, Cabang $baru): void
+    {
+        \Illuminate\Support\Facades\DB::transaction(function () use ($sumberId, $baru) {
+            foreach (\App\Models\ItemCabang::where('cabang_id', $sumberId)->get() as $row) {
+                \App\Models\ItemCabang::updateOrCreate(
+                    ['item_id' => $row->item_id, 'cabang_id' => $baru->id],
+                    ['is_active' => $row->is_active, 'harga_override' => $row->harga_override, 'harga_beli' => $row->harga_beli]
+                );
+            }
+            foreach (\App\Models\Stock::where('lokasi_id', $sumberId)->where('qty_minimum', '>', 0)->get() as $st) {
+                $stok = new \App\Models\Stock(['item_id' => $st->item_id, 'lokasi_id' => $baru->id, 'qty' => 0, 'qty_minimum' => $st->qty_minimum]);
+                $stok->updated_at = now();
+                $stok->save();
+            }
+        });
     }
 
     /**

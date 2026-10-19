@@ -31,7 +31,7 @@ class MasterProdukJualController extends Controller
     {
         abort_unless(auth()->user()->can('master.produk_jual.view'), 403);
 
-        $query = Item::with('category')->whereIn('tipe', self::TIPE_SCOPE)->latest();
+        $query = Item::with('category', 'itemCabang')->whereIn('tipe', self::TIPE_SCOPE)->latest();
 
         if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {
@@ -49,7 +49,12 @@ class MasterProdukJualController extends Controller
         $items      = $query->paginate(20)->withQueryString();
         $categories = ItemCategory::orderBy('nama_kategori')->get();
 
-        return view('master.produk-jual.index', compact('items', 'categories'));
+        // 4.38-F — harga di daftar selalu milik outlet yang disebut di banner
+        $outletLihat   = \App\Support\OutletTerpilih::untukDaftar($request);
+        $pilihanOutlet = \App\Support\OutletTerpilih::pilihan(auth()->user());
+        $bolehUmum     = auth()->user()->canAccessAllBranches();
+
+        return view('master.produk-jual.index', compact('items', 'categories', 'outletLihat', 'pilihanOutlet', 'bolehUmum'));
     }
 
     public function create()
@@ -160,7 +165,12 @@ class MasterProdukJualController extends Controller
         if ($punyaVarianBaru) {
             $this->syncAttributesAndVariants($produkJual, (array) $request->input('atribut', []), (array) $request->input('harga_override', []));
         }
-        $this->syncCabang($produkJual, array_map('intval', (array) $request->input('cabang_aktif', [])), (array) $request->input('cabang_harga', []));
+        // 4.38-F — form edit tidak lagi memuat field outlet (diatur di halaman
+        // Harga per Outlet). Sinkron hanya kalau field outlet memang dikirim,
+        // supaya simpan Data Produk tidak mereset outlet & harga outlet.
+        if ($request->hasAny(['kelola_outlet', 'cabang_aktif', 'cabang_harga'])) {
+            $this->syncCabang($produkJual, array_map('intval', (array) $request->input('cabang_aktif', [])), (array) $request->input('cabang_harga', []));
+        }
 
         return redirect()->route('master.produk-jual.index')
             ->with('success', "Produk {$produkJual->nama_item} berhasil diperbarui.");
@@ -333,21 +343,12 @@ class MasterProdukJualController extends Controller
     }
 
     /**
-     * Perkiraan HPP per outlet dari isi resep di form (CLAUDE.md 4.38-E) —
-     * dipakai tab "Pengaturan per Outlet" (HPP, untung, margin). Rumus SAMA
-     * dgn Total HPP di form (baris manual: qty × harga; baris Bumbu Pusat:
-     * expand ke bahan), bedanya harga bahan = harga beli di outlet itu
-     * (item_cabang.harga_beli, fallback Harga Standar). Estimasi — HPP riil
-     * transaksi tetap FIFO batch stok outlet.
+     * Inti perhitungan HPP per outlet (dipakai halaman
+     * Harga per Outlet). $rows = bentuk normalisasiResepDariForm()/resepTersimpan().
+     * @return array<int, float> cabang_id => HPP per 1 unit
      */
-    public function hppPerOutlet(Request $request)
+    private function hitungHppOutlet(\Illuminate\Support\Collection $rows, array $cabangIds): array
     {
-        $user = auth()->user();
-        abort_unless($user->can('master.produk_jual.create') || $user->can('master.produk_jual.edit'), 403);
-
-        $rows = $this->normalisasiResepDariForm((array) $request->input('resep', []));
-        $cabangIds = Cabang::aktif()->pluck('id');
-
         $itemIds = collect();
         foreach ($rows as $row) {
             if ($row['is_linked'] && $row['resep_bumbu_ref']) {
@@ -368,16 +369,75 @@ class MasterProdukJualController extends Controller
                 if ($row['is_linked']) {
                     foreach ($row['resep_bumbu_ref']?->items ?? [] as $inner) {
                         if (! $inner->item || $inner->mode_harga !== 'pakai_master') continue;
-                        $total += $inner->qty_per_unit_dalam_kg * $row['qty_per_unit'] * $harga($inner->item, $cabangId);
+                        $total += $inner->qty_per_unit_dalam_kg * $row['qty_per_unit'] * $harga($inner->item, (int) $cabangId);
                     }
                 } elseif ($row['item']) {
-                    $total += $row['qty_per_unit'] * $harga($row['item'], $cabangId);
+                    $total += $row['qty_per_unit'] * $harga($row['item'], (int) $cabangId);
                 }
             }
-            $hasil[$cabangId] = round($total, 2);
+            $hasil[(int) $cabangId] = round($total, 2);
         }
 
-        return response()->json(['hpp' => $hasil]);
+        return $hasil;
+    }
+
+    /** Resep tersimpan produk dlm bentuk yang sama dgn normalisasiResepDariForm(). */
+    private function resepTersimpan(Item $produk): \Illuminate\Support\Collection
+    {
+        $produk->load('resep.items.item', 'resep.items.resepBumbuRef.items.item');
+
+        return ($produk->resep?->items ?? collect())->map(fn ($ri) => [
+            'is_linked'       => $ri->isLinked(),
+            'resep_bumbu_ref' => $ri->resepBumbuRef,
+            'item'            => $ri->item,
+            'qty_per_unit'    => (float) $ri->qty_per_unit,
+            'satuan'          => $ri->satuan,
+        ]);
+    }
+
+    /**
+     * Halaman "Harga di [outlet]" (CLAUDE.md 4.38-F) — dijual/tidak, harga
+     * jual, perkiraan HPP outlet, untung, margin. 1 outlet per tampilan.
+     */
+    public function outlet(Request $request, Item $produkJual)
+    {
+        abort_unless(auth()->user()->can('master.produk_jual.edit'), 403);
+        abort_unless(in_array($produkJual->tipe, self::TIPE_SCOPE, true), 404);
+
+        $outlet = \App\Support\OutletTerpilih::resolve($request, true);
+        abort_unless($outlet, 403, 'Anda belum terhubung ke outlet mana pun.');
+
+        $produkJual->load('itemCabang', 'variants');
+        $row = $produkJual->itemCabang->firstWhere('cabang_id', $outlet->id);
+
+        return view('master.produk-jual.outlet', [
+            'item' => $produkJual, 'outlet' => $outlet, 'row' => $row,
+            'dijual' => $produkJual->tersediaDiCabang($outlet->id),
+            'hpp' => $this->hitungHppOutlet($this->resepTersimpan($produkJual), [$outlet->id])[$outlet->id] ?? 0,
+            'pilihanOutlet' => \App\Support\OutletTerpilih::pilihan(auth()->user()),
+        ]);
+    }
+
+    public function updateOutlet(Request $request, Item $produkJual)
+    {
+        abort_unless(auth()->user()->can('master.produk_jual.edit'), 403);
+        abort_unless(in_array($produkJual->tipe, self::TIPE_SCOPE, true), 404);
+
+        $outlet = \App\Support\OutletTerpilih::resolve($request, true);
+        abort_unless($outlet, 403);
+
+        $data = $request->validate([
+            'harga_jual' => ['nullable', 'numeric', 'min:0'],
+            'dijual'     => ['nullable', 'boolean'],
+        ], [], ['harga_jual' => 'Harga Jual']);
+
+        ItemCabang::updateOrCreate(
+            ['item_id' => $produkJual->id, 'cabang_id' => $outlet->id],
+            ['is_active' => $request->boolean('dijual'), 'harga_override' => ($data['harga_jual'] ?? null) !== null ? $data['harga_jual'] : null]
+        );
+
+        return redirect()->route('master.produk-jual.index')
+            ->with('success', "Harga {$produkJual->nama_item} di {$outlet->nama_cabang} berhasil disimpan.");
     }
 
     /**

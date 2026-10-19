@@ -19,7 +19,6 @@
         'signature' => $v->attributeValues->pluck('nilai')->sort()->implode('|'),
         'harga_override' => $v->harga_override,
     ])->values() : collect();
-    $cabangAwal = $isEdit ? $item->itemCabang->keyBy('cabang_id') : collect();
     $bahanOptionsJs = $bahanOptions->map(fn($b) => [
         'id' => $b->id, 'nama' => $b->nama_item, 'satuan' => $b->satuan,
         'harga' => (float) ($b->harga_beli_terakhir ?? 0),
@@ -32,20 +31,7 @@
 
 <div class="row g-4">
     <div class="col-12 col-lg-8">
-        <ul class="nav nav-tabs mb-3" id="tabProdukJual" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="tab-data-produk" data-bs-toggle="tab" data-bs-target="#paneDataProduk" type="button" role="tab">
-                    <i class="bi bi-box-seam me-1"></i>Data Produk
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="tab-pengaturan-outlet" data-bs-toggle="tab" data-bs-target="#paneOutletProduk" type="button" role="tab">
-                    <i class="bi bi-shop me-1"></i>Pengaturan per Outlet
-                </button>
-            </li>
-        </ul>
-        <div class="tab-content">
-        <div class="tab-pane fade show active" id="paneDataProduk" role="tabpanel">
+
         {{-- SECTION 1: Info Dasar --}}
         <div class="card mb-3">
             <div class="card-header fw-semibold"><i class="bi bi-info-circle me-1"></i>Informasi Dasar</div>
@@ -112,8 +98,9 @@
                         </div>
                     </div>
                     <div class="col-12 col-md-6">
-                        <label class="form-label small fw-semibold">Harga Jual (default) *</label>
+                        <label class="form-label small fw-semibold">Harga Jual Umum * <x-tooltip key="master_produk_jual.harga_umum" /></label>
                         <x-input-rupiah name="harga_jual" :value="old('harga_jual', $item->harga_jual ?? 0)" />
+                        <div class="form-text">Dipakai semua outlet yang tidak punya harga sendiri.</div>
                     </div>
                     <div class="col-12">
                         <label class="form-label small fw-semibold">Deskripsi (utk struk)</label>
@@ -198,68 +185,36 @@
             </div>
         </div>
 
-        </div>{{-- /paneDataProduk --}}
-
-        {{-- Tab Pengaturan per Outlet (CLAUDE.md 4.38-E) — dijual/tidak, harga
-             jual per outlet, perkiraan HPP dari resep pakai harga beli bahan di
-             outlet itu, untung & margin. --}}
-        <div class="tab-pane fade" id="paneOutletProduk" role="tabpanel">
-        <div class="card mb-3" id="produkOutletSection">
-            <div class="card-header fw-semibold"><i class="bi bi-shop me-1"></i>Dijual di Outlet &amp; Harga per Outlet <x-tooltip key="master_produk_jual.cabang_aktif" /></div>
+        {{-- SECTION 4: Outlet (CLAUDE.md 4.38-F) — form tambah cuma pilih outlet
+             tempat produk dijual (harga ikut Harga Jual Umum). Harga khusus per
+             outlet diatur di halaman tersendiri (1 outlet per tampilan) supaya
+             tidak rancu. Form edit tidak mengirim field outlet sama sekali. --}}
+        @if(! $isEdit)
+        <div class="card mb-3">
+            <div class="card-header fw-semibold"><i class="bi bi-shop me-1"></i>Dijual di Outlet <x-tooltip key="master_produk_jual.cabang_aktif" /></div>
             <div class="card-body">
-                <div class="alert alert-info small py-2">
-                    <i class="bi bi-info-circle me-1"></i>
-                    Harga jual kosong = memakai <strong>Harga Jual (default)</strong> di tab Data Produk.
-                    <strong>HPP</strong> = perkiraan dari resep, memakai harga beli bahan di outlet itu
-                    (atur di Bahan Baku → tab Pengaturan per Outlet). HPP riil transaksi tetap dihitung FIFO dari stok outlet.
-                    <x-tooltip key="master_produk_jual.hpp_outlet" />
+                <input type="hidden" name="kelola_outlet" value="1">
+                <div class="row g-2">
+                    @foreach($cabangList as $cabang)
+                    <div class="col-12 col-md-6">
+                        <div class="form-check p-2 ps-5 border rounded mb-0">
+                            <input class="form-check-input" type="checkbox" name="cabang_aktif[]" value="{{ $cabang->id }}"
+                                id="cab{{ $cabang->id }}" @checked(in_array($cabang->id, array_map('intval', (array) old('cabang_aktif', $cabangList->pluck('id')->all())), true))>
+                            <label class="form-check-label small" for="cab{{ $cabang->id }}">{{ $cabang->nama_cabang }}</label>
+                        </div>
+                    </div>
+                    @endforeach
                 </div>
-                <div class="table-responsive">
-                    <table class="table table-sm align-middle mb-1">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Outlet</th>
-                                <th class="text-center" style="width:70px">Dijual</th>
-                                <th style="min-width:150px">Harga Jual</th>
-                                <th class="text-end">HPP</th>
-                                <th class="text-end">Untung</th>
-                                <th class="text-end">Margin</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($cabangList as $cabang)
-                            @php $cabangRow = $cabangAwal->get($cabang->id); @endphp
-                            <tr data-cabang="{{ $cabang->id }}">
-                                <td class="small">
-                                    <label for="cab{{ $cabang->id }}" class="mb-0">{{ $cabang->nama_cabang }}</label>
-                                    @if($cabang->tipe === 'gudang_pusat')<span class="badge bg-secondary-subtle text-secondary-emphasis">Gudang</span>@endif
-                                </td>
-                                <td class="text-center">
-                                    <input class="form-check-input cekDijual" type="checkbox" name="cabang_aktif[]" value="{{ $cabang->id }}"
-                                        id="cab{{ $cabang->id }}" {{ (!$isEdit || !$cabangRow || $cabangRow->is_active) ? 'checked' : '' }}>
-                                </td>
-                                <td>
-                                    <div class="input-group input-group-sm">
-                                        <span class="input-group-text bg-white text-muted">Rp</span>
-                                        <input type="number" min="0" step="1" name="cabang_harga[{{ $cabang->id }}]" class="form-control hargaJualOutlet"
-                                            placeholder="harga default" value="{{ $cabangRow?->harga_override !== null ? (int) round((float) $cabangRow->harga_override) : '' }}">
-                                    </div>
-                                </td>
-                                <td class="text-end small hppOutlet text-muted">—</td>
-                                <td class="text-end small untungOutlet">—</td>
-                                <td class="text-end small marginOutlet">—</td>
-                            </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-                <div class="form-text">
-                    Produk bervarian: angka di atas memakai harga jual dasar. Varian yang punya Harga Override sendiri memakai harga variannya di POS.
-                </div>
+                <div class="form-text mt-2">Semua outlet memakai <strong>Harga Jual Umum</strong>. Kalau ada outlet yang harganya beda, atur setelah disimpan lewat tombol <strong>Harga Outlet</strong> di daftar Produk Jual.</div>
             </div>
         </div>
-        </div>{{-- /paneOutletProduk --}}
-        </div>{{-- /tab-content --}}
+        @else
+        <div class="alert alert-light border small d-flex flex-wrap align-items-center gap-2">
+            <i class="bi bi-shop"></i>
+            <span>Outlet tempat produk ini dijual &amp; harga yang <strong>berbeda per outlet</strong> diatur di halaman tersendiri.</span>
+            <a href="{{ route('master.produk-jual.outlet', $item) }}" class="btn btn-sm btn-outline-primary ms-auto"><i class="bi bi-shop me-1"></i>Atur Harga &amp; Outlet</a>
+        </div>
+        @endif
     </div>
 
     <div class="col-12 col-lg-4">
@@ -508,58 +463,8 @@ function hitungTotalHpp() {
     });
     const footer = document.getElementById('totalHppFooter');
     if (footer) footer.textContent = formatRupiahPreview(total);
-    if (typeof jadwalkanHppOutlet === 'function') jadwalkanHppOutlet();
 }
 
-// ===== Tab Pengaturan per Outlet (CLAUDE.md 4.38-E) =====
-// HPP per outlet dihitung server (expand Bumbu Pusat + harga beli outlet),
-// untung & margin dihitung di sini dari harga jual outlet (atau default).
-const HPP_OUTLET_URL = @json(route('master.produk-jual.hpp-outlet'));
-var hppOutlet = {}; // var (bukan let): dipanggil via hitungTotalHpp() sebelum baris ini dieksekusi
-var hppOutletTimer = null;
-function hargaJualDefault() {
-    const el = document.querySelector('#formProdukJual [name="harga_jual"]');
-    return parseFloat(String(el?.value || '').replace(/[^0-9]/g, '')) || 0;
-}
-function renderOutletBaris() {
-    const def = hargaJualDefault();
-    document.querySelectorAll('#produkOutletSection tbody tr').forEach(tr => {
-        const id = tr.dataset.cabang;
-        const inputHarga = tr.querySelector('.hargaJualOutlet');
-        inputHarga.placeholder = def ? Math.round(def).toLocaleString('id-ID') + ' (default)' : 'harga default';
-        const harga = inputHarga.value !== '' ? (parseFloat(inputHarga.value) || 0) : def;
-        const hpp = hppOutlet[id];
-        const cHpp = tr.querySelector('.hppOutlet'), cUntung = tr.querySelector('.untungOutlet'), cMargin = tr.querySelector('.marginOutlet');
-        tr.classList.toggle('text-muted', !tr.querySelector('.cekDijual').checked);
-        if (hpp === undefined) { cHpp.textContent = '—'; cUntung.textContent = '—'; cMargin.textContent = '—'; return; }
-        cHpp.textContent = formatRupiahPreview(hpp);
-        const untung = harga - hpp;
-        cUntung.textContent = (untung < 0 ? '-' : '') + formatRupiahPreview(Math.abs(untung));
-        cUntung.className = 'text-end small untungOutlet ' + (untung < 0 ? 'text-danger fw-semibold' : 'text-success');
-        cMargin.textContent = harga > 0 ? (untung / harga * 100).toLocaleString('id-ID', { maximumFractionDigits: 1 }) + '%' : '—';
-        cMargin.className = 'text-end small marginOutlet ' + (untung < 0 ? 'text-danger' : '');
-    });
-}
-function jadwalkanHppOutlet() {
-    clearTimeout(hppOutletTimer);
-    hppOutletTimer = setTimeout(() => {
-        const fd = new FormData();
-        document.querySelectorAll('#bodyResep [name^="resep["]').forEach(el => {
-            if (el.type === 'checkbox' && !el.checked) return;
-            fd.append(el.name, el.value);
-        });
-        fd.append('_token', document.querySelector('#formProdukJual input[name="_token"]').value);
-        fetch(HPP_OUTLET_URL, { method: 'POST', body: fd, headers: { 'Accept': 'application/json' } })
-            .then(r => r.json())
-            .then(data => { hppOutlet = data.hpp || {}; renderOutletBaris(); })
-            .catch(() => {});
-    }, 500);
-}
-document.getElementById('produkOutletSection')?.addEventListener('input', renderOutletBaris);
-document.getElementById('produkOutletSection')?.addEventListener('change', renderOutletBaris);
-document.querySelector('#formProdukJual [name="harga_jual"]')?.addEventListener('input', renderOutletBaris);
-document.getElementById('bodyResep')?.addEventListener('change', jadwalkanHppOutlet);
-document.getElementById('tab-pengaturan-outlet')?.addEventListener('shown.bs.tab', jadwalkanHppOutlet);
 // ===== Fitur Import dari Bumbu Pusat (2026-09-17) =====
 // Baris linked TIDAK pakai dropdown Bahan/Satuan/Mode Harga manual --
 // hidden input resep_bumbu_ref_id + qty_per_unit (jumlah porsi bumbu per 1

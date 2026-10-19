@@ -43,6 +43,8 @@ class CabangRequest extends FormRequest
             'nomor_meja_aktif'        => ['sometimes', 'boolean'],
             'wajib_bukti_transfer'    => ['sometimes', 'boolean'],
             'wajib_bukti_qris'        => ['sometimes', 'boolean'],
+            // 4.38-F — khusus tambah cabang: salin harga & pengaturan barang dari cabang lain
+            'salin_dari_cabang_id'    => ['nullable', 'integer', 'exists:cabangs,id'],
             'take_away_fee'           => ['nullable', 'numeric', 'min:0'],
             'service_charge_persen'   => ['nullable', 'numeric', 'min:0', 'max:100'],
         ];

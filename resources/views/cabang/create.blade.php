@@ -271,6 +271,21 @@
                         </div>
                     </div>
 
+                    {{-- 4.38-F — salin harga & pengaturan barang dari cabang lain --}}
+                    <div class="mb-3">
+                        <label for="salin_dari_cabang_id" class="form-label fw-medium">
+                            Salin Harga &amp; Pengaturan Barang dari <x-tooltip key="cabang.salin_pengaturan" />
+                        </label>
+                        <select id="salin_dari_cabang_id" name="salin_dari_cabang_id" class="form-select @error('salin_dari_cabang_id') is-invalid @enderror">
+                            <option value="">— Tidak usah (pakai harga umum) —</option>
+                            @foreach($cabangSumber as $cs)
+                                <option value="{{ $cs->id }}" @selected(old('salin_dari_cabang_id') == $cs->id)>{{ $cs->nama_cabang }}</option>
+                            @endforeach
+                        </select>
+                        <div class="form-text">Produk yang dijual, harga jual, harga beli bahan, dan Qty Minimum ikut disalin. Stok tidak ikut disalin.</div>
+                        @error('salin_dari_cabang_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    </div>
+
                     {{-- Kepala Cabang --}}
                     <div class="mb-0">
                         <label for="kepala_cabang_id" class="form-label fw-medium">
