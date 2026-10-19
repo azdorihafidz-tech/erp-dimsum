@@ -112,7 +112,7 @@ class PenjualanController extends Controller
         // Tahap C 4.38 — PO cabang ke supplier internal lokasi ini (mis. Gudang
         // Pusat) yang belum diproses: tampil di POS supaya keranjang bisa
         // diisi otomatis. PO yang sudah punya nota aktif disembunyikan.
-        $poMasuk = PurchaseOrder::with(['items.item:id,nama_item,satuan', 'cabang:id,nama_cabang', 'supplier:id,nama_supplier,cabang_id'])
+        $poMasuk = PurchaseOrder::with(['items.item:id,nama_item,satuan,kode_item,cabang_id,tipe', 'cabang:id,nama_cabang', 'supplier:id,nama_supplier,cabang_id'])
             ->whereHas('supplier', fn ($q) => $q->where('cabang_id', $cabangId))
             ->whereIn('status', [StatusPurchaseOrder::Disetujui->value, StatusPurchaseOrder::DikirimSupplier->value])
             ->whereDoesntHave('ordersGudang', fn ($q) => $q->where('status', '!=', StatusOrder::Dibatalkan->value))

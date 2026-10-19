@@ -94,6 +94,11 @@ class StockRequestController extends Controller
         if ($invalidItems->isNotEmpty()) {
             return back()->withInput()->with('error', "Item berikut tidak bisa di-request antar cabang: " . $invalidItems->join(', '));
         }
+        // 4.39 — barang yang diminta = barang milik cabang peminta (gudang memasangkan lewat Kode Item)
+        $bukanMilik = Item::whereIn('id', $itemIds)->whereNotNull('cabang_id')->where('cabang_id', '!=', $activeLokId)->pluck('nama_item');
+        if ($bukanMilik->isNotEmpty()) {
+            return back()->withInput()->with('error', 'Barang berikut bukan milik cabang ini: ' . $bukanMilik->join(', '));
+        }
 
         $reqPrefix = 'REQ-' . date('Ymd');
         $lastReq   = StockRequest::withTrashed()

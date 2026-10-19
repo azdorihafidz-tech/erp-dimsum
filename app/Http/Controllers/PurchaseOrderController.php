@@ -184,6 +184,20 @@ class PurchaseOrderController extends Controller
             }
         }
 
+        // 4.39 — produk gudang (supplier internal) dicatat sbg barang milik cabang
+        // pemesan (Kode Item sama, dibuat kalau belum ada) → stok masuk ke cabang itu.
+        if ($supplierInternal) {
+            $padanan = app(\App\Services\PadananBarangService::class);
+            foreach ($data['items'] as $i => $row) {
+                $it = $itemMap[$row['item_id']] ?? null;
+                if ($it && $it->cabang_id !== null && (int) $it->cabang_id !== (int) $cabangId) {
+                    $milikPemesan = $padanan->untukCabang($it, (int) $cabangId);
+                    $data['items'][$i]['item_id'] = $milikPemesan->id;
+                    $itemMap[$milikPemesan->id] = $milikPemesan;
+                }
+            }
+        }
+
         $data['items'] = array_map(function ($row) use ($itemMap) {
             $item = $itemMap[$row['item_id']] ?? null;
             $qtyInput = (float) $row['qty_pesan'];

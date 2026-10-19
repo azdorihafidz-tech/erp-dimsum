@@ -154,8 +154,13 @@ class StokService
                     ? (float) $item->harga_per_unit
                     : (float) (Item::find($item->item_id)?->harga_beli_terakhir ?? 0);
 
+                // 4.39 — barang di cabang tujuan = padanan Kode Item (dibuat kalau belum ada)
+                $barangTujuan = $item->item
+                    ? app(PadananBarangService::class)->untukCabang($item->item, (int) $transfer->ke_lokasi_id)
+                    : null;
+
                 $this->masuk(
-                    $item->item_id,
+                    $barangTujuan?->id ?? $item->item_id,
                     $transfer->ke_lokasi_id,
                     $qtyTerima,
                     "Transfer #{$transfer->nomor_transfer} - diterima",

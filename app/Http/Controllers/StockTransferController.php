@@ -78,16 +78,24 @@ class StockTransferController extends Controller
             $stockRequest = StockRequest::with('items.item')->findOrFail($request->dari_request);
 
             // Auto-select gudang pusat sebagai lokasi asal
-            $gudangPusat = Cabang::where('tipe', 'gudang_pusat')->first();
+            $gudangPusat = Cabang::where('tipe', 'gudang_pusat')->orderBy('id')->first();
             $defaultDariLokasiId = $gudangPusat?->id;
 
-            // Siapkan item untuk pre-fill di JS
-            $prefillItems = $stockRequest->items->map(fn($sri) => [
-                'item_id'   => $sri->item_id,
+            // 4.39 — barang peminta dipasangkan ke barang milik gudang (Kode Item sama);
+            // yang belum ada di gudang dilewati.
+            $padanan = app(\App\Services\PadananBarangService::class);
+            if ($defaultDariLokasiId) {
+                $items = Item::aktif()->dapatDibeli()->milikCabang($defaultDariLokasiId)->with('category', 'cabang')->orderBy('nama_item')->get();
+            }
+            $prefillItems = $stockRequest->items->map(function ($sri) use ($padanan, $defaultDariLokasiId) {
+                $barang = ($sri->item && $defaultDariLokasiId) ? $padanan->cari($sri->item, $defaultDariLokasiId) : $sri->item;
+                return $barang ? [
+                'item_id'   => $barang->id,
                 'qty_kirim' => $sri->qty_disetujui ?? $sri->qty_diminta,
                 'catatan'   => $sri->catatan ?? '',
                 'satuan'    => $sri->item?->satuan ?? '',
-            ])->values()->toArray();
+                ] : null;
+            })->filter()->values()->toArray();
         }
 
         // Ambil stok per item per lokasi untuk validasi client-side
@@ -114,6 +122,11 @@ class StockTransferController extends Controller
         $invalidItems = Item::whereIn('id', $itemIds)->whereNotIn('tipe', Item::TIPE_DAPAT_DIBELI)->pluck('nama_item');
         if ($invalidItems->isNotEmpty()) {
             return back()->withInput()->with('error', "Item berikut tidak bisa ditransfer antar cabang (dibuat on-demand lewat resep): " . $invalidItems->join(', '));
+        }
+        // 4.39 — barang yang dikirim harus milik lokasi asal (di tujuan dipasangkan lewat Kode Item)
+        $bukanAsal = Item::whereIn('id', $itemIds)->whereNotNull('cabang_id')->where('cabang_id', '!=', $request->dari_lokasi_id)->pluck('nama_item');
+        if ($bukanAsal->isNotEmpty()) {
+            return back()->withInput()->with('error', 'Barang berikut bukan milik lokasi asal: ' . $bukanAsal->join(', '));
         }
 
         $trfPrefix = 'TRF-' . date('Ymd');

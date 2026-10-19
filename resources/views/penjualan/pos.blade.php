@@ -809,7 +809,8 @@ window.POS_WAJIB_BUKTI = { transfer: {{ ($cabangAktif?->wajib_bukti_transfer ?? 
         'nomor' => $po->nomor_po,
         'cabang' => $po->cabang?->nama_cabang ?? '-',
         'items' => $po->items->map(fn ($i) => [
-            'item_id' => $i->item_id,
+            // 4.39 — barang di PO milik cabang pemesan → pasangkan ke produk lokasi ini lewat Kode Item
+            'item_id' => $i->item ? (app(\App\Services\PadananBarangService::class)->cari($i->item, (int) $cabangId)?->id ?? $i->item_id) : $i->item_id,
             'nama' => $i->item?->nama_item ?? '-',
             'qty' => (float) $i->qty_pesan,
             'harga_po' => (float) $i->harga_satuan,
