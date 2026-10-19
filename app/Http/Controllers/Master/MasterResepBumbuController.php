@@ -7,6 +7,9 @@ use App\Models\Item;
 use App\Models\JenisOlahan;
 use App\Models\ResepBumbu;
 use App\Models\ResepBumbuItem;
+use App\Services\HargaResepService;
+use App\Support\CabangAktif;
+use Illuminate\Validation\Rule;
 use Illuminate\Http\Request;
 
 /**
@@ -21,7 +24,8 @@ class MasterResepBumbuController extends Controller
     {
         abort_unless(auth()->user()->can('master.resep_bumbu.view'), 403);
 
-        $query = ResepBumbu::with(['jenisOlahan', 'item'])->withCount('items')->orderBy('nama');
+        // 4.39 — Bumbu Pusat & resep milik cabang aktif
+        $query = ResepBumbu::with(['jenisOlahan', 'item', 'cabang'])->withCount('items')->milikCabang(CabangAktif::id())->orderBy('nama');
 
         if ($request->filled('search')) {
             $search = $request->search;
@@ -34,7 +38,9 @@ class MasterResepBumbuController extends Controller
 
         $resepBumbus = $query->paginate(20)->withQueryString();
 
-        return view('master.resep-bumbu.index', compact('resepBumbus'));
+        $cabangAktif = CabangAktif::model();
+
+        return view('master.resep-bumbu.index', compact('resepBumbus', 'cabangAktif'));
     }
 
     public function create()
@@ -43,21 +49,27 @@ class MasterResepBumbuController extends Controller
 
         $jenisOlahans = JenisOlahan::aktif()->orderBy('nama')->get();
 
-        return view('master.resep-bumbu.create', compact('jenisOlahans'));
+        $cabangAktif   = CabangAktif::model();
+        $pilihanCabang = CabangAktif::pilihan();
+
+        return view('master.resep-bumbu.create', compact('jenisOlahans', 'cabangAktif', 'pilihanCabang'));
     }
 
     public function store(Request $request)
     {
         abort_unless(auth()->user()->can('master.resep_bumbu.create'), 403);
 
+        $cabangId = CabangAktif::pemilikBaru($request->filled('cabang_id') ? (int) $request->input('cabang_id') : null);
+        abort_unless($cabangId, 422, 'Pilih cabang pemilik Bumbu Pusat ini.');
         $validated = $request->validate([
             'nama'            => 'required|string|max:100',
-            'kode'            => 'required|string|max:20|unique:resep_bumbu,kode',
+            'kode'            => ['required', 'string', 'max:20', Rule::unique('resep_bumbu', 'kode')->where('cabang_id', $cabangId)],
             'jenis_olahan_id' => 'nullable|exists:jenis_olahans,id',
             'catatan'         => 'nullable|string',
         ]);
         $validated['is_active']   = true;
         $validated['dibuat_oleh'] = auth()->id();
+        $validated['cabang_id']   = $cabangId;
 
         $resep = ResepBumbu::create($validated);
 
@@ -68,6 +80,7 @@ class MasterResepBumbuController extends Controller
     public function edit(ResepBumbu $resepBumbu)
     {
         abort_unless(auth()->user()->can('master.resep_bumbu.edit'), 403);
+        abort_unless(CabangAktif::bolehAkses($resepBumbu->cabang_id), 403);
 
         // Tahap 2.5 D'mentai — resep yang sudah terhubung ke Produk Jual
         // (item_id terisi) source-of-truth-nya SEKARANG di form Produk Jual
@@ -81,21 +94,26 @@ class MasterResepBumbuController extends Controller
 
         $resepBumbu->load('items.item');
         $jenisOlahans   = JenisOlahan::aktif()->orderBy('nama')->get();
+        // Bahan milik cabang Bumbu Pusat ini; harga = FIFO stok cabang itu
         $bahanBakuItems = Item::whereIn('tipe', ['bahan_baku', 'kemasan'])
+            ->milikCabang($resepBumbu->cabang_id)
             ->where('is_active', true)
             ->orderBy('nama_item')
             ->get();
+        $hargaBahan = app(HargaResepService::class)->untuk($bahanBakuItems->merge($resepBumbu->items->pluck('item')), $resepBumbu->cabang_id);
 
-        return view('master.resep-bumbu.edit', compact('resepBumbu', 'jenisOlahans', 'bahanBakuItems'));
+        return view('master.resep-bumbu.edit', compact('resepBumbu', 'jenisOlahans', 'bahanBakuItems', 'hargaBahan'));
     }
 
     public function update(Request $request, ResepBumbu $resepBumbu)
     {
         abort_unless(auth()->user()->can('master.resep_bumbu.edit'), 403);
+        abort_unless(CabangAktif::bolehAkses($resepBumbu->cabang_id), 403);
 
         $validated = $request->validate([
             'nama'            => 'required|string|max:100',
-            'kode'            => 'required|string|max:20|unique:resep_bumbu,kode,' . $resepBumbu->id,
+            'kode'            => ['required', 'string', 'max:20', Rule::unique('resep_bumbu', 'kode')->ignore($resepBumbu->id)
+                ->where(fn ($q) => $resepBumbu->cabang_id ? $q->where('cabang_id', $resepBumbu->cabang_id) : $q->whereNull('cabang_id'))],
             'jenis_olahan_id' => 'nullable|exists:jenis_olahans,id',
             'catatan'         => 'nullable|string',
         ]);
@@ -110,6 +128,7 @@ class MasterResepBumbuController extends Controller
     public function destroy(ResepBumbu $resepBumbu)
     {
         abort_unless(auth()->user()->can('master.resep_bumbu.delete'), 403);
+        abort_unless(CabangAktif::bolehAkses($resepBumbu->cabang_id), 403);
 
         // Tidak hard delete — nonaktifkan saja (pola sama seperti Master Jenis
         // Olahan), resep yang sudah pernah dipakai order tetap valid utk histori.
@@ -122,15 +141,17 @@ class MasterResepBumbuController extends Controller
     public function storeItem(Request $request, ResepBumbu $resepBumbu)
     {
         abort_unless(auth()->user()->can('master.resep_bumbu.edit'), 403);
+        abort_unless(CabangAktif::bolehAkses($resepBumbu->cabang_id), 403);
 
         $validated = $request->validate([
-            'item_id'    => 'required|exists:items,id',
+            // 4.39 — bahan harus milik cabang yang sama dgn Bumbu Pusat
+            'item_id'    => ['required', Rule::exists('items', 'id')->where(fn ($q) => $resepBumbu->cabang_id ? $q->where(fn ($w) => $w->where('cabang_id', $resepBumbu->cabang_id)->orWhereNull('cabang_id')) : $q)],
             'qty_per_unit' => 'required|numeric|min:0.001',
             'satuan'     => 'required|string|max:20',
-            'is_wajib'   => 'nullable|boolean',
-            'mode_harga' => 'required|in:gratis,pakai_master',
-        ]);
-        $validated['is_wajib'] = $request->boolean('is_wajib');
+        ], ['item_id.exists' => 'Bahan harus milik cabang yang sama dengan Bumbu Pusat ini.']);
+        // 4.39 — Wajib & Mode Harga tidak dipakai lagi: semua bahan selalu dihitung
+        $validated['is_wajib']   = true;
+        $validated['mode_harga'] = 'pakai_master';
         $validated['urutan']   = ((int) $resepBumbu->items()->max('urutan')) + 1;
 
         $resepBumbu->items()->create($validated);
@@ -141,6 +162,7 @@ class MasterResepBumbuController extends Controller
     public function destroyItem(ResepBumbu $resepBumbu, ResepBumbuItem $resepBumbuItem)
     {
         abort_unless(auth()->user()->can('master.resep_bumbu.edit'), 403);
+        abort_unless(CabangAktif::bolehAkses($resepBumbu->cabang_id), 403);
 
         abort_unless($resepBumbuItem->resep_bumbu_id === $resepBumbu->id, 404);
 

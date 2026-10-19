@@ -89,9 +89,7 @@
                         <tr>
                             <th>Bahan</th>
                             <th class="text-end">Takaran</th>
-                            <th class="text-center">Wajib?</th>
-                            <th class="text-center">Mode</th>
-                            <th class="text-end">Harga Standar</th>
+                            <th class="text-end">Harga (FIFO)</th>
                             <th class="text-end">Subtotal</th>
                             <th class="text-center" style="width:50px"></th>
                         </tr>
@@ -101,27 +99,21 @@
                         <tr>
                             <td class="small">{{ $item->item?->nama_item ?? '(item terhapus)' }}</td>
                             <td class="text-end small">{{ rtrim(rtrim(number_format($item->qty_per_unit, 3, ',', '.'), '0'), ',') }} {{ $item->satuan }}</td>
-                            <td class="text-center">
-                                @if($item->is_wajib)
-                                <span class="badge bg-danger-subtle text-danger">Wajib</span>
-                                @else
-                                <span class="badge bg-secondary-subtle text-secondary">Opsional</span>
-                                @endif
-                            </td>
-                            <td class="text-center small">
-                                {{ $item->mode_harga === 'pakai_master' ? 'Harga Master' : 'Gratis' }}
-                            </td>
+                            @php
+                                $h = $item->item ? ($hargaBahan[$item->item->id] ?? null) : null;
+                                $subtotalBaris = $h ? $item->qty_per_unit_dalam_kg * $h['harga'] : 0;
+                                $totalBumbu = ($totalBumbu ?? 0) + $subtotalBaris;
+                            @endphp
                             <td class="text-end small">
-                                @if($item->item && $item->item->harga_beli_terakhir)
-                                <a href="{{ route('item.edit', $item->item_id) }}" class="text-decoration-none" title="Edit harga di Master Barang">
-                                    Rp {{ number_format($item->item->harga_beli_terakhir, 0, ',', '.') }}
-                                </a>
+                                @if($h && $h['harga'] > 0)
+                                    <span class="{{ $h['habis'] ? 'text-danger' : '' }}">Rp {{ number_format($h['harga'], 0, ',', '.') }}</span>
+                                    <div class="{{ $h['habis'] ? 'text-danger' : 'text-muted' }}" style="font-size:0.7rem">{{ $h['info'] }}</div>
                                 @else
-                                <span class="text-muted">Belum diset</span>
+                                    <span class="text-muted">Belum ada harga</span>
                                 @endif
                             </td>
                             <td class="text-end small fw-semibold">
-                                Rp {{ number_format($item->total_harga_master, 0, ',', '.') }}
+                                Rp {{ number_format($subtotalBaris, 0, ',', '.') }}
                             </td>
                             <td class="text-center">
                                 <form method="POST" action="{{ route('master.resep-bumbu.items.destroy', [$resepBumbu, $item]) }}"
@@ -135,15 +127,15 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="7" class="text-center text-muted py-3">Belum ada bahan. Tambahkan di form bawah.</td>
+                            <td colspan="5" class="text-center text-muted py-3">Belum ada bahan. Tambahkan di form bawah.</td>
                         </tr>
                         @endforelse
                     </tbody>
                     @if($resepBumbu->items->isNotEmpty())
                     <tfoot>
                         <tr class="table-light fw-bold">
-                            <td colspan="5" class="text-end">Total Bahan per 1 unit produksi (porsi/pcs):</td>
-                            <td class="text-end">Rp {{ number_format($resepBumbu->items->sum('total_harga_master'), 0, ',', '.') }}</td>
+                            <td colspan="3" class="text-end">Total Bahan per 1 unit produksi (porsi/pcs):</td>
+                            <td class="text-end">Rp {{ number_format($totalBumbu ?? 0, 0, ',', '.') }}</td>
                             <td></td>
                         </tr>
                     </tfoot>
@@ -151,7 +143,7 @@
                 </table>
             </div>
             <div class="card-body py-2 border-top">
-                <small class="text-muted"><i class="bi bi-info-circle me-1"></i>Kolom "Harga Standar" &amp; "Subtotal" murni pratinjau (tidak disimpan) — diambil live dari <strong>Harga Standar</strong> di Master Bahan Baku saat halaman ini dibuka. HPP riil saat penjualan tetap dihitung FIFO dari batch stok cabang.</small>
+                <small class="text-muted"><i class="bi bi-info-circle me-1"></i>Harga = harga PO dari stok yang masih ada di cabang ini (<strong>FIFO</strong>, batch tertua terpakai duluan). Stok habis → harga PO terakhir (merah). Semua bahan selalu dihitung ke HPP.</small>
             </div>
         </div>
 
@@ -166,7 +158,7 @@
                             <select name="item_id" id="itemIdSelect" class="form-select form-select-sm" required>
                                 <option value="">-- Pilih Bahan --</option>
                                 @foreach($bahanBakuItems as $b)
-                                <option value="{{ $b->id }}" data-harga-beli="{{ $b->harga_beli_terakhir ?? 0 }}" data-satuan="{{ $b->satuan }}">{{ $b->nama_item }} ({{ $b->kode_item }})</option>
+                                <option value="{{ $b->id }}" data-harga-beli="{{ $hargaBahan[$b->id]['harga'] ?? 0 }}" data-satuan="{{ $b->satuan }}">{{ $b->nama_item }} ({{ $b->kode_item }})</option>
                                 @endforeach
                             </select>
                         </div>
@@ -183,21 +175,8 @@
                                 <option value="pcs">pcs</option>
                             </select>
                         </div>
-                        <div class="col-6 col-md-2">
-                            <label class="form-label small">Mode Harga</label>
-                            <select name="mode_harga" id="modeHargaSelect" class="form-select form-select-sm">
-                                <option value="gratis">Gratis (include)</option>
-                                <option value="pakai_master">Harga Master</option>
-                            </select>
-                        </div>
-                        <div class="col-6 col-md-2">
-                            <div class="form-check mt-4">
-                                <input class="form-check-input" type="checkbox" name="is_wajib" value="1" id="isWajibCheck" checked>
-                                <label class="form-check-label small" for="isWajibCheck">Wajib</label>
-                            </div>
-                        </div>
                         <div class="col-12">
-                            <small class="text-muted" id="previewTotalBahan">Perkiraan total: Rp 0 (gratis)</small>
+                            <small class="text-muted" id="previewTotalBahan">Perkiraan total: Rp 0</small>
                         </div>
                         <div class="col-12">
                             <button type="submit" class="btn btn-primary btn-sm">
@@ -215,14 +194,13 @@
 @push('scripts')
 <script>
 // Preview harga (murni tampilan, TIDAK dikirim ke server) — update live saat
-// bahan/takaran/satuan/mode harga di form "Tambah Bahan" diubah.
+// bahan/takaran/satuan di form "Tambah Bahan" diubah.
 (function () {
     const itemSelect  = document.getElementById('itemIdSelect');
     const qtyInput    = document.getElementById('qtyPerUnitInput');
     const satuanEl    = document.getElementById('satuanSelect');
-    const modeEl      = document.getElementById('modeHargaSelect');
     const previewEl   = document.getElementById('previewTotalBahan');
-    if (!itemSelect || !qtyInput || !satuanEl || !modeEl || !previewEl) return;
+    if (!itemSelect || !qtyInput || !satuanEl || !previewEl) return;
 
     function konversiKeKg(qty, satuan) {
         if (satuan === 'g') return qty / 1000;
@@ -258,20 +236,13 @@
         const opt = itemSelect.selectedOptions[0];
         const hargaBeli = opt ? (parseFloat(opt.dataset.hargaBeli) || 0) : 0;
         const qty = parseFloat(qtyInput.value) || 0;
-        const mode = modeEl.value;
-
-        if (mode !== 'pakai_master') {
-            previewEl.textContent = 'Perkiraan total: Rp 0 (gratis, sudah include tarif jasa giling)';
-            return;
-        }
-
         const qtyKg = konversiKeKg(qty, satuanEl.value);
         const total = qtyKg * hargaBeli;
         previewEl.textContent = 'Perkiraan total: Rp ' + total.toLocaleString('id-ID', { maximumFractionDigits: 0 })
-            + (hargaBeli === 0 ? ' (harga beli bahan ini belum diset)' : '');
+            + (hargaBeli === 0 ? ' (bahan ini belum punya harga)' : ' (harga FIFO stok cabang)');
     }
 
-    [itemSelect, qtyInput, satuanEl, modeEl].forEach(el => {
+    [itemSelect, qtyInput, satuanEl].forEach(el => {
         el.addEventListener('input', updatePreview);
         el.addEventListener('change', updatePreview);
     });

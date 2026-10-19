@@ -90,7 +90,8 @@ class PreviewBumbuDanTotalHppParseTest extends TestCase
         $this->assertEquals(1500, $response->json('subtotal')); // 5 x 300
     }
 
-    public function test_preview_bumbu_skip_bahan_mode_gratis(): void
+    // 4.39 — Mode Harga dihapus: semua bahan dihitung, termasuk yang dulu "gratis"
+    public function test_preview_bumbu_hitung_semua_bahan_termasuk_mode_gratis_lama(): void
     {
         $admin = $this->buatUser('admin_pusat');
         $bahanBerbayar = Item::create(['kode_item' => 'BB-PB-003', 'nama_item' => 'Bahan Berbayar', 'tipe' => 'bahan_baku', 'satuan' => 'pcs', 'harga_beli_terakhir' => 1000, 'is_active' => true]);
@@ -104,7 +105,7 @@ class PreviewBumbuDanTotalHppParseTest extends TestCase
         ]);
 
         $response->assertOk();
-        $this->assertEquals(1000, $response->json('subtotal')); // cuma yg pakai_master
+        $this->assertEquals(1500, $response->json('subtotal')); // 1000 + 500
     }
 
     public function test_preview_bumbu_tanpa_login_ditolak(): void

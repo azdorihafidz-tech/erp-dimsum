@@ -149,10 +149,12 @@ $itemsJson = $items->map(function($i) {
         'unit_beli'           => $i->unit_beli,
         'isi_per_unit_beli'   => $i->isi_per_unit_beli !== null ? (float) $i->isi_per_unit_beli : null,
         'harga_beli_terakhir' => (float) ($i->harga_beli_terakhir ?? 0), // Harga Standar per satuan pakai
-        'harga_cabang'        => $i->itemCabang->whereNotNull('harga_beli')->mapWithKeys(fn ($r) => [$r->cabang_id => (float) $r->harga_beli]),
+        // 4.39 — barang milik cabang: harga beli = Harga Standar-nya sendiri (item_cabang hanya data lama)
+        'cabang_id'           => $i->cabang_id,
+        'harga_cabang'        => $i->cabang_id ? (object) [] : $i->itemCabang->whereNotNull('harga_beli')->mapWithKeys(fn ($r) => [$r->cabang_id => (float) $r->harga_beli]),
         // Tahap C 4.38 — produk jual hanya utk supplier internal di lokasi yg menjualnya
         'khusus_internal'     => in_array($i->tipe, \App\Models\Item::TIPE_PRODUK_INTERNAL, true),
-        'tersedia_di'         => $i->itemCabang->isEmpty() ? null : $i->itemCabang->where('is_active', true)->pluck('cabang_id')->values(),
+        'tersedia_di'         => $i->cabang_id ? [$i->cabang_id] : ($i->itemCabang->isEmpty() ? null : $i->itemCabang->where('is_active', true)->pluck('cabang_id')->values()),
         'total_stok'          => $i->total_stok ?? 0,
         'stok_per_lokasi'     => $i->stok_per_lokasi ?? [],
     ];
@@ -280,8 +282,10 @@ function supplierInternalCabang() {
 
 function itemsUntukSupplier() {
     const c = supplierInternalCabang();
+    const tujuan = cabangTujuanId();
     return itemsData.filter(i => {
-        if (!i.khusus_internal) return true;
+        // 4.39 — barang biasa: milik cabang tujuan PO (atau data lama tanpa cabang)
+        if (!i.khusus_internal) return !i.cabang_id || !tujuan || String(i.cabang_id) === String(tujuan);
         if (!c) return false;
         return i.tersedia_di === null || i.tersedia_di.map(String).includes(String(c));
     });
@@ -293,7 +297,7 @@ function opsiBarangHtml() {
     ).join('');
 }
 
-document.querySelector('select[name="supplier_id"]')?.addEventListener('change', function () {
+function segarkanOpsiBarang() {
     const boleh = new Set(itemsUntukSupplier().map(i => String(i.id)));
     document.querySelectorAll('.item-row select[name$="[item_id]"]').forEach(sel => {
         const nilai = sel.value;
@@ -306,7 +310,9 @@ document.querySelector('select[name="supplier_id"]')?.addEventListener('change',
             if (m) onItemChange(sel, parseInt(m[1]));
         }
     });
-});
+}
+document.querySelector('select[name="supplier_id"]')?.addEventListener('change', segarkanOpsiBarang);
+document.querySelector('select[name="cabang_id"]')?.addEventListener('change', segarkanOpsiBarang);
 
 // ===== Harga otomatis per cabang & konversi unit (CLAUDE.md 4.38) =====
 function cabangTujuanId() {

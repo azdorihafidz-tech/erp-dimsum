@@ -15,7 +15,9 @@ class ItemController extends Controller
     {
         abort_unless(auth()->user()->can('item.view'), 403);
 
-        $query = Item::with('category')->latest();
+        // 4.39 — ikut cabang aktif di header
+        $cabangId = \App\Support\CabangAktif::id();
+        $query = Item::with('category', 'cabang')->milikCabang($cabangId)->latest();
 
         if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {
@@ -45,13 +47,13 @@ class ItemController extends Controller
         // Sprint 4.33 (2026-10-01) — rename stat `produk_jadi` → `produk_jual`
         // mengikuti enum DB terbaru (Tahap 2.5 rename, CLAUDE.md 8.3). Key lama
         // `produk_jadi` di-alias supaya kalau ada view lain yg masih akses tidak crash.
-        $jumlahProdukJual = Item::where('tipe', 'produk_jual')->count();
+        $jumlahProdukJual = Item::milikCabang($cabangId)->where('tipe', 'produk_jual')->count();
         $stats = [
-            'total'       => Item::count(),
-            'bahan_baku'  => Item::where('tipe', 'bahan_baku')->count(),
+            'total'       => Item::milikCabang($cabangId)->count(),
+            'bahan_baku'  => Item::milikCabang($cabangId)->where('tipe', 'bahan_baku')->count(),
             'produk_jual' => $jumlahProdukJual,
             'produk_jadi' => $jumlahProdukJual, // alias legacy
-            'nonaktif'    => Item::where('is_active', false)->count(),
+            'nonaktif'    => Item::milikCabang($cabangId)->where('is_active', false)->count(),
         ];
 
         return view('item.index', compact('items', 'categories', 'tipes', 'stats'));

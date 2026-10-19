@@ -96,10 +96,10 @@ class MasterProdukJualHttpTest extends TestCase
         $mVariant = $item->variants->first(fn ($v) => $v->label === 'M');
         $this->assertEquals(25000, $mVariant->harga_override);
 
-        $this->assertCount(6, $item->itemCabang, 'Harus ada row eksplisit utk semua 6 cabang aktif.');
-        $this->assertTrue($item->itemCabang->firstWhere('cabang_id', $cabang1->id)->is_active);
-        $this->assertFalse($item->itemCabang->firstWhere('cabang_id', $cabang2->id)->is_active);
-        $this->assertEquals(22000, $item->itemCabang->firstWhere('cabang_id', $cabang1->id)->harga_override);
+        // 4.39 — produk milik 1 cabang (pengganti ketersediaan per outlet); admin pusat
+        // tanpa cabang aktif → Gudang Pusat. Field outlet lama diabaikan.
+        $this->assertNotNull($item->cabang_id);
+        $this->assertCount(0, $item->itemCabang);
     }
 
     public function test_store_foto_ditolak_kalau_lebih_dari_2mb(): void

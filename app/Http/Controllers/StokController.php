@@ -87,7 +87,7 @@ class StokController extends Controller
     {
         abort_unless(auth()->user()->can('stok.view'), 403);
 
-        $items    = Item::aktif()->orderBy('nama_item')->get();
+        $items    = Item::aktif()->milikCabang(\App\Support\CabangAktif::id())->with('cabang')->orderBy('nama_item')->get();
         $lokasiList = auth()->user()->canAccessAllBranches()
             ? Cabang::aktif()->get()
             : auth()->user()->cabangs()->aktif()->get();
@@ -138,7 +138,7 @@ class StokController extends Controller
         $lokasiList = $user->canAccessAllBranches()
             ? Cabang::aktif()->get()
             : $user->cabangs()->aktif()->get();
-        $items = Item::aktif()->orderBy('nama_item')->get();
+        $items = Item::aktif()->milikCabang(\App\Support\CabangAktif::id())->with('cabang')->orderBy('nama_item')->get();
 
         return view('stok.adjustment', compact('lokasiList', 'items'));
     }
@@ -160,6 +160,10 @@ class StokController extends Controller
             // Sprint Unit Family (2026-09-27): kalau user input dlm unit_beli,
             // convert qty_fisik ke unit pakai + tambah audit trail ke catatan.
             $itemModel = \App\Models\Item::find((int) $request->item_id);
+            // 4.39 — barang harus milik lokasi yang di-adjust
+            if ($itemModel && $itemModel->cabang_id !== null && (int) $itemModel->cabang_id !== (int) $request->lokasi_id) {
+                return back()->withInput()->with('error', "Barang {$itemModel->nama_item} bukan milik lokasi ini.");
+            }
             $qtyFisikRaw = (float) $request->qty_fisik;
             $unitInput = $request->input('unit_input');
             $qtyFisikPakai = $itemModel ? $itemModel->convertToUnitPakai($qtyFisikRaw, $unitInput) : $qtyFisikRaw;

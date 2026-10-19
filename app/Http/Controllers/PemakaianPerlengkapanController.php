@@ -51,7 +51,7 @@ class PemakaianPerlengkapanController extends Controller
         abort_unless(auth()->user()->can('pemakaian_perlengkapan.create'), 403);
 
         $user = auth()->user();
-        $items = Item::perlengkapan()->where('track_stok', true)->aktif()->orderBy('nama_item')->get();
+        $items = Item::perlengkapan()->where('track_stok', true)->aktif()->milikCabang(\App\Support\CabangAktif::id())->with('cabang')->orderBy('nama_item')->get();
         $lokasiList = $user->canAccessAllBranches()
             ? Cabang::aktif()->get()
             : $user->cabangs()->aktif()->get();
@@ -61,6 +61,12 @@ class PemakaianPerlengkapanController extends Controller
 
     public function store(PemakaianPerlengkapanRequest $request)
     {
+        // 4.39 — perlengkapan harus milik cabang tempat pemakaian
+        $item = \App\Models\Item::find($request->input('item_id'));
+        if ($item && $item->cabang_id !== null && (int) $item->cabang_id !== (int) $request->input('cabang_id')) {
+            return back()->with('error', "Barang {$item->nama_item} bukan milik cabang ini.")->withInput();
+        }
+
         try {
             $this->service->simpan($request->validated());
 

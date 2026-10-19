@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\CabangAktif;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -18,21 +19,42 @@ class BahanBakuRequest extends FormRequest
             || ($this->user()?->role instanceof \App\Support\CustomRoleValue && $this->user()->can($this->isMethod('post') ? 'master.bahan_baku.create' : 'master.bahan_baku.edit'));
     }
 
+    /**
+     * Cabang pemilik barang (CLAUDE.md 4.39): edit = cabang barang itu;
+     * tambah = cabang aktif, atau pilihan cabang di form saat "Semua Cabang".
+     */
+    public function cabangPemilik(): ?int
+    {
+        $item = $this->route('bahanBaku');
+        if ($item) {
+            return $item->cabang_id;
+        }
+
+        return CabangAktif::pemilikBaru($this->filled('cabang_id') ? (int) $this->input('cabang_id') : null);
+    }
+
     protected function prepareForValidation(): void
     {
         // Kosong → null (dulu '' masuk ke kolom DECIMAL → error 500 saat harga dikosongkan)
         $harga = preg_replace('/\D/', '', (string) ($this->harga_beli_terakhir ?? ''));
-        $this->merge([
-            'harga_beli_terakhir' => $harga === '' ? null : $harga,
-        ]);
+        $merge = ['harga_beli_terakhir' => $harga === '' ? null : $harga];
+
+        // Format lama stok_awal[cabang_id] → ambil nilai untuk cabang pemilik
+        if (is_array($this->stok_awal)) {
+            $merge['stok_awal'] = $this->stok_awal[$this->cabangPemilik()] ?? null;
+        }
+        $this->merge($merge);
     }
 
     public function rules(): array
     {
-        $itemId = $this->route('bahanBaku')?->id;
+        $item = $this->route('bahanBaku');
+        $cabangId = $this->cabangPemilik();
 
         return [
-            'kode_item'           => ['required', 'string', 'max:30', Rule::unique('items', 'kode_item')->ignore($itemId)],
+            'cabang_id'           => ['nullable', 'integer'],
+            'kode_item'           => ['required', 'string', 'max:30',
+                Rule::unique('items', 'kode_item')->ignore($item?->id)->where(fn ($q) => $cabangId ? $q->where(fn ($w) => $w->where('cabang_id', $cabangId)->orWhereNull('cabang_id')) : $q)],
             'nama_item'           => ['required', 'string', 'max:150'],
             'item_category_id'    => ['nullable', 'exists:item_categories,id'],
             'tipe'                => ['required', Rule::in(['bahan_baku', 'kemasan', 'tambahan_gratis'])],
@@ -40,8 +62,7 @@ class BahanBakuRequest extends FormRequest
             'harga_beli_terakhir' => ['nullable', 'numeric', 'min:0'],
             'qty_minimum'         => ['nullable', 'numeric', 'min:0'],
             'is_active'           => ['boolean'],
-            'stok_awal'           => ['nullable', 'array'],
-            'stok_awal.*'         => ['nullable', 'numeric', 'min:0'],
+            'stok_awal'           => ['nullable', 'numeric', 'min:0'],
             // Sprint 4.34 (2026-10-08) — 3 field dipindah dari Master Barang Lengkap.
             'jenis'               => ['nullable', Rule::in(['bahan_baku', 'perlengkapan'])],
             'track_stok'          => ['nullable', 'boolean'],
@@ -49,18 +70,13 @@ class BahanBakuRequest extends FormRequest
             // Sprint Unit Family (2026-09-27) — pasangan wajib atau keduanya kosong.
             'unit_beli'           => ['nullable', 'required_with:isi_per_unit_beli', 'string', 'max:20'],
             'isi_per_unit_beli'   => ['nullable', 'required_with:unit_beli', 'numeric', 'gt:0'],
-            // Perbaikan Harga 4.38 — harga beli per outlet (opsional).
-            'harga_cabang'        => ['nullable', 'array'],
-            'harga_cabang.*'      => ['nullable', 'numeric', 'min:0'],
-            // 4.38-E — qty minimum per lokasi (stocks.qty_minimum).
-            'minimum_cabang'      => ['nullable', 'array'],
-            'minimum_cabang.*'    => ['nullable', 'numeric', 'min:0'],
         ];
     }
 
     public function messages(): array
     {
         return [
+            'kode_item.unique'                => 'Kode Item sudah dipakai barang lain di cabang ini.',
             'unit_beli.required_with'         => 'Unit Beli wajib diisi kalau Isi per Unit Beli di-isi.',
             'isi_per_unit_beli.required_with' => 'Isi per Unit Beli wajib diisi kalau Unit Beli di-isi.',
             'isi_per_unit_beli.gt'            => 'Isi per Unit Beli harus lebih dari 0.',

@@ -48,12 +48,14 @@ class PenjualanController extends Controller
         // Kategori utk filter grid — cuma yang benar-benar punya produk aktif.
         // "Item Tambahan" (kode TMB) ditampilkan terpisah di bawah.
         $categories = ItemCategory::where('kode_kategori', '!=', 'TMB')
-            ->whereHas('items', fn ($q) => $q->whereIn('tipe', ['produk_jual', 'produk_tambahan'])->where('is_active', true))
+            ->whereHas('items', fn ($q) => $q->whereIn('tipe', ['produk_jual', 'produk_tambahan'])->where('is_active', true)->milikCabang($cabangId))
             ->orderBy('nama_kategori')
             ->get();
 
         // Grid produk utama
+        // 4.39 — hanya produk milik cabang POS ini
         $produkJadi = Item::whereHas('category', fn ($q) => $q->where('kode_kategori', '!=', 'TMB'))
+            ->milikCabang($cabangId)
             ->whereIn('tipe', ['produk_jual', 'produk_tambahan'])
             ->where('is_active', true)
             ->with(['category', 'variants.attributeValues.attribute', 'itemCabang'])
@@ -78,10 +80,13 @@ class PenjualanController extends Controller
         // != 'TMB'), jadi kedua tipe ini HARUS tetap tampil di sini supaya
         // tidak hilang dari POS — bukan dobel dengan grid utama.
         $itemTambahan = Item::whereHas('category', fn ($q) => $q->where('kode_kategori', 'TMB'))
+            ->milikCabang($cabangId)
             ->whereIn('tipe', ['tambahan_gratis', 'produk_tambahan'])
             ->where('is_active', true)
+            ->with('itemCabang')
             ->orderBy('nama_item')
             ->get()
+            ->filter(fn ($item) => $item->tersediaDiCabang($cabangId))
             ->map(function ($item) use ($cabangId) {
                 $item->stok_cabang = (float) $item->stokDiLokasi($cabangId);
                 $item->bisa_dijual = $item->bisaDijualDiCabang($cabangId);

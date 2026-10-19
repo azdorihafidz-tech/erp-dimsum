@@ -84,6 +84,17 @@ class Item extends Model
         return $qty;
     }
 
+    /** Nama + cabang pemilik (hanya saat mode "Semua Cabang"), utk dropdown pilih barang (4.39). */
+    public function getNamaDenganCabangAttribute(): string
+    {
+        $nama = $this->nama_item;
+        if ($this->cabang_id && ! \App\Support\CabangAktif::id()) {
+            $nama .= ' — ' . ($this->cabang?->nama_cabang ?? '#' . $this->cabang_id);
+        }
+
+        return $nama;
+    }
+
     /** Pemilik cabang barang (CLAUDE.md 4.39 — data terpisah per cabang). */
     public function cabang()
     {
@@ -155,6 +166,10 @@ class Item extends Model
      */
     public function tersediaDiCabang(int $cabangId): bool
     {
+        // 4.39 — barang milik cabang: tersedia hanya di cabangnya sendiri
+        if ($this->cabang_id !== null) {
+            return (int) $this->cabang_id === $cabangId && (bool) $this->is_active;
+        }
         $row = $this->itemCabang->firstWhere('cabang_id', $cabangId);
         return $row === null || $row->is_active;
     }
@@ -162,6 +177,10 @@ class Item extends Model
     /** Harga jual efektif di 1 cabang — pakai override kalau ada & aktif, else harga_jual default. */
     public function hargaEfektifDiCabang(int $cabangId): float
     {
+        // 4.39 — barang milik cabang: harga = harga jualnya sendiri (item_cabang hanya utk data lama)
+        if ($this->cabang_id !== null) {
+            return (float) ($this->harga_jual ?? 0);
+        }
         $row = $this->itemCabang->firstWhere('cabang_id', $cabangId);
         if ($row && $row->is_active && $row->harga_override !== null) {
             return (float) $row->harga_override;
@@ -176,7 +195,7 @@ class Item extends Model
      */
     public function hargaBeliDiCabang(?int $cabangId): float
     {
-        if ($cabangId) {
+        if ($cabangId && $this->cabang_id === null) { // 4.39 — barang milik cabang pakai Harga Standar-nya sendiri
             $row = $this->relationLoaded('itemCabang')
                 ? $this->itemCabang->firstWhere('cabang_id', $cabangId)
                 : $this->itemCabang()->where('cabang_id', $cabangId)->first();

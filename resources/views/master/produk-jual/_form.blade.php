@@ -1,7 +1,8 @@
 {{--
     Tahap 2.5 D'mentai — form bersama create/edit Produk Jual.
     Variabel wajib: $formAction, $formMethod ('POST'|'PUT'), $item (null|Item),
-    $categories, $cabangList, $bahanOptions.
+    $categories, $bahanOptions, $hargaBahan (harga FIFO per bahan), $cabangPemilik;
+    create juga $cabangAktif & $pilihanCabang (CLAUDE.md 4.39 — produk milik 1 cabang).
 --}}
 @php
     $isEdit = $item !== null;
@@ -19,9 +20,12 @@
         'signature' => $v->attributeValues->pluck('nilai')->sort()->implode('|'),
         'harga_override' => $v->harga_override,
     ])->values() : collect();
+    // Harga bahan = FIFO batch tertua yang masih ada di cabang (stok habis → PO terakhir → Harga Standar)
     $bahanOptionsJs = $bahanOptions->map(fn($b) => [
         'id' => $b->id, 'nama' => $b->nama_item, 'satuan' => $b->satuan,
-        'harga' => (float) ($b->harga_beli_terakhir ?? 0),
+        'harga' => (float) ($hargaBahan[$b->id]['harga'] ?? 0),
+        'info' => $hargaBahan[$b->id]['info'] ?? '',
+        'habis' => (bool) ($hargaBahan[$b->id]['habis'] ?? false),
     ])->values();
 @endphp
 
@@ -31,7 +35,24 @@
 
 <div class="row g-4">
     <div class="col-12 col-lg-8">
-
+        {{-- CLAUDE.md 4.39 — produk milik 1 cabang (mengikuti cabang aktif di header) --}}
+        @if($isEdit)
+            <div class="small text-muted mb-2"><i class="bi bi-geo-alt-fill text-primary"></i> Milik cabang: <strong class="text-body">{{ $item->cabang?->nama_cabang ?? 'Semua cabang (data lama)' }}</strong></div>
+        @elseif($cabangAktif)
+            <div class="alert alert-light border py-2 mb-3"><i class="bi bi-geo-alt-fill text-primary"></i> Produk ini akan menjadi milik <strong>{{ $cabangAktif->nama_cabang }}</strong> (cabang yang dipilih di pojok kanan atas). Bahan resep diambil dari bahan milik cabang ini.</div>
+        @else
+            <div class="alert alert-light border d-flex flex-wrap align-items-center gap-2 py-2 mb-3">
+                <i class="bi bi-geo-alt-fill text-primary"></i>
+                <label for="cabang_id" class="mb-0">Milik cabang:</label>
+                <select name="cabang_id" id="cabang_id" class="form-select form-select-sm w-auto"
+                    onchange="window.location = '{{ route('master.produk-jual.create') }}?cabang_id=' + this.value">
+                    @foreach($pilihanCabang as $c)
+                        <option value="{{ $c->id }}" @selected($cabangPemilik == $c->id)>{{ $c->nama_cabang }}</option>
+                    @endforeach
+                </select>
+                <span class="small text-muted">Bahan resep diambil dari bahan milik cabang ini.</span>
+            </div>
+        @endif
         {{-- SECTION 1: Info Dasar --}}
         <div class="card mb-3">
             <div class="card-header fw-semibold"><i class="bi bi-info-circle me-1"></i>Informasi Dasar</div>
@@ -98,9 +119,8 @@
                         </div>
                     </div>
                     <div class="col-12 col-md-6">
-                        <label class="form-label small fw-semibold">Harga Jual Umum * <x-tooltip key="master_produk_jual.harga_umum" /></label>
+                        <label class="form-label small fw-semibold">Harga Jual *</label>
                         <x-input-rupiah name="harga_jual" :value="old('harga_jual', $item->harga_jual ?? 0)" />
-                        <div class="form-text">Dipakai semua outlet yang tidak punya harga sendiri.</div>
                     </div>
                     <div class="col-12">
                         <label class="form-label small fw-semibold">Deskripsi (utk struk)</label>
@@ -127,10 +147,9 @@
                 <table class="table table-sm align-middle mb-2" id="tabelResep">
                     <thead>
                         <tr>
-                            <th>Bahan</th><th style="width:100px">Qty/unit</th><th style="width:90px">Satuan</th><th style="width:70px">Wajib</th>
-                            <th style="width:130px">Harga Master <x-tooltip key="master_produk_jual.harga_master_preview" /></th>
+                            <th>Bahan</th><th style="width:100px">Qty/unit</th><th style="width:90px">Satuan</th>
+                            <th style="width:170px">Harga Bahan <x-tooltip key="master_produk_jual.harga_master_preview" /></th>
                             <th style="width:120px">Subtotal</th>
-                            <th style="width:110px">Mode Harga <x-tooltip key="master_produk_jual.mode_harga" /></th>
                             <th style="width:40px"></th>
                         </tr>
                     </thead>
@@ -139,15 +158,15 @@
                         <tr>
                             <td colspan="4" class="text-end fw-semibold">Total HPP</td>
                             <td class="fw-semibold" id="totalHppFooter">Rp 0</td>
-                            <td colspan="2"></td>
+                            <td></td>
                         </tr>
                     </tfoot>
                 </table>
                 <div class="alert alert-warning py-2 small mb-2">
                     <i class="bi bi-exclamation-triangle me-1"></i>
-                    Harga Master &amp; Subtotal murni preview live dari Master Bahan Baku (belum ada konversi satuan otomatis —
-                    kalau angka terlihat aneh, mis. "Rp 45.000/gram", cek &amp; perbaiki harga/satuan bahan itu di menu
-                    <a href="{{ route('master.bahan-baku.index') }}" target="_blank">Master Bahan Baku</a>.
+                    Harga Bahan = harga PO dari stok yang masih ada (<strong>FIFO</strong>, batch tertua terpakai duluan). Kalau stok habis: harga PO terakhir (merah).
+                    Takaran dikalikan apa adanya tanpa konversi satuan — kalau angka terlihat aneh, mis. "Rp 45.000/gram", cek harga/satuan bahan itu di menu
+                    <a href="{{ route('master.bahan-baku.index') }}" target="_blank">Bahan Baku</a>.
                 </div>
             </div>
         </div>
@@ -185,36 +204,6 @@
             </div>
         </div>
 
-        {{-- SECTION 4: Outlet (CLAUDE.md 4.38-F) — form tambah cuma pilih outlet
-             tempat produk dijual (harga ikut Harga Jual Umum). Harga khusus per
-             outlet diatur di halaman tersendiri (1 outlet per tampilan) supaya
-             tidak rancu. Form edit tidak mengirim field outlet sama sekali. --}}
-        @if(! $isEdit)
-        <div class="card mb-3">
-            <div class="card-header fw-semibold"><i class="bi bi-shop me-1"></i>Dijual di Outlet <x-tooltip key="master_produk_jual.cabang_aktif" /></div>
-            <div class="card-body">
-                <input type="hidden" name="kelola_outlet" value="1">
-                <div class="row g-2">
-                    @foreach($cabangList as $cabang)
-                    <div class="col-12 col-md-6">
-                        <div class="form-check p-2 ps-5 border rounded mb-0">
-                            <input class="form-check-input" type="checkbox" name="cabang_aktif[]" value="{{ $cabang->id }}"
-                                id="cab{{ $cabang->id }}" @checked(in_array($cabang->id, array_map('intval', (array) old('cabang_aktif', $cabangList->pluck('id')->all())), true))>
-                            <label class="form-check-label small" for="cab{{ $cabang->id }}">{{ $cabang->nama_cabang }}</label>
-                        </div>
-                    </div>
-                    @endforeach
-                </div>
-                <div class="form-text mt-2">Semua outlet memakai <strong>Harga Jual Umum</strong>. Kalau ada outlet yang harganya beda, atur setelah disimpan lewat tombol <strong>Harga Outlet</strong> di daftar Produk Jual.</div>
-            </div>
-        </div>
-        @else
-        <div class="alert alert-light border small d-flex flex-wrap align-items-center gap-2">
-            <i class="bi bi-shop"></i>
-            <span>Outlet tempat produk ini dijual &amp; harga yang <strong>berbeda per outlet</strong> diatur di halaman tersendiri.</span>
-            <a href="{{ route('master.produk-jual.outlet', $item) }}" class="btn btn-sm btn-outline-primary ms-auto"><i class="bi bi-shop me-1"></i>Atur Harga &amp; Outlet</a>
-        </div>
-        @endif
     </div>
 
     <div class="col-12 col-lg-4">
@@ -346,7 +335,7 @@ const VARIANT_AWAL = @json($variantAwal);
 @if($isEdit)
 const KALKULATOR_URL = @json(route('master.produk-jual.kalkulator-resep', $item));
 @endif
-const BUMBU_PUSAT_LIST_URL = @json(route('master.produk-jual.bumbu-pusat.list'));
+const BUMBU_PUSAT_LIST_URL = @json(route('master.produk-jual.bumbu-pusat.list', ['cabang_id' => $cabangPemilik]));
 // SELALU ada, tidak bersyarat isEdit -- preview subtotal 1 Bumbu Pusat
 // tidak butuh produk tersimpan, jadi harus jalan di Create maupun Edit
 // (bug fix 2026-09-19, lihat CLAUDE.md 4.19). '__ID__' diganti id bumbu asli
@@ -371,7 +360,7 @@ function tambahBarisResep(data) {
         return;
     }
     const idx = resepIdx++;
-    const opsi = BAHAN_OPTIONS.map(b => `<option value="${b.id}" data-satuan="${b.satuan}" data-harga="${b.harga}" ${data.item_id==b.id?'selected':''}>${b.nama}</option>`).join('');
+    const opsi = BAHAN_OPTIONS.map(b => `<option value="${b.id}" data-satuan="${b.satuan}" data-harga="${b.harga}" data-info="${b.info}" data-habis="${b.habis ? 1 : 0}" ${data.item_id==b.id?'selected':''}>${b.nama}</option>`).join('');
     const tr = document.createElement('tr');
     tr.innerHTML = `
         <td><select name="resep[${idx}][item_id]" class="form-select form-select-sm" onchange="onBahanResepBerubah(this)">
@@ -379,13 +368,8 @@ function tambahBarisResep(data) {
         </select></td>
         <td><input type="number" step="0.001" min="0.001" name="resep[${idx}][qty_per_unit]" class="form-control form-control-sm qtyResep" value="${formatQtyInput(data.qty_per_unit)}" oninput="hitungPreviewBaris(this.closest('tr'))"></td>
         <td><input type="text" name="resep[${idx}][satuan]" class="form-control form-control-sm satuanResep" value="${data.satuan ?? ''}"></td>
-        <td class="text-center"><input type="checkbox" name="resep[${idx}][is_wajib]" value="1" ${(data.is_wajib ?? true) ? 'checked' : ''}></td>
         <td class="small hargaMasterPreview text-muted">—</td>
         <td class="small subtotalPreview fw-semibold">—</td>
-        <td><select name="resep[${idx}][mode_harga]" class="form-select form-select-sm">
-            <option value="gratis" ${(data.mode_harga??'gratis')=='gratis'?'selected':''}>Gratis</option>
-            <option value="pakai_master" ${data.mode_harga=='pakai_master'?'selected':''}>Pakai Master</option>
-        </select></td>
         <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="hapusBarisResep(this)"><i class="bi bi-x"></i></button></td>
     `;
     document.getElementById('bodyResep').appendChild(tr);
@@ -435,13 +419,18 @@ function hitungPreviewBaris(tr) {
     const satuan = opt.dataset.satuan || '';
     const qty = parseFloat(qtyInput?.value || '0');
 
+    const info = opt.dataset.info || '';
+    const habis = opt.dataset.habis === '1';
+    const infoHtml = info ? '<div class="' + (habis ? 'text-danger' : 'text-muted') + '" style="font-size:0.7rem">' + info + '</div>' : '';
+
     if (!harga) {
-        hargaCell.innerHTML = '<span class="text-danger">Rp 0 / ' + satuan + '</span>';
+        hargaCell.innerHTML = '<span class="text-danger">Rp 0 / ' + satuan + '</span>' + infoHtml;
         subtotalCell.textContent = '-';
+        hitungTotalHpp();
         return;
     }
 
-    hargaCell.textContent = formatRupiahPreview(harga) + ' / ' + satuan;
+    hargaCell.innerHTML = '<span class="' + (habis ? 'text-danger' : 'text-body') + '">' + formatRupiahPreview(harga) + ' / ' + satuan + '</span>' + infoHtml;
     subtotalCell.textContent = qty > 0 ? formatRupiahPreview(qty * harga) : '-';
     hitungTotalHpp();
 }
@@ -466,7 +455,7 @@ function hitungTotalHpp() {
 }
 
 // ===== Fitur Import dari Bumbu Pusat (2026-09-17) =====
-// Baris linked TIDAK pakai dropdown Bahan/Satuan/Mode Harga manual --
+// Baris linked TIDAK pakai dropdown Bahan/Satuan manual --
 // hidden input resep_bumbu_ref_id + qty_per_unit (jumlah porsi bumbu per 1
 // unit produk) saja. satuan dipaksa 'porsi' server-side (syncResep()).
 function tambahBarisResepLinked(bumbuId, bumbuNama, data) {
@@ -482,10 +471,8 @@ function tambahBarisResepLinked(bumbuId, bumbuNama, data) {
         </td>
         <td><input type="number" step="0.001" min="0.001" name="resep[${idx}][qty_per_unit]" class="form-control form-control-sm" value="${formatQtyInput(data.qty_per_unit ?? 1)}" title="Jumlah porsi bumbu per 1 unit produk" oninput="hitungSubtotalLinkedBaris(this.closest('tr'))"></td>
         <td class="text-muted small">porsi</td>
-        <td class="text-center"><input type="checkbox" name="resep[${idx}][is_wajib]" value="1" ${(data.is_wajib ?? true) ? 'checked' : ''}></td>
-        <td class="text-muted small">—</td>
-        <td class="small subtotalPreview fw-semibold text-muted">Menghitung...</td>
         <td class="text-muted small">Ikut Bumbu Pusat <x-tooltip key="master_produk_jual.baris_linked" /></td>
+        <td class="small subtotalPreview fw-semibold text-muted">Menghitung...</td>
         <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="hapusBarisResep(this)"><i class="bi bi-x"></i></button></td>
     `;
     document.getElementById('bodyResep').appendChild(tr);
@@ -542,7 +529,7 @@ let bumbuSearchTimeout = null;
 function cariBumbuPusat(search) {
     clearTimeout(bumbuSearchTimeout);
     bumbuSearchTimeout = setTimeout(() => {
-        fetch(BUMBU_PUSAT_LIST_URL + '?search=' + encodeURIComponent(search))
+        fetch(BUMBU_PUSAT_LIST_URL + (BUMBU_PUSAT_LIST_URL.includes('?') ? '&' : '?') + 'search=' + encodeURIComponent(search))
             .then(r => r.json())
             .then(data => {
                 const container = document.getElementById('listBumbuPusat');
@@ -581,14 +568,11 @@ function renderKartuBumbu(b, idx) {
     var idAcc = 'accBumbu_' + b.id;
     var badgeHpp = b.total_hpp > 0
         ? '<span class="badge bg-primary-subtle text-primary">Total HPP: ' + fmtRupiah(b.total_hpp) + '</span>'
-        : '<span class="badge bg-secondary-subtle text-secondary">Gratis</span>';
+        : '<span class="badge bg-secondary-subtle text-secondary">Total HPP: Rp 0</span>';
     var rows = (b.items || []).map(function (r) {
-        var subCell = r.mode_harga === 'pakai_master'
-            ? (r.subtotal > 0 ? fmtRupiah(r.subtotal) : '<span class="text-warning">harga beli belum diset</span>')
-            : '<span class="text-muted">Gratis</span>';
-        var hargaCell = r.mode_harga === 'pakai_master'
-            ? (r.harga_beli > 0 ? fmtRupiah(r.harga_beli) : '<span class="text-warning">—</span>')
-            : '<span class="text-muted">—</span>';
+        var subCell = r.subtotal > 0 ? fmtRupiah(r.subtotal) : '<span class="text-warning">harga belum ada</span>';
+        var hargaCell = (r.harga_beli > 0 ? '<span class="' + (r.habis ? 'text-danger' : '') + '">' + fmtRupiah(r.harga_beli) + '</span>' : '<span class="text-warning">—</span>')
+            + (r.harga_info ? '<div class="' + (r.habis ? 'text-danger' : 'text-muted') + '" style="font-size:.68rem">' + escHtml(r.harga_info) + '</div>' : '');
         return '<tr>'
             + '<td class="small">' + escHtml(r.nama_bahan) + '<div class="text-muted" style="font-size:.7rem">' + escHtml(r.kode_bahan) + '</div></td>'
             + '<td class="text-end small">' + fmtQtyKecil(r.qty) + ' ' + escHtml(r.satuan) + '</td>'
@@ -599,10 +583,10 @@ function renderKartuBumbu(b, idx) {
     var bodyDetail = rows
         ? '<table class="table table-sm mb-2"><thead><tr>'
             + '<th class="small">Bahan</th><th class="text-end small">Takaran</th>'
-            + '<th class="text-end small">Harga Standar</th><th class="text-end small">Subtotal</th>'
+            + '<th class="text-end small">Harga (FIFO)</th><th class="text-end small">Subtotal</th>'
             + '</tr></thead><tbody>' + rows + '</tbody></table>'
             + '<div class="d-flex justify-content-between align-items-center pt-1 border-top">'
-            + '<small class="text-muted"><i class="bi bi-info-circle me-1"></i>Preview per 1 unit produksi. HPP riil di POS pakai FIFO batch stok cabang.</small>'
+            + '<small class="text-muted"><i class="bi bi-info-circle me-1"></i>Preview per 1 unit produksi, harga FIFO stok cabang ini.</small>'
             + '<strong class="text-primary">Total HPP: ' + fmtRupiah(b.total_hpp) + '</strong>'
             + '</div>'
         : '<div class="text-center text-muted small py-2">Bumbu ini belum punya bahan.</div>';

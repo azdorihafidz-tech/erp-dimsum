@@ -20,6 +20,20 @@
             <div class="card-body">
                 <form method="POST" action="{{ route('master.resep-bumbu.store') }}">
                     @csrf
+                    {{-- 4.39 — Bumbu Pusat milik 1 cabang --}}
+                    <div class="small text-muted mb-3">
+                        <i class="bi bi-geo-alt-fill text-primary"></i>
+                        @if($cabangAktif)
+                            Milik cabang: <strong class="text-body">{{ $cabangAktif->nama_cabang }}</strong> (cabang yang dipilih di pojok kanan atas)
+                        @else
+                            Milik cabang:
+                            <select name="cabang_id" class="form-select form-select-sm d-inline-block w-auto">
+                                @foreach($pilihanCabang as $c)
+                                    <option value="{{ $c->id }}" @selected(old('cabang_id', $pilihanCabang->firstWhere('tipe', 'gudang_pusat')?->id) == $c->id)>{{ $c->nama_cabang }}</option>
+                                @endforeach
+                            </select>
+                        @endif
+                    </div>
                     <div class="row g-3">
                         <div class="col-12 col-md-8">
                             <label class="form-label fw-semibold">Nama Resep <span class="text-danger">*</span></label>

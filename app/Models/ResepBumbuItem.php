@@ -98,13 +98,12 @@ class ResepBumbuItem extends Model
 
     /**
      * Preview harga (display-only, TIDAK disimpan ke DB) — total biaya bahan
-     * ini per 1 unit produksi kalau mode_harga = pakai_master. Gratis = 0.
+     * ini per 1 unit produksi (Harga Standar). Semua bahan dihitung — Mode
+     * Harga tidak dipakai lagi (CLAUDE.md 4.39); halaman Bumbu Pusat memakai
+     * harga FIFO dari HargaResepService.
      */
     public function getTotalHargaMasterAttribute(): float
     {
-        if ($this->mode_harga !== 'pakai_master') {
-            return 0.0;
-        }
         // Sprint 4.31 (2026-09-29): fix — dulu pakai harga_jual, bug krn bahan_baku
         // tidak punya harga_jual (field itu utk produk_jual). Sekarang pakai
         // harga_beli_terakhir (HPP/modal), konsisten dgn hitungSubtotalBumbuTunggal()

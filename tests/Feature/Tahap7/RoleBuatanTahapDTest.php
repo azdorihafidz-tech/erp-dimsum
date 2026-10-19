@@ -102,6 +102,8 @@ class RoleBuatanTahapDTest extends TestCase
         $kru = $this->buatRole('Kru Gudang');
         $this->beriHak($kru->kode, ['master.bahan_baku.view', 'master.bahan_baku.create']);
         $user = User::factory()->create(['role' => $kru->kode, 'is_active' => true]);
+        // 4.39 — barang baru milik cabang user (role cabang wajib terhubung ke cabang)
+        $user->cabangs()->attach(Cabang::where('tipe', 'cabang')->orderBy('id')->value('id'), ['is_default' => true]);
 
         $this->actingAs($user->fresh())->post(route('master.bahan-baku.store'), [
             'kode_item' => 'KRU-' . uniqid(), 'nama_item' => 'Bahan Kru', 'tipe' => 'bahan_baku', 'satuan' => 'pcs', 'is_active' => 1,

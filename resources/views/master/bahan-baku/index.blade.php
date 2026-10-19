@@ -16,6 +16,8 @@
     </div>
 </div>
 
+<x-info-cabang-aktif :cabang="$cabangAktif" />
+
 <div class="row g-2 mb-3">
     <div class="col-6 col-md-3">
         <div class="card border-0 shadow-sm"><div class="card-body py-2 px-3">
@@ -46,7 +48,6 @@
 <div class="card mb-3">
     <div class="card-body py-2">
         <form method="GET" class="row g-2 align-items-end">
-            @if(request()->has('cabang_id'))<input type="hidden" name="cabang_id" value="{{ request('cabang_id') }}">@endif
             <x-search-box placeholder="Nama / kode item..." col="col-12 col-sm-6 col-md-3" />
             <div class="col-6 col-md-2">
                 <select name="tipe" class="form-select form-select-sm">
@@ -78,8 +79,6 @@
     </div>
 </div>
 
-<x-lihat-outlet :outlet="$outletLihat" :pilihan="$pilihanOutlet" :boleh-umum="$bolehUmum" />
-
 <div class="card">
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -87,12 +86,10 @@
                 <thead>
                     <tr>
                         <th>Kode</th><th>Nama</th><th>Tipe</th><th>Kategori</th>
-                        @if($outletLihat)
-                        <th class="text-end">Harga Beli di {{ $outletLihat->nama_cabang }}</th><th class="text-end">Stok / Min</th>
-                        @else
+                        @unless($cabangAktif)<th>Cabang</th>@endunless
                         <th class="text-end">Harga Standar</th>
-                        @endif
-                        <th class="text-end">PO Terakhir</th><th class="text-center">Status</th><th class="text-end">Aksi</th>
+                        <th class="text-end">PO Terakhir</th>
+                        <th class="text-end">Stok / Min</th><th class="text-center">Status</th><th class="text-end">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -102,15 +99,11 @@
                         <td>{{ $item->nama_item }}</td>
                         <td><span class="badge bg-light text-dark">{{ $tipes[$item->tipe] ?? $item->tipe }}</span></td>
                         <td>{{ $item->category?->nama_kategori ?? '-' }}</td>
-                        @if($outletLihat)
-                            @php $hargaKhusus = $item->itemCabang->firstWhere('cabang_id', $outletLihat->id)?->harga_beli; $st = $stokOutlet->get($item->id); @endphp
-                            <td class="text-end">Rp {{ number_format($item->hargaBeliDiCabang($outletLihat->id), 0, ',', '.') }}<div class="small text-muted">/ {{ $item->satuan }}@if($hargaKhusus === null) · ikut standar @endif</div></td>
-                            <td class="text-end small {{ $st && (float) $st->qty_minimum > 0 && (float) $st->qty <= (float) $st->qty_minimum ? 'text-danger fw-semibold' : '' }}">{{ $st ? fmt_qty($st->qty) : '0' }}<div class="text-muted">min {{ fmt_qty($st?->qty_minimum ?? $item->qty_minimum ?? 0) }}</div></td>
-                        @else
-                            @php $bedaOutlet = $item->itemCabang->whereNotNull('harga_beli')->count(); @endphp
-                            <td class="text-end">Rp {{ number_format($item->harga_beli_terakhir ?? 0, 0, ',', '.') }}<div class="small text-muted">/ {{ $item->satuan }}</div>@if($bedaOutlet)<div class="small text-warning-emphasis">beda di {{ $bedaOutlet }} outlet</div>@endif</td>
-                        @endif
+                        @unless($cabangAktif)<td class="small">{{ $item->cabang?->nama_cabang ?? '— belum dipecah' }}</td>@endunless
+                        @php $st = $stok->get($item->id); @endphp
+                        <td class="text-end">Rp {{ number_format($item->harga_beli_terakhir ?? 0, 0, ',', '.') }}<div class="small text-muted">/ {{ $item->satuan }}</div></td>
                         <td class="text-end small">@if($item->harga_po_terakhir !== null)Rp {{ number_format((float) $item->harga_po_terakhir, 0, ',', '.') }}<div class="text-muted">{{ $item->harga_po_terakhir_at?->format('d/m/Y') }}</div>@else<span class="text-muted">—</span>@endif</td>
+                        <td class="text-end small {{ $st && (float) $st->qty_minimum > 0 && (float) $st->qty <= (float) $st->qty_minimum ? 'text-danger fw-semibold' : '' }}">{{ $st ? fmt_qty($st->qty) : '0' }}<div class="text-muted">min {{ fmt_qty($st?->qty_minimum ?? $item->qty_minimum ?? 0) }}</div></td>
                         <td class="text-center">
                             <span class="badge {{ $item->is_active ? 'bg-success' : 'bg-secondary' }}">
                                 {{ $item->is_active ? 'Aktif' : 'Nonaktif' }}
@@ -120,7 +113,6 @@
                             <div class="btn-group btn-group-sm">
                                 @can('master.bahan_baku.edit')
                                 <a href="{{ route('master.bahan-baku.edit', $item) }}" class="btn btn-outline-warning" title="Ubah Data Barang"><i class="bi bi-pencil"></i></a>
-                                <a href="{{ route('master.bahan-baku.outlet', [$item, 'cabang_id' => $outletLihat?->id]) }}" class="btn btn-outline-primary" title="Harga &amp; Stok per Outlet"><i class="bi bi-shop"></i> Harga Outlet</a>
                                 @endcan
                                 @can('master.bahan_baku.delete')
                                 <button type="button" class="btn btn-outline-danger"
@@ -135,7 +127,7 @@
                         </td>
                     </tr>
                     @empty
-                    <tr><td colspan="{{ $outletLihat ? 9 : 8 }}" class="text-center text-muted py-4">Belum ada data</td></tr>
+                    <tr><td colspan="{{ $cabangAktif ? 9 : 10 }}" class="text-center text-muted py-4">Belum ada data</td></tr>
                     @endforelse
                 </tbody>
             </table>

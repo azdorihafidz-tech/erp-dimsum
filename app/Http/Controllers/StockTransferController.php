@@ -68,7 +68,8 @@ class StockTransferController extends Controller
         // Sprint 4.33 — filter 3 tipe yang dibeli/dipindah antar cabang.
         // produk_jual/produk_tambahan dibuat on-demand di tiap cabang via resep,
         // tidak di-transfer antar cabang.
-        $items        = Item::aktif()->dapatDibeli()->with('category')->orderBy('nama_item')->get();
+        // 4.39 — barang milik cabang aktif (pengirim); di cabang tujuan dipasangkan lewat Kode Item
+        $items        = Item::aktif()->dapatDibeli()->milikCabang(\App\Support\CabangAktif::id())->with('category', 'cabang')->orderBy('nama_item')->get();
         $stockRequest = null;
         $prefillItems = [];
         $defaultDariLokasiId = null;

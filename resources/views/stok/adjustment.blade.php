@@ -100,7 +100,7 @@
                                     data-unit-beli="{{ $it->unit_beli }}"
                                     data-isi-per-unit="{{ $it->isi_per_unit_beli }}"
                                     {{ old('item_id', request('item_id')) == $it->id ? 'selected' : '' }}>
-                                    [{{ $it->kode_item }}] {{ $it->nama_item }}
+                                    [{{ $it->kode_item }}] {{ $it->nama_dengan_cabang }}
                                 </option>
                                 @endforeach
                             </optgroup>

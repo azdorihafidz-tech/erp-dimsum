@@ -93,32 +93,6 @@ class HargaTahapATest extends TestCase
 
     // ===== Poin 2: harga beli per outlet =====
 
-    public function test_simpan_harga_beli_per_outlet_dan_kosongkan(): void
-    {
-        $admin = $this->buatUser('admin_pusat');
-        $a = $this->cabang('Outlet HTA A');
-        $b = $this->cabang('Outlet HTA B');
-        $payload = [
-            'kode_item' => 'HTA-BB-' . uniqid(), 'nama_item' => 'Gula HTA', 'tipe' => 'bahan_baku', 'satuan' => 'pcs',
-            'harga_beli_terakhir' => '100', 'is_active' => 1, 'track_stok' => 1,
-            'harga_cabang' => [$a->id => '150', $b->id => ''],
-        ];
-
-        $this->actingAs($admin)->post(route('master.bahan-baku.store'), $payload)->assertRedirect();
-        $item = Item::where('kode_item', strtoupper($payload['kode_item']))->firstOrFail();
-
-        $this->assertEquals(150, $item->hargaBeliDiCabang($a->id));
-        $this->assertEquals(100, $item->hargaBeliDiCabang($b->id), 'kosong = Harga Standar');
-        $this->assertFalse(ItemCabang::where('item_id', $item->id)->where('cabang_id', $b->id)->exists());
-        $this->assertTrue((bool) ItemCabang::where('item_id', $item->id)->where('cabang_id', $a->id)->value('is_active'));
-
-        $payload['harga_cabang'] = [$a->id => '', $b->id => '140'];
-        $this->actingAs($admin)->put(route('master.bahan-baku.update', $item), $payload)->assertRedirect();
-        $item->refresh()->load('itemCabang');
-        $this->assertEquals(100, $item->hargaBeliDiCabang($a->id));
-        $this->assertEquals(140, $item->hargaBeliDiCabang($b->id));
-    }
-
     public function test_form_bahan_baku_tampil_harga_standar_po_terakhir_dan_outlet(): void
     {
         $this->seed(Perbaikan438PanduanSeeder::class);

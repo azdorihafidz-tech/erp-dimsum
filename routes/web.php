@@ -165,9 +165,6 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
         Route::post('/', [\App\Http\Controllers\MasterBahanBakuController::class, 'store'])->name('store')->middleware('can:master.bahan_baku.create');
         Route::get('/{bahanBaku}/edit', [\App\Http\Controllers\MasterBahanBakuController::class, 'edit'])->name('edit')->middleware('can:master.bahan_baku.edit');
         Route::put('/{bahanBaku}', [\App\Http\Controllers\MasterBahanBakuController::class, 'update'])->name('update')->middleware('can:master.bahan_baku.edit');
-        // 4.38-F — harga & stok per outlet (1 outlet per tampilan)
-        Route::get('/{bahanBaku}/outlet', [\App\Http\Controllers\MasterBahanBakuController::class, 'outlet'])->name('outlet')->middleware('can:master.bahan_baku.edit');
-        Route::put('/{bahanBaku}/outlet', [\App\Http\Controllers\MasterBahanBakuController::class, 'updateOutlet'])->name('outlet.update')->middleware('can:master.bahan_baku.edit');
         Route::delete('/{bahanBaku}', [\App\Http\Controllers\MasterBahanBakuController::class, 'destroy'])->name('destroy')->middleware('can:master.bahan_baku.delete');
     });
 
@@ -184,9 +181,6 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
         Route::post('/', [\App\Http\Controllers\MasterProdukJualController::class, 'store'])->name('store')->middleware('can:master.produk_jual.create');
         Route::get('/{produkJual}/edit', [\App\Http\Controllers\MasterProdukJualController::class, 'edit'])->name('edit')->middleware('can:master.produk_jual.edit');
         Route::put('/{produkJual}', [\App\Http\Controllers\MasterProdukJualController::class, 'update'])->name('update')->middleware('can:master.produk_jual.edit');
-        // 4.38-F — harga per outlet (1 outlet per tampilan)
-        Route::get('/{produkJual}/outlet', [\App\Http\Controllers\MasterProdukJualController::class, 'outlet'])->name('outlet')->middleware('can:master.produk_jual.edit');
-        Route::put('/{produkJual}/outlet', [\App\Http\Controllers\MasterProdukJualController::class, 'updateOutlet'])->name('outlet.update')->middleware('can:master.produk_jual.edit');
         Route::delete('/{produkJual}', [\App\Http\Controllers\MasterProdukJualController::class, 'destroy'])->name('destroy')->middleware('can:master.produk_jual.delete');
         Route::match(['get', 'post'], '/{produkJual}/kalkulator-resep', [\App\Http\Controllers\MasterProdukJualController::class, 'kalkulatorResep'])->name('kalkulator-resep')->middleware('can:master.produk_jual.view');
     });

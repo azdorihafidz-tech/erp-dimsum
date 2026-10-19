@@ -272,6 +272,11 @@ class PenjualanService
             $masterItem = ! empty($row['item_id']) ? Item::find((int) $row['item_id']) : null;
             $variant = ! empty($row['item_variant_id']) ? ItemVariant::find((int) $row['item_variant_id']) : null;
 
+            // 4.39 — barang milik cabang lain tidak boleh dijual di cabang ini
+            if ($masterItem && $cabangId && $masterItem->cabang_id !== null && (int) $masterItem->cabang_id !== (int) $cabangId) {
+                throw new \Exception("Item '{$masterItem->nama_item}' bukan milik cabang ini. Muat ulang halaman POS.");
+            }
+
             $hargaSatuan = (float) $row['harga_satuan'];
             if ($variant && $variant->item_id === $masterItem?->id) {
                 // Harga varian ikut harga outlet bila varian tanpa harga khusus (4.38)

@@ -16,12 +16,11 @@
     </div>
 </div>
 
-<x-lihat-outlet :outlet="$outletLihat" :pilihan="$pilihanOutlet" :boleh-umum="$bolehUmum" />
+<x-info-cabang-aktif :cabang="$cabangAktif" />
 
 <div class="card mb-3">
     <div class="card-body py-2">
         <form method="GET" class="row g-2 align-items-end">
-            @if(request()->has('cabang_id'))<input type="hidden" name="cabang_id" value="{{ request('cabang_id') }}">@endif
             <x-search-box placeholder="Nama / kode produk..." col="col-12 col-sm-6 col-md-4" />
             <div class="col-6 col-md-3">
                 <select name="kategori" class="form-select form-select-sm">
@@ -59,27 +58,16 @@
             <div class="card-body p-2">
                 <div class="fw-semibold small">{{ $item->nama_item }}</div>
                 <div class="text-muted" style="font-size:0.75rem">{{ $item->kode_item }} · {{ $item->category?->nama_kategori ?? '-' }}</div>
-                @if($outletLihat)
-                    @php $dijualDiSini = $item->tersediaDiCabang($outletLihat->id); $hargaSini = $item->hargaEfektifDiCabang($outletLihat->id); @endphp
-                    <div class="fw-bold text-success mt-1">Rp {{ number_format($hargaSini, 0, ',', '.') }}</div>
-                    @if($hargaSini != (float) $item->harga_jual)
-                        <div class="text-muted" style="font-size:0.7rem">Harga umum Rp {{ number_format($item->harga_jual ?? 0, 0, ',', '.') }}</div>
-                    @endif
-                @else
-                    @php $bedaOutlet = $item->itemCabang->whereNotNull('harga_override')->where('is_active', true)->count(); @endphp
-                    <div class="fw-bold text-success mt-1">Rp {{ number_format($item->harga_jual ?? 0, 0, ',', '.') }} <span class="text-muted fw-normal" style="font-size:0.7rem">umum</span></div>
-                    @if($bedaOutlet)<div class="text-warning-emphasis" style="font-size:0.7rem"><i class="bi bi-info-circle"></i> Harga beda di {{ $bedaOutlet }} outlet</div>@endif
-                @endif
+                <div class="fw-bold text-success mt-1">Rp {{ number_format($item->harga_jual ?? 0, 0, ',', '.') }}</div>
+                @unless($cabangAktif)<div class="text-muted" style="font-size:0.72rem"><i class="bi bi-geo-alt"></i> {{ $item->cabang?->nama_cabang ?? 'Semua cabang (data lama)' }}</div>@endunless
                 <div class="d-flex gap-1 flex-wrap mt-1">
-                    @if($outletLihat && ! $dijualDiSini)<span class="badge bg-danger-subtle text-danger-emphasis" style="font-size:0.65rem">Tidak dijual di {{ $outletLihat->nama_cabang }}</span>@endif
                     @if($item->punya_varian)<span class="badge bg-info-subtle text-info" style="font-size:0.65rem">Varian</span>@endif
                     <span class="badge {{ $item->is_active ? 'bg-success' : 'bg-secondary' }}" style="font-size:0.65rem">{{ $item->is_active ? 'Aktif' : 'Nonaktif' }}</span>
                 </div>
             </div>
             <div class="card-footer p-2 d-flex gap-1">
                 @can('master.produk_jual.edit')
-                <a href="{{ route('master.produk-jual.edit', $item) }}" class="btn btn-sm btn-outline-warning" title="Ubah Data Produk"><i class="bi bi-pencil"></i></a>
-                <a href="{{ route('master.produk-jual.outlet', [$item, 'cabang_id' => $outletLihat?->id]) }}" class="btn btn-sm btn-outline-primary flex-fill" title="Harga per Outlet"><i class="bi bi-shop"></i> Harga Outlet</a>
+                <a href="{{ route('master.produk-jual.edit', $item) }}" class="btn btn-sm btn-outline-warning flex-fill"><i class="bi bi-pencil"></i></a>
                 @endcan
                 @can('master.produk_jual.delete')
                 <button type="button" class="btn btn-sm btn-outline-danger"

@@ -77,10 +77,10 @@ class MasterBumbuHargaBeliTest extends TestCase
         $response = $this->actingAs($owner)->get(route('master.resep-bumbu.edit', $bumbu));
 
         $response->assertOk();
-        $response->assertSee('<th class="text-end">Harga Standar</th>', false);
+        $response->assertSee('<th class="text-end">Harga (FIFO)</th>', false); // 4.39 — harga FIFO, fallback Harga Standar
         $response->assertSee('<th class="text-end">Subtotal</th>', false);
         $response->assertSee('data-harga-beli', false);
-        $response->assertSee('Harga Standar</strong> di Master Bahan Baku', false); // caption (label diganti 4.38)
+        $response->assertSee('<strong>FIFO</strong>', false); // caption (4.39)
         $response->assertDontSee('data-harga-jual', false);
         // 2 kg × 50.000 = 100.000
         $response->assertSee('Rp 100.000');
@@ -129,10 +129,11 @@ class MasterBumbuHargaBeliTest extends TestCase
         $bahanA = collect($row['items'])->firstWhere('nama_bahan', 'Bahan A');
         $this->assertEqualsWithDelta(30000, $bahanA['harga_beli'], 0.01);
         $this->assertEqualsWithDelta(15000, $bahanA['subtotal'], 0.01); // 0.5 × 30k
-        $this->assertEquals('pakai_master', $bahanA['mode_harga']);
+        $this->assertArrayNotHasKey('mode_harga', $bahanA); // 4.39 — Mode Harga dihapus
     }
 
-    public function test_list_bumbu_pusat_bahan_mode_gratis_subtotal_nol(): void
+    // 4.39 — Mode Harga dihapus: bahan yang dulu "gratis" sekarang tetap dihitung ke HPP
+    public function test_list_bumbu_pusat_bahan_mode_gratis_lama_tetap_dihitung(): void
     {
         $owner = $this->buatUser('owner');
         $b = $this->bahan(['harga_beli_terakhir' => 50000]);
@@ -145,8 +146,8 @@ class MasterBumbuHargaBeliTest extends TestCase
 
         $response = $this->actingAs($owner)->getJson(route('master.produk-jual.bumbu-pusat.list', ['search' => 'Bumbu Test']));
         $row = collect($response->json('data'))->firstWhere('id', $bumbu->id);
-        $this->assertEqualsWithDelta(0, $row['total_hpp'], 0.01);
-        $this->assertEqualsWithDelta(0, $row['items'][0]['subtotal'], 0.01);
+        $this->assertEqualsWithDelta(100000, $row['total_hpp'], 0.01); // 2 kg × 50.000
+        $this->assertEqualsWithDelta(100000, $row['items'][0]['subtotal'], 0.01);
     }
 
     public function test_modal_picker_import_bumbu_pusat_render_dengan_js_accordion(): void

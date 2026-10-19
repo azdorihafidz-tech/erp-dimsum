@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\CabangAktif;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -19,6 +20,17 @@ class ProdukJualRequest extends FormRequest
             || ($this->user()?->role instanceof \App\Support\CustomRoleValue && $this->user()->can($this->isMethod('post') ? 'master.produk_jual.create' : 'master.produk_jual.edit'));
     }
 
+    /** Cabang pemilik produk (CLAUDE.md 4.39): edit = cabang produk; tambah = cabang aktif / pilihan form. */
+    public function cabangPemilik(): ?int
+    {
+        $item = $this->route('produkJual');
+        if ($item) {
+            return $item->cabang_id;
+        }
+
+        return CabangAktif::pemilikBaru($this->filled('cabang_id') ? (int) $this->input('cabang_id') : null);
+    }
+
     protected function prepareForValidation(): void
     {
         $this->merge([
@@ -29,9 +41,13 @@ class ProdukJualRequest extends FormRequest
     public function rules(): array
     {
         $itemId = $this->route('produkJual')?->id;
+        $cabangId = $this->cabangPemilik();
 
         return [
-            'kode_item'        => ['required', 'string', 'max:30', Rule::unique('items', 'kode_item')->ignore($itemId)],
+            'cabang_id'        => ['nullable', 'integer'],
+            // Kode unik per cabang (4.39)
+            'kode_item'        => ['required', 'string', 'max:30', Rule::unique('items', 'kode_item')->ignore($itemId)
+                ->where(fn ($q) => $cabangId ? $q->where(fn ($w) => $w->where('cabang_id', $cabangId)->orWhereNull('cabang_id')) : $q)],
             'nama_item'        => ['required', 'string', 'max:150'],
             'item_category_id' => ['nullable', 'exists:item_categories,id'],
             'tipe'             => ['required', Rule::in(['produk_jual', 'produk_tambahan'])],
@@ -65,11 +81,6 @@ class ProdukJualRequest extends FormRequest
             'harga_override'        => ['nullable', 'array'],
             'harga_override.*'      => ['nullable', 'numeric', 'min:0'],
 
-            // Ketersediaan per outlet
-            'cabang_aktif'          => ['nullable', 'array'],
-            'cabang_aktif.*'        => ['nullable', 'exists:cabangs,id'],
-            'cabang_harga'          => ['nullable', 'array'],
-            'cabang_harga.*'        => ['nullable', 'numeric', 'min:0'],
         ];
     }
 

@@ -135,7 +135,7 @@
                     <option value="">— Pilih Item —</option>
                     @foreach($items as $it)
                     <option value="{{ $it->id }}" data-satuan="{{ $it->satuan }}">
-                        [{{ $it->kode_item }}] {{ $it->nama_item }}
+                        [{{ $it->kode_item }}] {{ $it->nama_dengan_cabang }}
                     </option>
                     @endforeach
                 </select>

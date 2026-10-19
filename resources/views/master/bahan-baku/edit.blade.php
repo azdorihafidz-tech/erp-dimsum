@@ -19,6 +19,7 @@
 @method('PUT')
 <div class="row g-4">
     <div class="col-12 col-lg-8">
+        <div class="small text-muted mb-2"><i class="bi bi-geo-alt-fill text-primary"></i> Milik cabang: <strong class="text-body">{{ $item->cabang?->nama_cabang ?? 'Semua cabang (data lama)' }}</strong></div>
         <div class="card mb-3">
             <div class="card-header fw-semibold">Informasi Dasar</div>
             <div class="card-body">
@@ -103,19 +104,15 @@
         <x-unit-beli-section :unitBeli="$item->unit_beli" :isiPerUnitBeli="$item->isi_per_unit_beli" />
 
         <div class="card mb-3">
-            <div class="card-header fw-semibold">Harga Standar &amp; Qty Minimum Awal <span class="text-muted small fw-normal">(berlaku untuk semua outlet yang tidak diatur sendiri)</span></div>
+            <div class="card-header fw-semibold">Harga &amp; Stok</div>
             <div class="card-body">
-                <x-harga-standar-section :item="$item" :cabang-list="$cabangList" />
+                <x-harga-standar-section :item="$item" />
                 <div class="row g-3 mt-1">
                     <div class="col-12 col-md-6">
-                        <label class="form-label small fw-semibold">Qty Minimum Awal <x-tooltip key="master_bahan_baku.qty_minimum_awal" /></label>
+                        <label class="form-label small fw-semibold">Qty Minimum <x-tooltip key="master_bahan_baku.qty_minimum_cabang" /></label>
                         <input type="number" name="qty_minimum" class="form-control" min="0" step="0.001" value="{{ old('qty_minimum', $item->qty_minimum) }}">
+                        <div class="form-text">Muncul peringatan "stok menipis" kalau stok sama atau di bawah angka ini. 0 = tanpa peringatan.</div>
                     </div>
-                </div>
-                <div class="alert alert-light border small mt-3 mb-0 d-flex flex-wrap align-items-center gap-2">
-                    <i class="bi bi-shop"></i>
-                    <span>Harga beli &amp; Qty Minimum yang <strong>berbeda per outlet</strong> diatur di halaman tersendiri.</span>
-                    <a href="{{ route('master.bahan-baku.outlet', $item) }}" class="btn btn-sm btn-outline-primary ms-auto"><i class="bi bi-shop me-1"></i>Atur Harga &amp; Stok per Outlet</a>
                 </div>
             </div>
         </div>

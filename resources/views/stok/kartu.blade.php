@@ -50,7 +50,7 @@
                 <option value="">— Pilih Item —</option>
                 @foreach($items as $item)
                 <option value="{{ $item->id }}" {{ request('item_id') == $item->id ? 'selected' : '' }}>
-                    [{{ $item->kode_item }}] {{ $item->nama_item }}
+                    [{{ $item->kode_item }}] {{ $item->nama_dengan_cabang }}
                 </option>
                 @endforeach
             </select>

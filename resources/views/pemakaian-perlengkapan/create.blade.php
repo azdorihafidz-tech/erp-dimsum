@@ -35,7 +35,7 @@
                                 <option value="">-- Pilih Item Perlengkapan --</option>
                                 @foreach($items as $item)
                                 <option value="{{ $item->id }}" {{ old('item_id') == $item->id ? 'selected' : '' }}>
-                                    {{ $item->nama_item }} ({{ $item->satuan }})
+                                    {{ $item->nama_dengan_cabang }} ({{ $item->satuan }})
                                 </option>
                                 @endforeach
                             </select>

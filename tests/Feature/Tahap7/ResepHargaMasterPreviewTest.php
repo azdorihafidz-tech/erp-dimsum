@@ -39,9 +39,9 @@ class ResepHargaMasterPreviewTest extends TestCase
         $response = $this->actingAs($admin)->get('/master/produk-jual/create');
 
         $response->assertOk();
-        $response->assertSee('Harga Master', false);
+        $response->assertSee('Harga Bahan', false); // 4.39 — harga FIFO
         $response->assertSee('Subtotal', false);
-        $response->assertSee('Mode Harga', false); // rename dari "Harga" biar tidak rancu
+        $response->assertDontSee('name="resep[${idx}][mode_harga]"', false); // 4.39 — Mode Harga dihapus
     }
 
     public function test_kolom_harga_master_dan_subtotal_tampil_di_form_edit(): void
@@ -64,7 +64,7 @@ class ResepHargaMasterPreviewTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('alert-warning', false);
-        $response->assertSee('belum ada konversi satuan otomatis', false);
+        $response->assertSee('tanpa konversi satuan', false);
         $response->assertSee(route('master.bahan-baku.index'), false);
     }
 

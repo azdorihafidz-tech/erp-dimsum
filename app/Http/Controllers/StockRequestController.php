@@ -73,7 +73,8 @@ class StockRequestController extends Controller
 
         // Sprint 4.33 — filter tipe barang yang bisa di-request antar cabang
         // (sama pola PO & Transfer: bahan baku + kemasan + tambahan gratis).
-        $items = Item::aktif()->dapatDibeli()->with('category')->orderBy('nama_item')->get();
+        // 4.39 — barang milik cabang peminta (cabang aktif)
+        $items = Item::aktif()->dapatDibeli()->milikCabang(\App\Support\CabangAktif::id())->with('category', 'cabang')->orderBy('nama_item')->get();
         return view('stok.request.create', compact('items'));
     }
 

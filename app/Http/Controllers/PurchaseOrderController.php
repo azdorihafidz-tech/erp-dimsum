@@ -31,10 +31,10 @@ class PurchaseOrderController extends Controller
         $authUser = auth()->user();
         $query = PurchaseOrder::with(['supplier', 'cabang']);
 
-        // Filter per cabang jika bukan owner/admin_pusat
-        if (!$authUser->canAccessAllBranches()) {
-            $cabangId = session('cabang_aktif_id') ?? $authUser->defaultCabangId();
-            $query->where('cabang_id', $cabangId);
+        // 4.39 — ikut cabang aktif di header (dulu membaca kunci sesi yang salah
+        // 'cabang_aktif_id' sehingga selalu jatuh ke cabang default)
+        if ($cabangAktifId = \App\Support\CabangAktif::id()) {
+            $query->where('cabang_id', $cabangAktifId);
         } elseif ($request->filled('cabang_id')) {
             $query->where('cabang_id', $request->cabang_id);
         }
@@ -113,7 +113,9 @@ class PurchaseOrderController extends Controller
 
         // Cabang aktif saat ini
         $authUser    = auth()->user();
-        $cabangAktif = session('active_cabang_id') ?? $authUser->defaultCabangId();
+        $cabangAktif = \App\Support\CabangAktif::id() ?? $authUser->defaultCabangId();
+        // 4.39 — lokasi tujuan hanya cabang yang boleh diakses
+        $cabangs = \App\Support\CabangAktif::pilihan();
 
         // Sprint 4.33 — HANYA tampilkan tipe yang genuinely dibeli dari supplier
         // (bahan_baku + kemasan + tambahan_gratis). produk_jual/produk_tambahan
@@ -121,6 +123,8 @@ class PurchaseOrderController extends Controller
         // Tahap C 4.38 — produk jual/tambahan ikut dimuat, tapi di form hanya
         // muncul kalau supplier-nya internal (lokasi kita, mis. Gudang Pusat)
         // dan produk itu dijual di lokasi tsb (lihat JS itemsUntukSupplier).
+        // 4.39 — barang milik cabang-cabang yang boleh diakses (+ produk lokasi supplier internal);
+        // form memfilter per Lokasi Tujuan / supplier internal.
         $items = Item::where('is_active', true)
             ->whereIn('tipe', array_merge(Item::TIPE_DAPAT_DIBELI, Item::TIPE_PRODUK_INTERNAL))
             ->with(['stocks.lokasi', 'itemCabang'])
@@ -148,7 +152,8 @@ class PurchaseOrderController extends Controller
         $authUser = auth()->user();
 
         $cabangId = $request->input('cabang_id')
-            ?: (session('cabang_aktif_id') ?? $authUser->defaultCabangId());
+            ?: (\App\Support\CabangAktif::id() ?? $authUser->defaultCabangId());
+        abort_unless(\App\Support\CabangAktif::bolehAkses((int) $cabangId), 403);
 
         // Sprint Unit Family (2026-09-27): kalau unit_input = unit_beli item,
         // konversi qty & harga ke unit pakai (satuan) SEBELUM disimpan supaya
@@ -166,6 +171,12 @@ class PurchaseOrderController extends Controller
             $produkInternalOk = $supplierInternal
                 && in_array($it->tipe, Item::TIPE_PRODUK_INTERNAL, true)
                 && $it->tersediaDiCabang((int) $supplierInternal);
+            // 4.39 — barang biasa harus milik cabang tujuan PO
+            if (!$produkInternalOk && $it->cabang_id !== null && (int) $it->cabang_id !== (int) $cabangId) {
+                return back()->withInput()->withErrors([
+                    'items' => "Item '{$it->nama_item}' bukan milik cabang tujuan PO ini.",
+                ]);
+            }
             if (!$produkInternalOk && !in_array($it->tipe, Item::TIPE_DAPAT_DIBELI, true)) {
                 return back()->withInput()->withErrors([
                     'items' => "Item '{$it->nama_item}' bertipe '{$it->tipe}' tidak bisa dibeli lewat PO. Hanya bahan baku, kemasan, dan tambahan gratis yang dibeli dari supplier.",
