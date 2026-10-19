@@ -20,6 +20,7 @@ class Item extends Model
     ];
 
     protected $fillable = [
+        'cabang_id',
         'kode_item',
         'nama_item',
         'item_category_id',
@@ -81,6 +82,21 @@ class Item extends Model
             return $qty * (float) $this->isi_per_unit_beli;
         }
         return $qty;
+    }
+
+    /** Pemilik cabang barang (CLAUDE.md 4.39 — data terpisah per cabang). */
+    public function cabang()
+    {
+        return $this->belongsTo(Cabang::class);
+    }
+
+    /** Barang milik 1 cabang. null = semua cabang (mode "Semua Cabang"). */
+    public function scopeMilikCabang($query, ?int $cabangId)
+    {
+        // cabang_id NULL = data lama belum dipecah → tampil di semua cabang (pengaman)
+        return $cabangId
+            ? $query->where(fn ($q) => $q->where($this->getTable() . '.cabang_id', $cabangId)->orWhereNull($this->getTable() . '.cabang_id'))
+            : $query;
     }
 
     public function category()

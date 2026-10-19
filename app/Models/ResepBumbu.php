@@ -9,6 +9,7 @@ class ResepBumbu extends Model
     protected $table = 'resep_bumbu';
 
     protected $fillable = [
+        'cabang_id',
         'nama',
         'kode',
         'jenis_olahan_id',
@@ -34,6 +35,20 @@ class ResepBumbu extends Model
     public function jenisOlahan()
     {
         return $this->belongsTo(JenisOlahan::class, 'jenis_olahan_id');
+    }
+
+    /** Pemilik cabang resep / Bumbu Pusat (CLAUDE.md 4.39). */
+    public function cabang()
+    {
+        return $this->belongsTo(Cabang::class);
+    }
+
+    public function scopeMilikCabang($query, ?int $cabangId)
+    {
+        // cabang_id NULL = data lama belum dipecah → tampil di semua cabang (pengaman)
+        return $cabangId
+            ? $query->where(fn ($q) => $q->where($this->getTable() . '.cabang_id', $cabangId)->orWhereNull($this->getTable() . '.cabang_id'))
+            : $query;
     }
 
     public function item()
