@@ -18,12 +18,10 @@ use Tests\Feature\Tahap25\Concerns\CreatesTahap25Users;
 use Tests\TestCase;
 
 /**
- * Tahap E+F (CLAUDE.md 4.38-E/F, 2026-10-19) — harga & stok per outlet:
- * daftar Bahan Baku/Produk Jual selalu menyebut lokasi harganya, halaman
- * Harga Outlet (1 outlet per tampilan), salin pengaturan saat tambah cabang,
- * plus audit menu stok (qty minimum per lokasi, harga outlet di adjustment).
+ * Audit menu stok (Qty Minimum per lokasi, harga adjustment), salin cabang
+ * untuk data lama, dan panduan pemisahan data per cabang (CLAUDE.md 4.38/4.39).
  */
-class HargaPerOutletTahapFTest extends TestCase
+class StokMinimumDanSalinCabangTest extends TestCase
 {
     use DatabaseTransactions;
     use CreatesTahap25Users;
@@ -127,14 +125,18 @@ class HargaPerOutletTahapFTest extends TestCase
             ->assertOk()->assertJsonPath('harga_beli_terakhir', 140);
     }
 
-    public function test_panduan_dan_tooltip_tahap_f(): void
+    public function test_panduan_dan_tooltip_data_per_cabang(): void
     {
         $this->seed(Perbaikan438PanduanSeeder::class);
         $this->seed(Perbaikan438PanduanSeeder::class); // idempotent
 
-        $this->assertSame(1, substr_count((string) Panduan::where('slug', 'bahan-baku')->value('konten'), '<!-- PERBAIKAN438-F -->'));
-        $this->assertStringContainsString('Harga Outlet', (string) Panduan::where('slug', 'produk-jual')->value('konten'));
-        foreach (['master_bahan_baku.pengaturan_outlet', 'master_bahan_baku.qty_minimum_awal', 'master_produk_jual.hpp_outlet', 'master_produk_jual.harga_umum', 'cabang.salin_pengaturan'] as $key) {
+        $bahan = (string) Panduan::where('slug', 'bahan-baku')->value('konten');
+        $this->assertSame(1, substr_count($bahan, '<!-- PEMISAHAN-CABANG-439 -->'));
+        $this->assertStringContainsString('FIFO Batch Detail', $bahan);
+        // Teks lama "harga beli per outlet" (belum pernah dirilis) sudah dibuang dari seeder
+        $this->assertStringNotContainsString('Harga Beli per Outlet', file_get_contents(database_path('seeders/Perbaikan438PanduanSeeder.php')));
+        $this->assertStringContainsString('Mode Harga', (string) Panduan::where('slug', 'produk-jual')->value('konten'));
+        foreach (['master_bahan_baku.qty_minimum_cabang', 'master_bahan_baku.fifo_batch', 'master_produk_jual.harga_master_preview', 'cabang.salin_pengaturan'] as $key) {
             $this->assertTrue(Tooltip::where('key', $key)->exists(), $key);
         }
     }

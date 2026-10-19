@@ -28,8 +28,9 @@ class Perbaikan438PanduanSeeder extends Seeder
         $this->panduanBaru('role-hak-akses', 'Role & Hak Akses', 'master', $this->panduanRole());
         $this->tooltips($this->tooltipsTahapD());
 
-        $this->appendSections($this->sectionsTahapF(), '<!-- PERBAIKAN438-F -->');
-        $this->tooltips($this->tooltipsTahapF());
+        // 4.39 — data barang terpisah per cabang (menggantikan Tahap E/F "harga per outlet" yang tidak pernah dirilis)
+        $this->appendSections($this->sectionsPerCabang(), '<!-- PEMISAHAN-CABANG-439 -->');
+        $this->tooltips($this->tooltipsPerCabang());
 
         $this->command?->info('✅ Panduan & tooltip Perbaikan 4.38 tersimpan (idempotent).');
     }
@@ -72,23 +73,17 @@ class Perbaikan438PanduanSeeder extends Seeder
     {
         return [
             'bahan-baku' => <<<'MD'
-## 🔄 Update 2026-10-18 — Harga Standar, Harga PO Terakhir, Harga per Outlet
+## 🔄 Update 2026-10-18 — Harga Standar & Harga PO Terakhir
 - **Harga Standar** (dulu "Harga Beli / HPP") adalah harga patokan Anda per **satuan pakai** (mis. per pcs). Harga ini **tidak lagi berubah otomatis** saat PO diterima.
 - Kalau barang punya **Unit Beli** (mis. pack isi 50), muncul kolom **"Atau isi harga per pack"** — isi harga per pack, sistem menghitung harga per pcs otomatis (contoh: Rp 5.000 / pack isi 50 = Rp 100 / pcs).
 - **Harga PO Terakhir** tampil di bawahnya sebagai informasi (harga dari PO terakhir yang diterima + tanggalnya). Di daftar Bahan Baku tampil di kolom "PO Terakhir".
-- **Harga Beli per Outlet** (opsional): isi kalau harga beli di outlet tertentu berbeda (mis. HO Rp 100, Outlet 1 Rp 150). Kosongkan = memakai Harga Standar. Harga ini otomatis menjadi harga awal saat outlet itu membuat PO.
 - **HPP penjualan tetap FIFO**: stok dari PO lama dijual dengan harga PO lama, stok dari PO baru dengan harga PO baru — tidak terpengaruh Harga Standar.
 MD,
             'pembelian' => <<<'MD'
 ## 🔄 Update 2026-10-18 — Harga Otomatis & Unit Pack
-- Saat memilih barang, **harga terisi otomatis** dari Harga Beli outlet tujuan (kalau diisi di master) atau Harga Standar.
+- Saat memilih barang, **harga terisi otomatis** dari Harga Standar barang itu.
 - Kalau unit yang dipilih **pack/dus/dll**, harga otomatis **dikali isi** (contoh: Rp 100/pcs × isi 50 = Rp 5.000 per pack). Ganti unit pcs ↔ pack → harga ikut menyesuaikan.
-- Ganti **Lokasi Tujuan** → harga baris yang belum Anda ubah manual ikut harga outlet baru.
 - PO yang diterima **tidak lagi mengubah Harga Standar** di master — harganya tercatat sebagai "Harga PO Terakhir" (info) dan sebagai harga batch FIFO stok.
-MD,
-            'produk-jual' => <<<'MD'
-## 🔄 Update 2026-10-18 — Harga Varian per Outlet
-Varian yang **tidak** diisi harga khusus sekarang mengikuti **harga outlet** (kolom harga di tabel ketersediaan outlet), bukan harga jual default. Varian yang diisi harga khusus tetap memakai harga khususnya di semua outlet.
 MD,
             'transfer-stok' => <<<'MD'
 ## 🔄 Update 2026-10-18 — Harga Modal Stok Transfer
@@ -230,61 +225,90 @@ MD;
                 'content' => 'Harga patokan per satuan pakai (mis. per pcs). Diisi manual dan tidak berubah otomatis saat PO diterima. Dipakai sebagai harga awal PO dan estimasi HPP resep. HPP penjualan tetap FIFO.'],
             ['key' => 'master_bahan_baku.harga_po_terakhir', 'modul' => 'master_bahan_baku', 'title' => 'Harga PO Terakhir',
                 'content' => 'Harga per satuan pakai dari PO terakhir yang diterima. Hanya informasi — tidak mengubah Harga Standar.'],
-            ['key' => 'master_bahan_baku.harga_cabang', 'modul' => 'master_bahan_baku', 'title' => 'Harga Beli per Outlet',
-                'content' => 'Isi kalau harga beli di outlet tertentu berbeda. Kosong = memakai Harga Standar. Dipakai sebagai harga awal saat outlet itu membuat PO.'],
         ];
     }
     // =====================================================================
-    // Tahap F — Harga & stok per outlet di halaman tersendiri (1 outlet per tampilan)
+    // 4.39 — Data barang terpisah per cabang (keputusan Owner 2026-10-19)
     // =====================================================================
 
-    private function sectionsTahapF(): array
+    private function sectionsPerCabang(): array
     {
+        $umum = <<<'MD'
+**Pilihan cabang di pojok kanan atas menentukan data yang tampil.** Pilih "Outlet 1" → yang tampil hanya bahan, produk, resep, PO, dan stok milik Outlet 1 dengan harga Outlet 1. Owner/Admin Pusat bisa memilih **Semua Cabang** untuk melihat katalog lengkap (ada keterangan nama cabang di setiap barang).
+MD;
+
         return [
-            'bahan-baku' => <<<'MD'
-## 🔄 Update 2026-10-19 — Harga & Stok per Outlet
-Supaya tidak bingung, harga **selalu menyebut lokasinya**.
-- **Daftar Bahan Baku** menampilkan harga untuk outlet yang tertulis di kotak kuning di atas tabel (mengikuti **Cabang Aktif**). Owner/Admin Pusat bisa memilih outlet lain atau **Harga Umum** dari kotak itu.
-- **Form Tambah/Edit** hanya berisi data yang berlaku untuk semua outlet: nama, satuan, unit beli, **Harga Standar**, dan **Qty Minimum Awal** (dipakai otomatis untuk outlet yang belum diatur sendiri).
-- Harga beli & Qty Minimum yang **berbeda per outlet** diatur lewat tombol **Harga Outlet** (ikon toko) di daftar. Halaman itu hanya menampilkan **satu outlet**; ganti outlet lewat pilihan di bagian atas. Harga bisa diisi per pcs atau per pack — kolom lainnya terhitung otomatis. Kosong = memakai Harga Standar.
-- Manajer cabang hanya bisa membuka outletnya sendiri.
+            'bahan-baku' => <<<MD
+## 🔄 Update 2026-10-19 — Bahan & Kemasan Milik Masing-masing Cabang
+{$umum}
+- Setiap bahan **milik satu cabang**. Bahan baru otomatis menjadi milik cabang yang sedang dipilih (mode Semua Cabang: pilih cabangnya di form, bawaan Gudang Pusat).
+- Barang yang sama di cabang lain memakai **Kode Item yang sama** (mis. BB-001 Kulit Dimsum ada di Gudang dan di Outlet 1). Kode cukup unik di dalam satu cabang.
+- **Harga Standar** dan **Qty Minimum** di form adalah milik cabang itu sendiri. Qty Minimum dipakai untuk peringatan stok menipis.
+- Di form edit ada **FIFO Batch Detail**: daftar batch stok yang masih ada di cabang itu, dari yang tertua (bertanda ↑ NEXT, terpakai duluan) sampai terbaru. Batch yang sudah habis tidak ditampilkan.
+- Manajer cabang hanya bisa melihat dan mengubah bahan milik cabangnya.
 MD,
-            'produk-jual' => <<<'MD'
-## 🔄 Update 2026-10-19 — Harga per Outlet di Halaman Tersendiri
-- **Daftar Produk Jual** menampilkan harga di outlet yang tertulis di kotak kuning (mengikuti **Cabang Aktif**), sama dengan harga yang muncul di POS outlet itu. Ada tanda kalau produk **tidak dijual** di outlet tersebut. Pilih **Harga Umum** untuk melihat harga dasar beserta jumlah outlet yang harganya berbeda.
-- **Harga Jual Umum** (form produk) = harga untuk semua outlet yang tidak punya harga sendiri.
-- Saat **menambah** produk, cukup centang outlet tempat produk dijual. Harga khusus per outlet diatur setelah disimpan lewat tombol **Harga Outlet**.
-- Halaman **Harga Outlet** (satu outlet per tampilan): Dijual di outlet ini, Harga Jual outlet, **HPP** (perkiraan dari resep memakai harga beli bahan di outlet itu), **Untung** dan **Margin** yang langsung terhitung saat harga diketik.
-- HPP di halaman itu adalah perkiraan untuk menentukan harga. Modal riil tiap transaksi tetap dihitung FIFO dari stok outlet.
+            'produk-jual' => <<<MD
+## 🔄 Update 2026-10-19 — Produk Milik Masing-masing Cabang & Harga Resep FIFO
+{$umum}
+- Setiap produk **milik satu cabang**, dengan harga jualnya sendiri. POS cabang hanya menampilkan produk miliknya.
+- Bahan di **Komposisi / Resep** diambil dari bahan milik cabang yang sama, begitu juga pilihan **Import dari Bumbu Pusat**.
+- **Harga Bahan** di resep = harga PO dari stok yang masih ada (**FIFO**): batch tertua yang masih bersisa (contoh "FIFO · batch 01/10 (sisa 3)"). Kalau stok habis: harga PO terakhir (merah). Belum pernah ada PO: Harga Standar. Total HPP memakai harga yang sama dengan modal riil di POS.
+- Kolom **Wajib** dan **Mode Harga** dihapus — semua bahan di resep selalu dihitung ke HPP dan dipotong stoknya saat dijual.
+MD,
+            'resep-bumbu' => <<<MD
+## 🔄 Update 2026-10-19 — Bumbu Pusat per Cabang
+{$umum}
+- Bumbu Pusat juga **milik satu cabang** dan isinya bahan milik cabang itu, sehingga HPP-nya memakai harga (FIFO) cabang itu.
+- Kolom **Wajib** dan **Mode Harga** dihapus: semua bahan selalu dihitung.
 MD,
             'cabang' => <<<'MD'
-## 🔄 Update 2026-10-19 — Salin Harga & Pengaturan Barang
-Saat **menambah cabang**, pilih **"Salin Harga & Pengaturan Barang dari"** salah satu cabang yang sudah berjalan. Yang disalin: produk yang dijual/tidak, harga jual outlet, harga beli bahan outlet, dan Qty Minimum. **Stok tidak ikut disalin.** Setelah itu harga cabang baru bisa diubah sendiri lewat tombol Harga Outlet di menu Bahan Baku / Produk Jual.
+## 🔄 Update 2026-10-19 — Salin Data Barang saat Tambah Cabang
+Saat **menambah cabang**, pilih **"Salin Harga & Pengaturan Barang dari"** cabang yang sudah berjalan. Semua bahan & kemasan, produk jual (harga, resep, varian), Bumbu Pusat, dan Qty Minimum cabang itu disalin ke cabang baru dengan Kode Item yang sama. **Stok dan transaksi tidak ikut disalin.** Setelah itu data cabang baru bisa diubah sendiri tanpa memengaruhi cabang lain.
+MD,
+            'pembelian' => <<<MD
+## 🔄 Update 2026-10-19 — PO per Cabang
+- Daftar PO mengikuti cabang yang dipilih di pojok kanan atas.
+- Barang yang bisa dipilih di form PO = barang milik **Lokasi Tujuan** PO itu.
+- PO ke **Gudang Pusat (supplier internal)**: produk gudang yang dipesan otomatis dicatat sebagai barang milik cabang pemesan (Kode Item sama, dibuat kalau belum ada), jadi stoknya masuk ke cabang pemesan saat PO diterima. Di POS gudang, "Isi Keranjang" otomatis memakai produk milik gudang.
+MD,
+            'transfer-stok' => <<<'MD'
+## 🔄 Update 2026-10-19 — Transfer Antar Cabang lewat Kode Item
+Barang yang dikirim harus milik lokasi asal. Saat diterima, stok masuk ke barang milik cabang tujuan dengan **Kode Item yang sama** (kalau cabang tujuan belum punya, dibuatkan otomatis). Modal FIFO dari lokasi asal tetap terbawa.
+MD,
+            'permintaan-stok' => <<<'MD'
+## 🔄 Update 2026-10-19 — Permintaan Stok per Cabang
+Barang yang diminta dipilih dari barang milik cabang peminta. Saat gudang membuat transfer dari permintaan, barangnya otomatis dipasangkan ke barang milik gudang lewat Kode Item (barang yang belum ada di gudang dilewati).
+MD,
+            'pos' => <<<'MD'
+## 🔄 Update 2026-10-19 — Produk POS per Cabang
+POS hanya menampilkan produk **milik cabang** yang sedang dibuka, dengan harga jual produk itu. Untuk mengubah harga, buka menu Produk Jual dengan cabang yang sama dipilih di pojok kanan atas.
 MD,
             'stok-barang' => <<<'MD'
 ## 🔄 Update 2026-10-19 — Qty Minimum per Lokasi
-Qty Minimum setiap baris stok adalah milik **lokasi itu** (ubah lewat tombol Set Minimum di sini, atau di Bahan Baku → tombol Harga Outlet). Barang yang minimumnya 0 tidak dihitung sebagai "stok rendah". Kartu Stok menampilkan stok & minimum lokasi yang dipilih.
+Qty Minimum setiap baris stok adalah milik **lokasi itu** (ubah lewat tombol Set Minimum, atau di form Bahan Baku milik cabang itu). Barang yang minimumnya 0 tidak dihitung sebagai "stok rendah". Kartu Stok menampilkan stok & minimum lokasi yang dipilih.
 MD,
             'laporan-stok' => <<<'MD'
 ## 🔄 Update 2026-10-19 — Stok Minimum per Lokasi
-Laporan Stok Minimum hanya menampilkan barang yang Qty Minimum-nya **diatur (> 0)** di lokasi tersebut. Atur minimum per outlet di Bahan Baku → tombol Harga Outlet.
+Laporan Stok Minimum hanya menampilkan barang yang Qty Minimum-nya **diatur (> 0)** di lokasi tersebut.
+MD,
+            'master-barang' => <<<MD
+## 🔄 Update 2026-10-19 — Semua Barang per Cabang
+{$umum}
 MD,
         ];
     }
 
-    private function tooltipsTahapF(): array
+    private function tooltipsPerCabang(): array
     {
         return [
-            ['key' => 'master_bahan_baku.pengaturan_outlet', 'modul' => 'master_bahan_baku', 'title' => 'Qty Minimum Outlet',
-                'content' => 'Batas stok minimum di outlet ini. Kalau stok sama atau di bawah angka ini, muncul peringatan stok menipis. Kosong = memakai Qty Minimum Awal.'],
-            ['key' => 'master_bahan_baku.qty_minimum_awal', 'modul' => 'master_bahan_baku', 'title' => 'Qty Minimum Awal',
-                'content' => 'Dipakai otomatis untuk outlet yang belum diatur sendiri saat stoknya pertama kali tercatat. Minimum yang berbeda per outlet diatur lewat tombol Harga Outlet di daftar Bahan Baku.'],
-            ['key' => 'master_produk_jual.hpp_outlet', 'modul' => 'master_produk_jual', 'title' => 'HPP & Untung di Outlet',
-                'content' => 'Perkiraan HPP dari resep memakai harga beli bahan di outlet ini (atau Harga Standar kalau tidak diatur). Untung = Harga Jual − HPP. Modal riil transaksi tetap FIFO dari stok outlet.'],
-            ['key' => 'master_produk_jual.harga_umum', 'modul' => 'master_produk_jual', 'title' => 'Harga Jual Umum',
-                'content' => 'Harga untuk semua outlet yang tidak punya harga sendiri. Harga khusus per outlet diatur lewat tombol Harga Outlet di daftar Produk Jual.'],
-            ['key' => 'cabang.salin_pengaturan', 'modul' => 'cabang', 'title' => 'Salin Harga & Pengaturan Barang',
-                'content' => 'Cabang baru langsung memakai produk yang dijual, harga jual, harga beli bahan, dan Qty Minimum dari cabang yang dipilih. Stok tidak ikut disalin.'],
+            ['key' => 'master_bahan_baku.qty_minimum_cabang', 'modul' => 'master_bahan_baku', 'title' => 'Qty Minimum',
+                'content' => 'Batas stok minimum di cabang pemilik barang ini. Kalau stok sama atau di bawah angka ini, muncul peringatan stok menipis. 0 = tanpa peringatan.'],
+            ['key' => 'master_bahan_baku.fifo_batch', 'modul' => 'master_bahan_baku', 'title' => 'FIFO Batch Detail',
+                'content' => 'Batch stok yang masih ada di cabang ini, dari yang tertua. Batch ↑ NEXT terpakai duluan saat penjualan dan harganya dipakai sebagai harga bahan di resep. Batch yang sudah habis disembunyikan.'],
+            ['key' => 'master_produk_jual.harga_master_preview', 'modul' => 'master_produk_jual', 'title' => 'Harga Bahan (FIFO)',
+                'content' => 'Harga PO dari stok yang masih ada di cabang ini (batch tertua dulu). Stok habis → harga PO terakhir (merah). Belum pernah PO → Harga Standar. Takaran dikalikan apa adanya tanpa konversi satuan.'],
+            ['key' => 'cabang.salin_pengaturan', 'modul' => 'cabang', 'title' => 'Salin Data Barang',
+                'content' => 'Cabang baru langsung mendapat salinan semua bahan, produk, resep, Bumbu Pusat, dan Qty Minimum dari cabang yang dipilih (Kode Item sama). Stok & transaksi tidak disalin.'],
         ];
     }
 }
