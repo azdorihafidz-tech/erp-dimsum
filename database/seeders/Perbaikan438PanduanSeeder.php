@@ -235,6 +235,7 @@ MD;
     {
         $umum = <<<'MD'
 **Pilihan cabang di pojok kanan atas menentukan data yang tampil.** Pilih "Outlet 1" → yang tampil hanya bahan, produk, resep, PO, dan stok milik Outlet 1 dengan harga Outlet 1. Owner/Admin Pusat bisa memilih **Semua Cabang** untuk melihat katalog lengkap (ada keterangan nama cabang di setiap barang).
+Kalau cabang diganti saat sedang membuka halaman edit/detail/tambah, layar otomatis kembali ke **daftar menu itu** (data yang tadi dibuka milik cabang lama). Kalau membuka data milik cabang lain lewat link, muncul peringatan kuning di atas form.
 MD;
 
         return [

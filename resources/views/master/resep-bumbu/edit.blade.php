@@ -32,6 +32,7 @@
         <div class="card">
             <div class="card-header">Info Resep</div>
             <div class="card-body">
+                <x-peringatan-beda-cabang :cabang-id="$resepBumbu->cabang_id" />
                 <form method="POST" action="{{ route('master.resep-bumbu.update', $resepBumbu) }}">
                     @csrf @method('PUT')
                     <div class="row g-3">

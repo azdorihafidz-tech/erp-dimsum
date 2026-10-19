@@ -38,6 +38,7 @@
         {{-- CLAUDE.md 4.39 — produk milik 1 cabang (mengikuti cabang aktif di header) --}}
         @if($isEdit)
             <div class="small text-muted mb-2"><i class="bi bi-geo-alt-fill text-primary"></i> Milik cabang: <strong class="text-body">{{ $item->cabang?->nama_cabang ?? 'Semua cabang (data lama)' }}</strong></div>
+            <x-peringatan-beda-cabang :cabang-id="$item->cabang_id" />
         @elseif($cabangAktif)
             <div class="alert alert-light border py-2 mb-3"><i class="bi bi-geo-alt-fill text-primary"></i> Produk ini akan menjadi milik <strong>{{ $cabangAktif->nama_cabang }}</strong> (cabang yang dipilih di pojok kanan atas). Bahan resep diambil dari bahan milik cabang ini.</div>
         @else

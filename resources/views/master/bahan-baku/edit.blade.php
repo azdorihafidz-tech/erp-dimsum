@@ -20,6 +20,7 @@
 <div class="row g-4">
     <div class="col-12 col-lg-8">
         <div class="small text-muted mb-2"><i class="bi bi-geo-alt-fill text-primary"></i> Milik cabang: <strong class="text-body">{{ $item->cabang?->nama_cabang ?? 'Semua cabang (data lama)' }}</strong></div>
+        <x-peringatan-beda-cabang :cabang-id="$item->cabang_id" />
         <div class="card mb-3">
             <div class="card-header fw-semibold">Informasi Dasar</div>
             <div class="card-body">
