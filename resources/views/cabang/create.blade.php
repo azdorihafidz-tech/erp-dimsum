@@ -277,12 +277,12 @@
                             Salin Harga &amp; Pengaturan Barang dari <x-tooltip key="cabang.salin_pengaturan" />
                         </label>
                         <select id="salin_dari_cabang_id" name="salin_dari_cabang_id" class="form-select @error('salin_dari_cabang_id') is-invalid @enderror">
-                            <option value="">— Tidak usah (pakai harga umum) —</option>
+                            <option value="">— Tidak usah (mulai kosong) —</option>
                             @foreach($cabangSumber as $cs)
                                 <option value="{{ $cs->id }}" @selected(old('salin_dari_cabang_id') == $cs->id)>{{ $cs->nama_cabang }}</option>
                             @endforeach
                         </select>
-                        <div class="form-text">Produk yang dijual, harga jual, harga beli bahan, dan Qty Minimum ikut disalin. Stok tidak ikut disalin.</div>
+                        <div class="form-text">Semua bahan &amp; kemasan, produk jual (harga, resep, varian), Bumbu Pusat, dan Qty Minimum cabang itu ikut disalin ke cabang baru. Stok &amp; transaksi tidak ikut disalin.</div>
                         @error('salin_dari_cabang_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
 

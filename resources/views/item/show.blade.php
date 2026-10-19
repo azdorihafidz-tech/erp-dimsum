@@ -89,7 +89,7 @@
                             <td>{{ $item->satuan }}</td>
                         </tr>
                         <tr>
-                            <th class="ps-3">Harga Jual Umum</th>
+                            <th class="ps-3">Harga Jual</th>
                             <td>Rp {{ number_format($item->harga_jual ?? 0, 0, ',', '.') }}</td>
                         </tr>
                         <tr>

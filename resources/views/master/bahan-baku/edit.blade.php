@@ -116,6 +116,8 @@
                 </div>
             </div>
         </div>
+
+        <x-fifo-batch-detail :batches="$batches" :item="$item" />
     </div>
 
     <div class="col-12 col-lg-4">

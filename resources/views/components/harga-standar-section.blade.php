@@ -4,9 +4,8 @@
       TIDAK ditimpa PO). Bisa diisi lewat "harga per unit beli" (mis. per
       pack) → dihitung otomatis ke per satuan pakai.
     - Info Harga PO Terakhir (otomatis dari PO, read-only).
-    - Harga beli per outlet ada di tab "Pengaturan per Outlet"
-      (komponen bahan-outlet-section).
-    Variabel: $item (Item|null), $cabangList (Collection<Cabang>).
+    Barang milik 1 cabang (CLAUDE.md 4.39) — harga di sini milik cabang itu.
+    Variabel: $item (Item|null).
 --}}
 @props(['item' => null, 'cabangList' => collect()])
 @php

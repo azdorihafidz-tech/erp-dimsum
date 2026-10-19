@@ -116,8 +116,12 @@ class MasterBahanBakuController extends Controller
 
         $categories = ItemCategory::orderBy('nama_kategori')->get();
         $bahanBaku->load('cabang');
+        // FIFO Batch Detail: batch yang masih bersisa di cabang pemilik, tertua dulu
+        $batches = \App\Models\StockBatch::with('lokasi')->where('item_id', $bahanBaku->id)->where('qty_sisa', '>', 0)
+            ->when($bahanBaku->cabang_id, fn ($q) => $q->where('lokasi_id', $bahanBaku->cabang_id))
+            ->orderBy('tanggal_masuk')->orderBy('id')->get();
 
-        return view('master.bahan-baku.edit', ['item' => $bahanBaku, 'categories' => $categories]);
+        return view('master.bahan-baku.edit', ['item' => $bahanBaku, 'categories' => $categories, 'batches' => $batches]);
     }
 
     public function update(BahanBakuRequest $request, Item $bahanBaku)

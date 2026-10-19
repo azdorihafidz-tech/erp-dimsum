@@ -134,20 +134,25 @@ class CabangController extends Controller
     }
 
     /**
-     * Salin pengaturan barang dari cabang lain ke cabang baru (CLAUDE.md 4.38-F):
-     * produk dijual/tidak + harga jual outlet + harga beli outlet (item_cabang),
-     * dan Qty Minimum (stocks, qty 0). Stok & transaksi TIDAK disalin.
+     * Salin data barang dari cabang lain ke cabang baru (CLAUDE.md 4.39):
+     * semua bahan, produk, resep & Bumbu Pusat milik cabang sumber (kode sama)
+     * + Qty Minimum. Data lama yang belum dipecah (tanpa cabang) memakai
+     * pengaturan item_cabang + qty minimum lama. Stok & transaksi TIDAK disalin.
      */
     private function salinPengaturanBarang(int $sumberId, Cabang $baru): void
     {
         \Illuminate\Support\Facades\DB::transaction(function () use ($sumberId, $baru) {
-            foreach (\App\Models\ItemCabang::where('cabang_id', $sumberId)->get() as $row) {
+            app(\App\Services\SalinDataCabangService::class)->salin($sumberId, $baru->id);
+
+            // Data lama tanpa cabang (belum dipecah)
+            $lamaIds = \App\Models\Item::whereNull('cabang_id')->pluck('id');
+            foreach (\App\Models\ItemCabang::where('cabang_id', $sumberId)->whereIn('item_id', $lamaIds)->get() as $row) {
                 \App\Models\ItemCabang::updateOrCreate(
                     ['item_id' => $row->item_id, 'cabang_id' => $baru->id],
                     ['is_active' => $row->is_active, 'harga_override' => $row->harga_override, 'harga_beli' => $row->harga_beli]
                 );
             }
-            foreach (\App\Models\Stock::where('lokasi_id', $sumberId)->where('qty_minimum', '>', 0)->get() as $st) {
+            foreach (\App\Models\Stock::where('lokasi_id', $sumberId)->whereIn('item_id', $lamaIds)->where('qty_minimum', '>', 0)->get() as $st) {
                 $stok = new \App\Models\Stock(['item_id' => $st->item_id, 'lokasi_id' => $baru->id, 'qty' => 0, 'qty_minimum' => $st->qty_minimum]);
                 $stok->updated_at = now();
                 $stok->save();

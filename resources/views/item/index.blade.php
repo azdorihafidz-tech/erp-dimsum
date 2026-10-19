@@ -59,6 +59,8 @@
     </div>
 </div>
 
+<x-info-cabang-aktif :cabang="\App\Support\CabangAktif::model()" />
+
 {{-- STAT CARDS --}}
 <div class="row g-3 mb-4">
     <div class="col-6 col-md-3">
@@ -194,7 +196,7 @@
                     <th class="d-none d-lg-table-cell">Jenis</th>
                     <th class="d-none d-lg-table-cell">Satuan</th>
                     <th class="text-end d-none d-lg-table-cell">Harga Standar</th>
-                    <th class="text-end d-none d-xl-table-cell">Harga Jual Umum</th>
+                    <th class="text-end d-none d-xl-table-cell">Harga Jual</th>
                     <th class="text-center">Status</th>
                     <th class="text-center px-4" style="width:100px">Aksi</th>
                 </tr>
