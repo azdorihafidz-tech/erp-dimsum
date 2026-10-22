@@ -32,6 +32,10 @@ class Perbaikan438PanduanSeeder extends Seeder
         $this->appendSections($this->sectionsPerCabang(), '<!-- PEMISAHAN-CABANG-439 -->');
         $this->tooltips($this->tooltipsPerCabang());
 
+        // 4.41 — pilihan tipe transaksi per cabang + tombol Uang Pas
+        $this->appendSections($this->sectionsPos441(), '<!-- POS-441 -->');
+        $this->tooltips($this->tooltipsPos441());
+
         $this->command?->info('✅ Panduan & tooltip Perbaikan 4.38 tersimpan (idempotent).');
     }
 
@@ -310,6 +314,35 @@ MD,
                 'content' => 'Harga PO dari stok yang masih ada di cabang ini (batch tertua dulu). Stok habis → harga PO terakhir (merah). Belum pernah PO → Harga Standar. Takaran dikalikan apa adanya tanpa konversi satuan.'],
             ['key' => 'cabang.salin_pengaturan', 'modul' => 'cabang', 'title' => 'Salin Data Barang',
                 'content' => 'Cabang baru langsung mendapat salinan semua bahan, produk, resep, Bumbu Pusat, dan Qty Minimum dari cabang yang dipilih (Kode Item sama). Stok & transaksi tidak disalin.'],
+        ];
+    }
+    // =====================================================================
+    // 4.41 — Pilihan Tipe Transaksi per cabang + tombol Uang Pas
+    // =====================================================================
+
+    private function sectionsPos441(): array
+    {
+        return [
+            'pos' => <<<'MD'
+## 🔄 Update 2026-10-22 — Uang Pas & Tipe Transaksi Otomatis
+- Tombol **Uang Pas** (hijau) di bagian Jumlah Bayar langsung mengisi jumlah bayar **sama dengan total belanja** (kembalian Rp 0). Di bawahnya ada nominal cepat yang menyesuaikan total, mis. total Rp 37.000 → Rp 40.000 · Rp 50.000 · Rp 100.000.
+- Kalau outlet hanya mengaktifkan **satu** tipe transaksi, tipe itu otomatis terpilih.
+- Kalau pilihan tipe transaksi **disembunyikan** di pengaturan cabang, POS tidak menampilkan tombol Dine-in/Takeaway/Frozen — transaksi otomatis memakai tipe bawaan cabang (tertulis "Tipe transaksi: … (otomatis)").
+MD,
+            'cabang' => <<<'MD'
+## 🔄 Update 2026-10-22 — Tampilkan/Sembunyikan Pilihan Tipe Transaksi
+Di **Config POS Outlet Ini** ada saklar **"Tampilkan pilihan Tipe Transaksi di POS"**:
+- **Aktif** — kasir memilih Dine-in/Takeaway/Frozen (hanya tipe yang dicentang yang tampil; kalau hanya satu, otomatis terpilih).
+- **Nonaktif** — pilihan disembunyikan; semua transaksi memakai **Tipe bawaan** yang dipilih di sebelahnya. Kalau tipe bawaan Takeaway, Takeaway Fee (kalau diisi) tetap dihitung.
+MD,
+        ];
+    }
+
+    private function tooltipsPos441(): array
+    {
+        return [
+            ['key' => 'cabang.pilih_tipe_transaksi', 'modul' => 'cabang', 'title' => 'Pilihan Tipe Transaksi di POS',
+                'content' => 'Aktif = kasir memilih Dine-in/Takeaway/Frozen di POS. Nonaktif = pilihan disembunyikan, semua transaksi otomatis memakai Tipe bawaan.'],
         ];
     }
 }

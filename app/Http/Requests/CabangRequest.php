@@ -41,6 +41,9 @@ class CabangRequest extends FormRequest
             'takeaway_aktif'          => ['sometimes', 'boolean'],
             'frozen_aktif'            => ['sometimes', 'boolean'],
             'nomor_meja_aktif'        => ['sometimes', 'boolean'],
+            // 4.41 — tampil/sembunyikan pilihan tipe transaksi di POS + tipe bawaannya
+            'pilih_tipe_transaksi'    => ['sometimes', 'boolean'],
+            'tipe_transaksi_default'  => ['sometimes', 'in:dine_in,takeaway,frozen'],
             'wajib_bukti_transfer'    => ['sometimes', 'boolean'],
             'wajib_bukti_qris'        => ['sometimes', 'boolean'],
             // 4.38-F — khusus tambah cabang: salin harga & pengaturan barang dari cabang lain

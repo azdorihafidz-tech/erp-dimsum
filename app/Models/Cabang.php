@@ -43,6 +43,9 @@ class Cabang extends Model
         'takeaway_aktif',
         'frozen_aktif',
         'nomor_meja_aktif',
+        // 4.41 — pilihan tipe transaksi di POS bisa disembunyikan
+        'pilih_tipe_transaksi',
+        'tipe_transaksi_default',
         'take_away_fee',
         'service_charge_persen',
         // Tahap B 4.38 — wajib bukti bayar non-tunai per cabang
@@ -67,6 +70,7 @@ class Cabang extends Model
             'wajib_bukti_transfer'   => 'boolean',
             'wajib_bukti_qris'       => 'boolean',
             'nomor_meja_aktif'       => 'boolean',
+            'pilih_tipe_transaksi'   => 'boolean',
             'take_away_fee'          => 'decimal:2',
             'service_charge_persen'  => 'decimal:2',
         ];
@@ -76,6 +80,27 @@ class Cabang extends Model
     public function tipeTransaksiAktif(\App\Enums\TipeTransaksi $tipe): bool
     {
         return (bool) $this->{$tipe->kolomAktif()};
+    }
+
+    /** Tipe transaksi yang aktif di cabang ini (urutan enum). */
+    public function daftarTipeTransaksiAktif(): \Illuminate\Support\Collection
+    {
+        return collect(\App\Enums\TipeTransaksi::cases())->filter(fn ($t) => $this->tipeTransaksiAktif($t))->values();
+    }
+
+    /**
+     * 4.41 — tipe yang otomatis dipakai POS tanpa kasir memilih:
+     * pilihan disembunyikan → tipe bawaan cabang; hanya 1 tipe aktif → tipe itu;
+     * selain itu null (kasir memilih sendiri).
+     */
+    public function tipeTransaksiOtomatis(): ?string
+    {
+        if (($this->pilih_tipe_transaksi ?? true) === false) {
+            return \App\Enums\TipeTransaksi::tryFrom((string) $this->tipe_transaksi_default)?->value ?? \App\Enums\TipeTransaksi::Takeaway->value;
+        }
+        $aktif = $this->daftarTipeTransaksiAktif();
+
+        return $aktif->count() === 1 ? $aktif->first()->value : null;
     }
 
     public function kepalaCabang()

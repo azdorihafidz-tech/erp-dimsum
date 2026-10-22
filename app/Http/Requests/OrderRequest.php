@@ -11,6 +11,18 @@ class OrderRequest extends FormRequest
         return true;
     }
 
+    /** 4.41 — pilihan tipe disembunyikan / hanya 1 tipe aktif → pakai tipe otomatis cabang. */
+    protected function prepareForValidation(): void
+    {
+        if (! $this->filled('tipe_transaksi')) {
+            $cabangId = session('active_cabang_id') ?? $this->user()?->defaultCabangId();
+            $tipe = $cabangId ? \App\Models\Cabang::find($cabangId)?->tipeTransaksiOtomatis() : null;
+            if ($tipe) {
+                $this->merge(['tipe_transaksi' => $tipe]);
+            }
+        }
+    }
+
     public function rules(): array
     {
         return [

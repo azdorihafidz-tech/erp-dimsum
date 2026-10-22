@@ -201,8 +201,9 @@ class CabangController extends Controller
         $cabang->update($data);
 
         // Jika kepala cabang berubah, assign kepala baru ke cabang ini
-        if ($data['kepala_cabang_id'] && $data['kepala_cabang_id'] != $oldKepalaCabangId) {
-            $user = User::find($data['kepala_cabang_id']);
+        $kepalaBaru = $data['kepala_cabang_id'] ?? null;
+        if ($kepalaBaru && $kepalaBaru != $oldKepalaCabangId) {
+            $user = User::find($kepalaBaru);
             if ($user && !$user->cabangs()->where('cabangs.id', $cabang->id)->exists()) {
                 $user->cabangs()->attach($cabang->id, ['is_default' => false]);
             }

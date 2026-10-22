@@ -113,6 +113,9 @@ class PenjualanController extends Controller
         $tipeTransaksiAktif = collect(TipeTransaksi::cases())
             ->filter(fn ($t) => $cabangAktif?->tipeTransaksiAktif($t))
             ->values();
+        // 4.41 — tipe otomatis (pilihan disembunyikan / hanya 1 tipe aktif)
+        $tipeOtomatis = $cabangAktif?->tipeTransaksiOtomatis();
+        $tampilPilihanTipe = ($cabangAktif?->pilih_tipe_transaksi ?? true) !== false;
 
         // Bill tersimpan (Save Bill) yang belum dibayar — utk kasir lanjut proses
         $billTersimpan = Order::where('cabang_id', $cabangId)
@@ -132,7 +135,7 @@ class PenjualanController extends Controller
 
         return view('penjualan.pos', compact(
             'produkJadi', 'itemTambahan', 'categories', 'pelanggans', 'cabangId',
-            'cabangAktif', 'kasList', 'tipeTransaksiAktif', 'billTersimpan', 'poMasuk'
+            'cabangAktif', 'kasList', 'tipeTransaksiAktif', 'billTersimpan', 'poMasuk', 'tipeOtomatis', 'tampilPilihanTipe'
         ));
     }
 
@@ -288,6 +291,10 @@ class PenjualanController extends Controller
     {
         $authUser = auth()->user();
         $cabangId = session('active_cabang_id') ?? $authUser->defaultCabangId();
+        // 4.41 — pilihan tipe disembunyikan / hanya 1 tipe aktif → pakai tipe otomatis cabang
+        if (! $request->filled('tipe_transaksi') && ($tipeOtomatis = Cabang::find($cabangId)?->tipeTransaksiOtomatis())) {
+            $request->merge(['tipe_transaksi' => $tipeOtomatis]);
+        }
 
         $data = $request->validate([
             'pelanggan_id'       => 'nullable|exists:pelanggans,id',

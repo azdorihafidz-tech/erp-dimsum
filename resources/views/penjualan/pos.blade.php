@@ -197,11 +197,20 @@ body.pos-tablet-mode #btnProses { padding: 0.45rem 0.75rem !important; font-size
         <div class="col-12 col-lg-7">
 
             {{-- ===== Tahap 3 D'mentai — Tipe Transaksi + Grid Produk ===== --}}
+            {{-- 4.41 — pilihan tipe bisa disembunyikan per cabang (Edit Cabang → Config POS);
+                 saat disembunyikan transaksi memakai tipe bawaan cabang --}}
             <div class="card mb-3">
+                @if($tampilPilihanTipe)
                 <div class="card-header">Tipe Transaksi <x-tooltip key="pos.tipe_transaksi" /></div>
-                <div class="card-body">
-                    <input type="hidden" name="tipe_transaksi" id="tipeTransaksiInput" value="">
-                    <div class="d-flex flex-wrap gap-2 mb-2" id="tabTipeTransaksi">
+                @endif
+                <div class="card-body {{ $tampilPilihanTipe ? '' : 'py-2' }}">
+                    <input type="hidden" name="tipe_transaksi" id="tipeTransaksiInput" value="{{ $tipeOtomatis }}">
+                    @unless($tampilPilihanTipe)
+                        <div class="small text-muted" id="infoTipeOtomatis">
+                            <i class="bi bi-bag-check me-1"></i>Tipe transaksi: <strong class="text-body">{{ \App\Enums\TipeTransaksi::tryFrom((string) $tipeOtomatis)?->label() }}</strong> (otomatis)
+                        </div>
+                    @endunless
+                    <div class="d-flex flex-wrap gap-2 mb-2 {{ $tampilPilihanTipe ? '' : 'd-none' }}" id="tabTipeTransaksi">
                         @foreach($tipeTransaksiAktif as $tipe)
                             <button type="button" class="btn btn-outline-dark btn-sm btn-tipe-transaksi"
                                 data-tipe="{{ $tipe->value }}" onclick="pilihTipeTransaksi('{{ $tipe->value }}')">
@@ -209,7 +218,7 @@ body.pos-tablet-mode #btnProses { padding: 0.45rem 0.75rem !important; font-size
                             </button>
                         @endforeach
                     </div>
-                    @if($tipeTransaksiAktif->isEmpty())
+                    @if($tampilPilihanTipe && $tipeTransaksiAktif->isEmpty())
                         <div class="alert alert-warning py-2 small mb-2">Tidak ada tipe transaksi aktif untuk outlet ini — aktifkan di menu Edit Cabang.</div>
                     @endif
                     <div class="d-none" id="wrapNomorMeja" style="max-width:220px">
@@ -483,16 +492,8 @@ body.pos-tablet-mode #btnProses { padding: 0.45rem 0.75rem !important; font-size
                             class="form-control form-control-lg text-end fw-bold"
                             value="0" oninput="hitungKembalian()"
                             placeholder="0">
-                        <div class="row mt-2 g-1">
-                            @foreach([50000, 100000, 150000, 200000] as $nominal)
-                            <div class="col-6">
-                                <button type="button" class="btn btn-outline-secondary btn-sm w-100"
-                                    onclick="setBayar({{ $nominal }})">
-                                    Rp {{ number_format($nominal, 0, ',', '.') }}
-                                </button>
-                            </div>
-                            @endforeach
-                        </div>
+                        {{-- 4.41 — Uang Pas (= total belanja) + nominal pintar menyesuaikan total --}}
+                        <div class="row mt-2 g-1" id="nominalCepat"></div>
                     </div>
 
                     {{-- Kembalian --}}
@@ -1407,6 +1408,7 @@ function hitungTotal() {
     const total = subtotalSetelahDiskon + serviceCharge + takeAwayFee;
 
     document.getElementById('totalBayarDisplay').textContent = 'Rp ' + total.toLocaleString('id-ID');
+    renderNominalCepat(total);
 
     hitungKembalian();
 }
@@ -1511,6 +1513,32 @@ function setBayar(nominal) {
     document.getElementById('jumlahBayarInput').value = rupiahFmt(nominal);
     hitungKembalian();
 }
+
+// 4.41 — tombol "Uang Pas" (= total belanja) + nominal pintar: pembulatan ke atas
+// 5rb/10rb/50rb/100rb yang lebih besar dari total, maks 3 tombol.
+function renderNominalCepat(total) {
+    const wrap = document.getElementById('nominalCepat');
+    if (!wrap) return;
+    if (!total || total <= 0) { wrap.innerHTML = ''; return; }
+    const saran = [];
+    [5000, 10000, 50000, 100000].forEach(k => {
+        const n = Math.ceil(total / k) * k;
+        if (n > total && !saran.includes(n)) saran.push(n);
+    });
+    const rp = n => 'Rp ' + n.toLocaleString('id-ID');
+    let html = `<div class="col-12"><button type="button" class="btn btn-success w-100 fw-semibold" id="btnUangPas" onclick="setBayar(${total})">
+        <i class="bi bi-cash-coin me-1"></i>Uang Pas · ${rp(total)}</button></div>`;
+    saran.slice(0, 3).forEach(n => {
+        html += `<div class="col-4"><button type="button" class="btn btn-outline-secondary btn-sm w-100" onclick="setBayar(${n})">${rp(n)}</button></div>`;
+    });
+    wrap.innerHTML = html;
+}
+
+// 4.41 — tipe otomatis (pilihan disembunyikan / hanya 1 tipe aktif) langsung terpilih
+document.addEventListener('DOMContentLoaded', () => {
+    const tipeOtomatis = @json($tipeOtomatis);
+    if (tipeOtomatis) pilihTipeTransaksi(tipeOtomatis);
+});
 
 function onPelangganChange(sel) {
     const opt = sel.selectedOptions[0];

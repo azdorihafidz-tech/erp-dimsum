@@ -3,8 +3,8 @@
 > **Untuk Claude Code**: File ini adalah **single source of truth** untuk seluruh project. WAJIB dibaca sebelum eksekusi apapun.
 > Isinya: keputusan bisnis, temuan audit, aturan teknis, dan filosofi kerja.
 
-**Versi**: 4.12  
-**Update terakhir**: 2026-10-19 (POS stok tersedia dari resep — [[4.40]]; Data barang terpisah per cabang — lihat [[4.39]]; Perbaikan Harga, Wajib Bukti, PO ke Gudang, Role Bebas — lihat [[4.38]])  
+**Versi**: 4.13  
+**Update terakhir**: 2026-10-22 (POS tipe transaksi per cabang & Uang Pas — [[4.41]]; POS stok tersedia dari resep — [[4.40]]; Data barang terpisah per cabang — lihat [[4.39]]; Perbaikan Harga, Wajib Bukti, PO ke Gudang, Role Bebas — lihat [[4.38]])  
 **Status**: 🎉 **PROJECT LIVE DI PRODUCTION** (https://erp.dmentaiindonesia.com — domain lama `erpdimsum.azwacore.com` sudah tidak dipakai; **GO-LIVE data real: lihat [[4.28]]**) — Tahap 1-7 SELESAI SEMUA + rangkaian bug fix & improvement lintas sesi (lihat section 4 utk detail lengkap tiap item): Bug Fix Ronde 2, Rename Jenis Menu/Master Bumbu Pusat, Fitur Import dari Bumbu Pusat, Rename Label & Hapus Gojek/Grab, Fix Foto Produk Production, UI Preview Harga Master/Subtotal Resep (Ronde 3-5), Auto-isi Satuan Master Bumbu Pusat, Fix ENUM Kategori Saldo Awal, Fix Label Kode Kategori Wajib, Default Basis Program Loyalty ke Rp, Widget Total Pembelian Pelanggan, Fix Export Excel Laporan Keuangan. **Sprint 3 Batch 1 SELESAI SEMUA** (5 menu Prioritas 1 — Penjualan, Setoran Kasir, Setoran Harian/Rekap, Stok 3 sub-view, Laba Rugi Produksi — lihat [[4.24]], [[4.25]]) — Sprint 2 (konversi satuan resep) DIDEFER [[12.12]], Sprint 3 Batch 2/3 (17 menu Laporan Prioritas 2/3) + TODO tracking stock movement [[12.14]] MENYUSUL [[12.13]].
 
 ---
@@ -659,6 +659,18 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 
 **Deploy production**: digabung dgn [[4.39]] — lihat instruksi deploy di sana. Setelah itu: buat supplier "Gudang Pusat" dgn Supplier Internal = Gudang Pusat; cek saklar wajib bukti tiap cabang; koreksi Harga Standar bahan yang terlanjur tertimpa (Owner sendiri).
 
+### 4.41 🟢 POS: Pilihan Tipe Transaksi per Cabang + Tombol Uang Pas (2026-10-22)
+
+**Permintaan Owner**: (1) pilihan Dine-in/Takeaway/Frozen di POS hanya tampil kalau diaktifkan di pengaturan cabang; (2) tombol "uang pas" = nominal belanja agar ngasir cepat. Saklar per tipe (`dine_in_aktif`/`takeaway_aktif`/`frozen_aktif`) SUDAH ada sejak Tahap 3, tapi kasir tetap wajib klik tipe walau cuma 1 aktif, dan kalau semua dimatikan transaksi tidak bisa disimpan.
+
+**Yang dibuat** (migration `2026_10_22_100001`):
+- `cabangs.pilih_tipe_transaksi` (default **true** = perilaku lama) + `cabangs.tipe_transaksi_default` (default `takeaway`) — saklar "Tampilkan pilihan Tipe Transaksi di POS" + dropdown "Tipe bawaan" di Config POS (form tambah & edit cabang).
+- `Cabang::tipeTransaksiOtomatis()`: pilihan disembunyikan → tipe bawaan; hanya 1 tipe aktif → tipe itu; selain itu null. POS: kartu Tipe Transaksi hanya tampil kalau pilihan aktif (mode sembunyi: teks "Tipe transaksi: … (otomatis)"), hidden input `tipe_transaksi` terisi tipe otomatis + `pilihTipeTransaksi()` dipanggil saat load (nomor meja & takeaway fee ikut jalan). Server fallback kalau `tipe_transaksi` kosong: `OrderRequest::prepareForValidation()` & `PenjualanController::simpanBill()`.
+- **Uang Pas**: tombol nominal tetap (50/100/150/200rb) diganti `#nominalCepat` yang dirender `renderNominalCepat(total)` tiap `hitungTotal()` — tombol hijau "Uang Pas · Rp X" (= total) + maks 3 pembulatan ke atas (5rb/10rb/50rb/100rb).
+- Bug kecil ikut difix: `CabangController::update()` mengakses `$data['kepala_cabang_id']` tanpa cek (500 kalau field tidak terkirim).
+- Panduan `<!-- POS-441 -->` (pos, cabang) + tooltip `cabang.pilih_tipe_transaksi` di `Perbaikan438PanduanSeeder`. Test `TipeTransaksiUangPasTest` (5).
+
+**Deploy**: `git pull` → `https://erp.dmentaiindonesia.com/deploy-441.php?confirm=YES-POS441` (migrate + panduan + cache, lock `storage/deploy-441.lock`) → hapus `public/deploy-441.php`. Mencakup juga 4.40.
 ### 4.40 🟢 POS "Stok tersedia" dari Bahan Resep (2026-10-19)
 
 **Laporan Owner** (setelah deploy 4.39): di baris item order POS tertulis "Stok tersedia: 0" padahal produk bisa diklik/dijual. **Bug lama** (sejak initial commit, angkanya selalu 0 sejak 4.34 produk jual tidak menyimpan stok sendiri): tulisan membaca stok produk itu sendiri, sedangkan tanda "Stok Habis" dihitung dari bahan resep.

@@ -242,6 +242,23 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="row g-2 mb-2 align-items-end">
+                            <div class="col-12 col-md-6">
+                                <div class="form-check form-switch">
+                                    <input type="hidden" name="pilih_tipe_transaksi" value="0">
+                                    <input class="form-check-input" type="checkbox" role="switch" id="pilihTipeTransaksi" name="pilih_tipe_transaksi" value="1" {{ old('pilih_tipe_transaksi', '1') ? 'checked' : '' }}>
+                                    <label class="form-check-label small" for="pilihTipeTransaksi">Tampilkan pilihan Tipe Transaksi di POS <x-tooltip key="cabang.pilih_tipe_transaksi" /></label>
+                                </div>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label small fw-medium mb-1" for="tipeTransaksiDefault">Tipe bawaan (dipakai saat pilihan disembunyikan)</label>
+                                <select name="tipe_transaksi_default" id="tipeTransaksiDefault" class="form-select form-select-sm">
+                                    @foreach(\App\Enums\TipeTransaksi::cases() as $t)
+                                        <option value="{{ $t->value }}" @selected(old('tipe_transaksi_default', 'takeaway') === $t->value)>{{ $t->label() }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
                         <div class="row g-2">
                             <div class="col-6">
                                 <x-input-rupiah name="take_away_fee" label="Takeaway Fee" :value="old('take_away_fee', 0)" />
