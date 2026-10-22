@@ -670,7 +670,7 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 - Bug kecil ikut difix: `CabangController::update()` mengakses `$data['kepala_cabang_id']` tanpa cek (500 kalau field tidak terkirim).
 - Panduan `<!-- POS-441 -->` (pos, cabang) + tooltip `cabang.pilih_tipe_transaksi` di `Perbaikan438PanduanSeeder`. Test `TipeTransaksiUangPasTest` (5).
 
-**Deploy**: `git pull` → `https://erp.dmentaiindonesia.com/deploy-441.php?confirm=YES-POS441` (migrate + panduan + cache, lock `storage/deploy-441.lock`) → hapus `public/deploy-441.php`. Mencakup juga 4.40.
+**Deploy**: SELESAI 2026-10-22 di DB `azwc7142_erp_dmentai` (via `public/deploy-441.php`, sudah dihapus dari repository; ambil dari riwayat git kalau instalasi lain perlu). Mencakup juga 4.40.
 ### 4.40 🟢 POS "Stok tersedia" dari Bahan Resep (2026-10-19)
 
 **Laporan Owner** (setelah deploy 4.39): di baris item order POS tertulis "Stok tersedia: 0" padahal produk bisa diklik/dijual. **Bug lama** (sejak initial commit, angkanya selalu 0 sejak 4.34 produk jual tidak menyimpan stok sendiri): tulisan membaca stok produk itu sendiri, sedangkan tanda "Stok Habis" dihitung dari bahan resep.
