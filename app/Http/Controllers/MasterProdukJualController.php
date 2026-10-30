@@ -101,6 +101,17 @@ class MasterProdukJualController extends Controller
         if ($data['punya_varian']) {
             $this->syncAttributesAndVariants($item, (array) $request->input('atribut', []), (array) $request->input('harga_override', []));
         }
+
+        // 4.42 — "Buat juga di cabang": lanjut ke layar pemeriksaan komposisi
+        $salinKe = CabangAktif::pilihan()->pluck('id')
+            ->intersect(collect((array) $request->input('salin_ke_cabang', []))->map(fn ($id) => (int) $id))
+            ->reject(fn ($id) => $id === (int) $item->cabang_id)->values();
+        if ($salinKe->isNotEmpty()) {
+            return redirect()->route('master.produk-jual.ambil.periksa', [
+                'sumber' => $item->cabang_id, 'produk' => [$item->id], 'tujuan' => $salinKe->all(),
+            ])->with('success', "Produk {$item->nama_item} berhasil ditambahkan. Periksa komposisi untuk cabang lain lalu klik Salin Produk.");
+        }
+
         return redirect()->route('master.produk-jual.index')
             ->with('success', "Produk {$item->nama_item} berhasil ditambahkan.");
     }

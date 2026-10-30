@@ -208,6 +208,23 @@
     </div>
 
     <div class="col-12 col-lg-4">
+        {{-- 4.42 — input sekali, salin juga ke cabang lain (lewat layar pemeriksaan komposisi) --}}
+        @php $cabangLain = $isEdit ? collect() : $pilihanCabang->where('id', '!=', $cabangPemilik)->values(); @endphp
+        @if($cabangLain->isNotEmpty())
+        <div class="card mb-3" id="cardSalinCabangLain">
+            <div class="card-header fw-semibold small"><i class="bi bi-diagram-3 me-1"></i>Buat juga di cabang <x-tooltip key="ambil_produk.buat_juga" /></div>
+            <div class="card-body py-2">
+                @foreach($cabangLain as $c)
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="salin_ke_cabang[]" value="{{ $c->id }}" id="salinKe{{ $c->id }}"
+                        @checked(in_array((string) $c->id, (array) old('salin_ke_cabang', []), true))>
+                    <label class="form-check-label small" for="salinKe{{ $c->id }}">{{ $c->nama_cabang }}</label>
+                </div>
+                @endforeach
+                <div class="form-text" style="font-size:0.72rem">Setelah disimpan, komposisi dicocokkan dulu ke bahan milik cabang yang dicentang (layar pemeriksaan).</div>
+            </div>
+        </div>
+        @endif
         <div class="card">
             <div class="card-body">
                 <div class="form-check form-switch mb-3">

@@ -177,6 +177,10 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
         // 2026-09-19: subtotal 1 bumbu tidak butuh produk tersimpan, lihat
         // CLAUDE.md 4.19), jadi jalan di halaman Create maupun Edit.
         Route::post('/preview-bumbu/{bumbu}', [\App\Http\Controllers\MasterProdukJualController::class, 'previewSubtotalBumbu'])->name('preview-bumbu')->middleware('can:master.produk_jual.edit');
+        // 4.42 — Ambil produk dari cabang lain (salin jadi milik cabang tujuan)
+        Route::get('/ambil', [\App\Http\Controllers\AmbilProdukCabangController::class, 'index'])->name('ambil.index')->middleware('can:master.produk_jual.create');
+        Route::get('/ambil/periksa', [\App\Http\Controllers\AmbilProdukCabangController::class, 'periksa'])->name('ambil.periksa')->middleware('can:master.produk_jual.create');
+        Route::post('/ambil', [\App\Http\Controllers\AmbilProdukCabangController::class, 'simpan'])->name('ambil.simpan')->middleware('can:master.produk_jual.create');
         Route::get('/create', [\App\Http\Controllers\MasterProdukJualController::class, 'create'])->name('create')->middleware('can:master.produk_jual.create');
         Route::post('/', [\App\Http\Controllers\MasterProdukJualController::class, 'store'])->name('store')->middleware('can:master.produk_jual.create');
         Route::get('/{produkJual}/edit', [\App\Http\Controllers\MasterProdukJualController::class, 'edit'])->name('edit')->middleware('can:master.produk_jual.edit');

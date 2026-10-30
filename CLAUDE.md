@@ -4,7 +4,7 @@
 > Isinya: keputusan bisnis, temuan audit, aturan teknis, dan filosofi kerja.
 
 **Versi**: 4.13  
-**Update terakhir**: 2026-10-22 (POS tipe transaksi per cabang & Uang Pas — [[4.41]]; POS stok tersedia dari resep — [[4.40]]; Data barang terpisah per cabang — lihat [[4.39]]; Perbaikan Harga, Wajib Bukti, PO ke Gudang, Role Bebas — lihat [[4.38]])  
+**Update terakhir**: 2026-10-30 (Ambil Produk Jual dari cabang lain — [[4.42]]; POS tipe transaksi per cabang & Uang Pas — [[4.41]]; POS stok tersedia dari resep — [[4.40]]; Data barang terpisah per cabang — lihat [[4.39]]; Perbaikan Harga, Wajib Bukti, PO ke Gudang, Role Bebas — lihat [[4.38]])  
 **Status**: 🎉 **PROJECT LIVE DI PRODUCTION** (https://erp.dmentaiindonesia.com — domain lama `erpdimsum.azwacore.com` sudah tidak dipakai; **GO-LIVE data real: lihat [[4.28]]**) — Tahap 1-7 SELESAI SEMUA + rangkaian bug fix & improvement lintas sesi (lihat section 4 utk detail lengkap tiap item): Bug Fix Ronde 2, Rename Jenis Menu/Master Bumbu Pusat, Fitur Import dari Bumbu Pusat, Rename Label & Hapus Gojek/Grab, Fix Foto Produk Production, UI Preview Harga Master/Subtotal Resep (Ronde 3-5), Auto-isi Satuan Master Bumbu Pusat, Fix ENUM Kategori Saldo Awal, Fix Label Kode Kategori Wajib, Default Basis Program Loyalty ke Rp, Widget Total Pembelian Pelanggan, Fix Export Excel Laporan Keuangan. **Sprint 3 Batch 1 SELESAI SEMUA** (5 menu Prioritas 1 — Penjualan, Setoran Kasir, Setoran Harian/Rekap, Stok 3 sub-view, Laba Rugi Produksi — lihat [[4.24]], [[4.25]]) — Sprint 2 (konversi satuan resep) DIDEFER [[12.12]], Sprint 3 Batch 2/3 (17 menu Laporan Prioritas 2/3) + TODO tracking stock movement [[12.14]] MENYUSUL [[12.13]].
 
 ---
@@ -659,6 +659,21 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 
 **Deploy production**: digabung dgn [[4.39]] — lihat instruksi deploy di sana. Setelah itu: buat supplier "Gudang Pusat" dgn Supplier Internal = Gudang Pusat; cek saklar wajib bukti tiap cabang; koreksi Harga Standar bahan yang terlanjur tertimpa (Owner sendiri).
 
+### 4.42 🟢 Ambil Produk Jual dari Cabang Lain + "Buat juga di cabang" (2026-10-30)
+
+**Permintaan Owner**: pelanggan tidak mau input produk jual berulang di tiap cabang, TAPI data tetap terpisah per cabang ([[4.39]]). Solusi: produk **disalin** jadi milik cabang tujuan; komposisi menunjuk **bahan milik cabang tujuan** (stok dipotong dari cabang itu). Tanpa sinkron otomatis setelah disalin.
+
+**Mesin** `App\Services\AmbilProdukCabangService` — `rencana(sumber, produkIds, tujuan)` (READ, tidak mengubah data) & `jalankan(..., produkDipilih, keputusanBahan, keputusanBumbu)` (1 transaksi). Pencocokan bahan & Bumbu Pusat (aturan dari Owner): kode sama + nama sama → **cocok**; kode tidak ada tapi nama sama → **nama_sama** (bawaan pakai yg bernama sama); kode sama nama beda → **kode_sama** (WAJIB dipilih, `ValidationException` kalau kosong); tidak ada → **baru** (salinan bahan stok 0, kode unik `KODE-2` kalau bentrok); bahan data lama `cabang_id NULL` → **umum** (dipakai apa adanya). Perbandingan tanpa beda huruf besar/kecil & spasi berlebih. Pilihan id divalidasi milik cabang tujuan. Produk: kode sudah ada (termasuk di Data Terhapus) → dilewati; nama sama kode beda → bawaan tidak dicentang. Yang disalin: data produk, foto (**file disalin sendiri** — supaya ganti/hapus foto 1 cabang tidak menghilangkan foto cabang lain), atribut/nilai/varian, resep, Bumbu Pusat (baru atau pakai yang ada). Stok & transaksi tidak.
+
+**UI**: tombol **"Ambil dari Cabang Lain"** di daftar Produk Jual → `master.produk-jual.ambil.index` (pilih sumber, centang produk; mode Semua Cabang pilih tujuan dulu) → `ambil.periksa` (GET, layar pemeriksaan per cabang tujuan: Produk / Bumbu Pusat / Bahan dgn dropdown "buat baru" atau bahan milik tujuan) → `ambil.simpan` (POST). Form Tambah Produk Jual: card **"Buat juga di cabang"** (cabang `CabangAktif::pilihan()` selain pemilik, hanya create) → setelah simpan redirect ke layar pemeriksaan dgn `tujuan[]`. Controller `AmbilProdukCabangController` (`bacaPermintaan()` memaksa tujuan ∈ pilihan + `bolehAkses`, 403 kalau bukan). Permission reuse `master.produk_jual.create` (sumber boleh cabang mana pun — keputusan Owner). Tanpa migration.
+
+**Panduan/tooltip**: panduan BARU slug `ambil-produk-cabang` (langkah lengkap + tabel status) + ringkasan pendek `<!-- AMBIL-PRODUK-442 -->` di slug `produk-jual` + 4 tooltip `ambil_produk.*`, semua di `Perbaikan438PanduanSeeder`; tombol Cara Pakai (`ambil-produk-cabang`) di 2 halaman baru. Isi lengkap SENGAJA tidak ditempel ke panduan `produk-jual` — guard `PanduanTooltipBackfillTest` membatasi 1.200 kata dan panduan itu sudah ~1.080 kata di DB test.
+
+**Test**: `AmbilProdukCabangServiceTest` (9), `AmbilProdukCabangHttpTest` (8), `BuatJugaDiCabangTest` (5). Uji data dev (rollback): 22 produk tersalin, 7 dilewati, 20 bahan baru, 0 baris resep menunjuk cabang lain.
+
+**Lanjutan yang disarankan (belum dikerjakan)**: pemeriksaan kode+nama yang sama di penerimaan PO dari Gudang (kasus kode produk gudang "DM 57" ≠ bahan outlet "DM 001", [[4.39]] Fase 3).
+
+**Deploy**: `git pull` → `https://erp.dmentaiindonesia.com/deploy-442.php?confirm=YES-AMBIL442` (seeder panduan + cache, lock `storage/deploy-442.lock`) → hapus `public/deploy-442.php`.
 ### 4.41 🟢 POS: Pilihan Tipe Transaksi per Cabang + Tombol Uang Pas (2026-10-22)
 
 **Permintaan Owner**: (1) pilihan Dine-in/Takeaway/Frozen di POS hanya tampil kalau diaktifkan di pengaturan cabang; (2) tombol "uang pas" = nominal belanja agar ngasir cepat. Saklar per tipe (`dine_in_aktif`/`takeaway_aktif`/`frozen_aktif`) SUDAH ada sejak Tahap 3, tapi kasir tetap wajib klik tipe walau cuma 1 aktif, dan kalau semua dimatikan transaksi tidak bisa disimpan.

@@ -11,6 +11,9 @@
         <a href="{{ route('master.produk-jual.create') }}" class="btn btn-primary btn-sm">
             <i class="bi bi-plus-circle me-1"></i>Tambah Produk
         </a>
+        <a href="{{ route('master.produk-jual.ambil.index') }}" class="btn btn-outline-success btn-sm" id="btnAmbilCabangLain">
+            <i class="bi bi-box-arrow-in-down me-1"></i>Ambil dari Cabang Lain
+        </a>
         @endcan
         <x-panduan-button slug="produk-jual" />
     </div>

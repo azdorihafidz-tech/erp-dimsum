@@ -36,6 +36,11 @@ class Perbaikan438PanduanSeeder extends Seeder
         $this->appendSections($this->sectionsPos441(), '<!-- POS-441 -->');
         $this->tooltips($this->tooltipsPos441());
 
+        // 4.42 — ambil produk jual dari cabang lain (panduan tersendiri + ringkasan di produk-jual)
+        $this->panduanBaru('ambil-produk-cabang', 'Ambil Produk dari Cabang Lain', 'master', $this->panduanAmbilProduk442());
+        $this->appendSections($this->sectionsAmbilProduk442(), '<!-- AMBIL-PRODUK-442 -->');
+        $this->tooltips($this->tooltipsAmbilProduk442());
+
         $this->command?->info('✅ Panduan & tooltip Perbaikan 4.38 tersimpan (idempotent).');
     }
 
@@ -343,6 +348,66 @@ MD,
         return [
             ['key' => 'cabang.pilih_tipe_transaksi', 'modul' => 'cabang', 'title' => 'Pilihan Tipe Transaksi di POS',
                 'content' => 'Aktif = kasir memilih Dine-in/Takeaway/Frozen di POS. Nonaktif = pilihan disembunyikan, semua transaksi otomatis memakai Tipe bawaan.'],
+        ];
+    }
+    // =====================================================================
+    // 4.42 — Ambil Produk Jual dari cabang lain
+    // =====================================================================
+
+    private function panduanAmbilProduk442(): string
+    {
+        return <<<'MD'
+## Tujuan
+Produk jual yang sudah diinput di satu cabang bisa **disalin** ke cabang lain. Setelah disalin, produk itu **milik cabang tujuan sendiri** — bisa diubah tanpa memengaruhi cabang asal, dan stok yang terpotong saat dijual adalah stok bahan cabang tujuan.
+
+**Cara 1 — tombol "Ambil dari Cabang Lain"** (di halaman Produk Jual):
+1. Pilih cabang di pojok kanan atas = cabang yang mau menerima produk.
+2. Klik **Ambil dari Cabang Lain** → pilih cabang sumber → centang produk (yang bertanda *Sudah ada* tidak bisa dipilih) → **Lanjut ke Pemeriksaan**.
+3. Periksa layar pemeriksaan, lalu klik **Salin Produk**.
+
+**Cara 2 — centang "Buat juga di cabang"** di form Tambah Produk Jual. Setelah Simpan, langsung muncul layar pemeriksaan untuk cabang yang dicentang.
+
+**Yang disalin**: nama, kode, kategori, foto, harga jual, varian, komposisi resep, dan Bumbu Pusat yang dipakai. **Tidak disalin**: stok & transaksi.
+
+### Layar Pemeriksaan — bahan dicocokkan lewat Kode Item lalu dicek namanya
+| Status | Artinya | Yang terjadi |
+|---|---|---|
+| ✅ Cocok | Kode & nama sama | Langsung dipakai |
+| ⚠️ Kode beda, nama sama | mis. DM01 "Kulit Dimsum" ↔ DM03 "Kulit Dimsum" | Bawaan dipakai bahan bernama sama; bisa diganti |
+| ⛔ Kode sama, nama beda | Bisa jadi barang berbeda | **Wajib dipilih** sendiri |
+| ➕ Belum ada | Kode & nama tidak ditemukan | Dibuat bahan baru di cabang tujuan, **stok 0** — isi stoknya lewat PO / Transfer |
+
+Huruf besar/kecil dan spasi berlebih tidak dianggap beda. Di setiap baris ada pilihan **pakai bahan lain** milik cabang tujuan atau **buat bahan baru**.
+
+**Catatan**
+- Produk yang kodenya sudah ada di cabang tujuan **dilewati** (tidak ditimpa).
+- Kalau sudah ada produk bernama sama dengan kode berbeda, produk itu tidak dicentang otomatis — centang sendiri kalau memang mau disalin.
+- Perubahan di cabang asal setelah disalin **tidak ikut** ke cabang lain.
+- Yang boleh memakai fitur ini: siapa pun yang boleh **menambah Produk Jual** di cabangnya.
+MD;
+    }
+
+    private function sectionsAmbilProduk442(): array
+    {
+        return [
+            'produk-jual' => <<<'MD'
+## 🔄 Update 2026-10-30 — Ambil Produk dari Cabang Lain
+Produk yang sudah ada di cabang lain tidak perlu diinput ulang: klik **Ambil dari Cabang Lain** di halaman Produk Jual, atau centang **Buat juga di cabang** saat menambah produk. Produk disalin jadi milik cabang tujuan dan komposisinya memakai bahan cabang itu sendiri. Langkah lengkap: panduan **Ambil Produk dari Cabang Lain**.
+MD,
+        ];
+    }
+
+    private function tooltipsAmbilProduk442(): array
+    {
+        return [
+            ['key' => 'ambil_produk.sumber', 'modul' => 'master_produk_jual', 'title' => 'Ambil dari Cabang',
+                'content' => 'Cabang asal produk. Produknya disalin jadi milik cabang tujuan; data cabang asal tidak berubah.'],
+            ['key' => 'ambil_produk.tujuan', 'modul' => 'master_produk_jual', 'title' => 'Ke Cabang',
+                'content' => 'Cabang yang menerima salinan produk. Komposisi memakai bahan milik cabang ini, stok yang terpotong juga stok cabang ini.'],
+            ['key' => 'ambil_produk.pencocokan', 'modul' => 'master_produk_jual', 'title' => 'Pencocokan Bahan',
+                'content' => 'Bahan dicocokkan lewat Kode Item lalu dicek namanya. Kuning = kode beda tapi nama sama (bisa diganti). Kode sama tapi nama beda wajib dipilih. Bahan yang belum ada dibuat baru dengan stok 0.'],
+            ['key' => 'ambil_produk.buat_juga', 'modul' => 'master_produk_jual', 'title' => 'Buat Juga di Cabang',
+                'content' => 'Centang cabang lain yang juga menjual produk ini. Setelah Simpan, muncul layar pemeriksaan komposisi untuk cabang yang dicentang, lalu produk disalin jadi milik cabang itu.'],
         ];
     }
 }
