@@ -15,7 +15,7 @@
         <small class="text-muted">{{ $evaluation->period?->nama_periode }}</small>
     </div>
     <div class="d-flex gap-2">
-        @if($evaluation->status->value !== 'final' && isset($authUser) && in_array($authUser->role?->value, ['owner','admin_pusat','manajer_cabang']))
+        @if($evaluation->status->value !== 'final' && isset($authUser) && $authUser->can('evaluasi.manage'))
         <form action="{{ route('evaluasi.period-finalize', $evaluation->period) }}" method="POST">
             @csrf
             <button class="btn btn-sm btn-primary" onclick="return confirm('Finalisasi evaluasi ini?')">

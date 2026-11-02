@@ -865,7 +865,7 @@ class KeuanganController extends Controller
      */
     public function laporan(Request $request)
     {
-        abort_unless(auth()->user()->can('laporan.view'), 403);
+        abort_unless(auth()->user()->can('laporan.keuangan.view'), 403);
 
         $user = auth()->user();
         $activeCabangId = session('active_cabang_id');

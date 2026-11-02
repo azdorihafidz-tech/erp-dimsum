@@ -183,7 +183,7 @@
         </div>
 
         {{-- BUAT TRANSFER (status disetujui, belum ada transfer) --}}
-        @if($statusVal === 'disetujui' && in_array($authUser->role?->value, ['owner','admin_gudang']))
+        @if($statusVal === 'disetujui' && $authUser->can('stok.transfer'))
         @php $sudahAdaTransfer = $stockRequest->transfers()->whereNotIn('status',['dibatalkan'])->exists(); @endphp
         @if(!$sudahAdaTransfer)
         <div class="p-4" style="border:1.5px solid #22c55e;border-radius:12px;background:#f0fdf4">
@@ -212,7 +212,7 @@
         @endif
 
         {{-- FORM APPROVAL (hanya jika status pending DAN user punya akses semua cabang) --}}
-        @if($statusVal === 'pending' && in_array($authUser->role?->value, ['owner','admin_gudang']))
+        @if($statusVal === 'pending' && $authUser->can('stok.transfer'))
         <div class="approval-card p-4">
             <h6 class="fw-bold mb-3" style="color:#1e40af;font-size:0.9rem">
                 <i class="bi bi-shield-check me-2"></i>Proses Permintaan

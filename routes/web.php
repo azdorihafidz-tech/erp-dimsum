@@ -137,10 +137,12 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
     Route::post('/cabang/switch', [CabangSwitcherController::class, 'switch'])->name('cabang.switch');
 
     // ===== MANAJEMEN CABANG (Owner / Admin Pusat) =====
-    Route::middleware('role:owner,admin_pusat')->group(function () {
-        Route::resource('cabang', CabangController::class);
-
-        // Extra routes di luar resource
+    // 4.43: per aksi mengikuti centangan Role & Hak Akses (dulu role:owner,admin_pusat)
+    Route::resource('cabang', CabangController::class)->only(['create', 'store'])->middleware('can:cabang.create');
+    Route::resource('cabang', CabangController::class)->only(['index', 'show'])->middleware('can:cabang.view');
+    Route::resource('cabang', CabangController::class)->only(['edit', 'update'])->middleware('can:cabang.edit');
+    Route::resource('cabang', CabangController::class)->only(['destroy'])->middleware('can:cabang.delete');
+    Route::middleware('can:cabang.edit')->group(function () {
         Route::patch('/cabang/{cabang}/toggle-aktif', [CabangController::class, 'toggleAktif'])
             ->name('cabang.toggle-aktif');
         Route::post('/cabang/{cabang}/assign-user', [CabangController::class, 'assignUser'])
@@ -151,10 +153,10 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
 
     // ===== STOK & INVENTORI =====
     // Item (master barang) — owner, admin_pusat, admin_gudang
-    Route::middleware('role:owner,admin_pusat,admin_gudang')->group(function () {
-        Route::resource('item', ItemController::class);
-        Route::post('/item/kategori', [ItemController::class, 'storeKategori'])->name('item.kategori.store');
-    });
+    // 4.43: Semua Barang ikut centangan item.view (dulu role:owner,admin_pusat,admin_gudang);
+    // tambah kategori dicek di controller (dipakai form Bahan Baku & Produk Jual).
+    Route::post('/item/kategori', [ItemController::class, 'storeKategori'])->name('item.kategori.store');
+    Route::resource('item', ItemController::class)->middleware('can:item.view');
 
     // ===== Tahap 2.5 D'mentai — split Master Item jadi 2 menu (permission-
     // based, bukan role hardcode, supaya manajer_cabang yang di-grant
@@ -233,8 +235,12 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
     Route::post('/stock-transfer/{stockTransfer}/batalkan', [StockTransferController::class, 'batalkan'])->name('stock-transfer.batalkan');
 
     // ===== MANAJEMEN USER (Owner / Admin Pusat / Manajer Cabang) =====
-    Route::middleware('role:owner,admin_pusat,manajer_cabang')->group(function () {
-        Route::resource('user', UserController::class);
+    // 4.43: per aksi mengikuti centangan (dulu role:owner,admin_pusat,manajer_cabang)
+    Route::resource('user', UserController::class)->only(['create', 'store'])->middleware('can:user.create');
+    Route::resource('user', UserController::class)->only(['index', 'show'])->middleware('can:user.view');
+    Route::resource('user', UserController::class)->only(['edit', 'update'])->middleware('can:user.edit');
+    Route::resource('user', UserController::class)->only(['destroy'])->middleware('can:user.delete');
+    Route::middleware('can:user.edit')->group(function () {
         Route::patch('/user/{user}/toggle-aktif', [UserController::class, 'toggleAktif'])
             ->name('user.toggle-aktif');
         Route::post('/user/{user}/reset-password', [UserController::class, 'resetPassword'])
@@ -251,9 +257,6 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
         Route::put('/role-buatan/{customRole}', [RoleController::class, 'updateCustom'])->name('role.custom.update');
         Route::delete('/role-buatan/{customRole}', [RoleController::class, 'destroyCustom'])->name('role.custom.destroy');
 
-        // Pengaturan Penggajian
-        Route::get('/pengaturan/penggajian', [PengaturanGajiController::class, 'edit'])->name('pengaturan.penggajian');
-        Route::put('/pengaturan/penggajian', [PengaturanGajiController::class, 'update'])->name('pengaturan.penggajian.update');
         Route::get('/pengaturan/umum', [PengaturanUmumController::class, 'edit'])->name('pengaturan.umum');
         Route::put('/pengaturan/umum', [PengaturanUmumController::class, 'update'])->name('pengaturan.umum.update');
 
@@ -263,17 +266,23 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
             ->name('laporan.neraca.update-setting');
     });
 
+    // Pengaturan Penggajian — 4.43: ikut centangan (dulu khusus Owner)
+    Route::middleware('can:pengaturan_penggajian')->group(function () {
+        Route::get('/pengaturan/penggajian', [PengaturanGajiController::class, 'edit'])->name('pengaturan.penggajian');
+        Route::put('/pengaturan/penggajian', [PengaturanGajiController::class, 'update'])->name('pengaturan.penggajian.update');
+    });
+
     // ===== PROFIL =====
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     // ===== SUPPLIER (owner, admin_pusat, admin_gudang) =====
-    Route::middleware('role:owner,admin_pusat,admin_gudang')->group(function () {
-        Route::resource('supplier', SupplierController::class);
-        Route::patch('/supplier/{supplier}/toggle-aktif', [SupplierController::class, 'toggleAktif'])
-            ->name('supplier.toggle-aktif');
-    });
+    // 4.43: ikut centangan supplier.view / supplier.manage (dulu role:owner,admin_pusat,admin_gudang)
+    Route::resource('supplier', SupplierController::class)->only(['create', 'store', 'edit', 'update', 'destroy'])->middleware('can:supplier.manage');
+    Route::resource('supplier', SupplierController::class)->only(['index', 'show'])->middleware('can:supplier.view');
+    Route::patch('/supplier/{supplier}/toggle-aktif', [SupplierController::class, 'toggleAktif'])
+        ->name('supplier.toggle-aktif')->middleware('can:supplier.manage');
 
     // ===== PEMBELIAN / PURCHASE ORDER (permission-based per aksi) =====
     Route::prefix('pembelian')->name('pembelian.')->group(function () {
@@ -339,23 +348,27 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
     Route::post('/antrian/cek/{order}/tandai-diambil', [AntrianCekController::class, 'tandaiDiambil'])->name('antrian.cek.diambil');
     Route::get('/antrian/cek/{order}/cetak-ulang',     [AntrianCekController::class, 'cetakUlang'])->name('antrian.cek.cetak-ulang');
 
-    // ===== PENJUALAN / POS (semua role) =====
-    Route::get('/penjualan/pos', [PenjualanController::class, 'pos'])->name('penjualan.pos');
-    // Helper AJAX auto-populate resep bumbu di POS — sengaja TIDAK digated
-    // permission master.resep_bumbu.* (itu utk CRUD master data), kasir tetap
-    // perlu bisa pakai resep walau tidak boleh kelola master-nya.
-    Route::get('/pos/resep-bumbu/{resepBumbu}', [PenjualanController::class, 'resepBumbuItems'])->name('pos.resep-bumbu');
-    // Tahap 3 D'mentai — modal varian, Save Bill, Charge Bill, preview cetak
-    Route::get('/pos/item/{item}/varian', [PenjualanController::class, 'itemVarian'])->name('pos.item-varian');
-    Route::post('/penjualan/simpan-bill', [PenjualanController::class, 'simpanBill'])->name('penjualan.simpan-bill');
-    Route::post('/penjualan/{order}/charge', [PenjualanController::class, 'chargeBill'])->name('penjualan.charge-bill');
-    Route::post('/penjualan/{order}/batalkan-bill', [PenjualanController::class, 'batalkanBill'])->name('penjualan.batalkan-bill')->middleware('can:order.bill_tersimpan.batalkan');
-    Route::post('/penjualan/print-preview', [PenjualanController::class, 'printBillPreview'])->name('penjualan.print-preview');
-    Route::post('/penjualan', [PenjualanController::class, 'store'])->name('penjualan.store');
-    Route::get('/penjualan', [PenjualanController::class, 'index'])->name('penjualan.index');
-    // Wajib di atas Route::get('/penjualan/{order}') — kalau di bawah, "cek-pengganti"
-    // akan ketangkep sebagai {order} (string) duluan lalu 404 di route model binding.
-    Route::get('/penjualan/cek-pengganti', [PenjualanController::class, 'cekPengganti'])->name('penjualan.cek-pengganti');
+    // ===== PENJUALAN / POS =====
+    // 4.43: POS & transaksi baru = order.create, riwayat = order.view (dulu semua role).
+    // Detail order & struk dicek di controller (dibuka juga dari Antrian/Kas).
+    Route::middleware('can:order.create')->group(function () {
+        Route::get('/penjualan/pos', [PenjualanController::class, 'pos'])->name('penjualan.pos');
+        // Helper AJAX auto-populate resep bumbu di POS — sengaja TIDAK digated
+        // permission master.resep_bumbu.* (itu utk CRUD master data), kasir tetap
+        // perlu bisa pakai resep walau tidak boleh kelola master-nya.
+        Route::get('/pos/resep-bumbu/{resepBumbu}', [PenjualanController::class, 'resepBumbuItems'])->name('pos.resep-bumbu');
+        // Tahap 3 D'mentai — modal varian, Save Bill, Charge Bill, preview cetak
+        Route::get('/pos/item/{item}/varian', [PenjualanController::class, 'itemVarian'])->name('pos.item-varian');
+        Route::post('/penjualan/simpan-bill', [PenjualanController::class, 'simpanBill'])->name('penjualan.simpan-bill');
+        Route::post('/penjualan/{order}/charge', [PenjualanController::class, 'chargeBill'])->name('penjualan.charge-bill');
+        Route::post('/penjualan/{order}/batalkan-bill', [PenjualanController::class, 'batalkanBill'])->name('penjualan.batalkan-bill')->middleware('can:order.bill_tersimpan.batalkan');
+        Route::post('/penjualan/print-preview', [PenjualanController::class, 'printBillPreview'])->name('penjualan.print-preview');
+        Route::post('/penjualan', [PenjualanController::class, 'store'])->name('penjualan.store');
+        // Wajib di atas Route::get('/penjualan/{order}') — kalau di bawah, "cek-pengganti"
+        // akan ketangkep sebagai {order} (string) duluan lalu 404 di route model binding.
+        Route::get('/penjualan/cek-pengganti', [PenjualanController::class, 'cekPengganti'])->name('penjualan.cek-pengganti');
+    });
+    Route::get('/penjualan', [PenjualanController::class, 'index'])->name('penjualan.index')->middleware('can:order.view');
     Route::get('/penjualan/{order}', [PenjualanController::class, 'show'])->name('penjualan.show');
     Route::get('/penjualan/{order}/struk', [PenjualanController::class, 'struk'])->name('penjualan.struk');
     Route::post('/penjualan/{order}/batalkan', [PenjualanController::class, 'batalkan'])->name('penjualan.batalkan')->middleware('can:order.batalkan');
@@ -369,12 +382,12 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
     Route::resource('pelanggan', PelangganController::class);
 
     // ===== MASTER JENIS OLAHAN (Owner & Admin Pusat) =====
-    Route::middleware('role:owner,admin_pusat')->group(function () {
-        Route::resource('master/jenis-olahan', JenisOlahanController::class)
-            ->parameters(['jenis-olahan' => 'jenis_olahan'])
-            ->except(['show'])
-            ->names('master.jenis-olahan');
-    });
+    // 4.43: controller memeriksa jenis-olahan.view / jenis-olahan.manage (dulu role:owner,admin_pusat)
+    Route::resource('master/jenis-olahan', JenisOlahanController::class)
+        ->parameters(['jenis-olahan' => 'jenis_olahan'])
+        ->except(['show'])
+        ->names('master.jenis-olahan')
+        ->middleware('can:jenis-olahan.view');
 
     // ===== MASTER RESEP BUMBU STANDAR (permission-based, bukan role hardcode) =====
     Route::prefix('master/resep-bumbu')->name('master.resep-bumbu.')->group(function () {
@@ -409,7 +422,7 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
     Route::resource('karyawan', KaryawanController::class);
 
     // Shift — owner & admin_pusat saja
-    Route::middleware('role:owner,admin_pusat')->group(function () {
+    Route::middleware('can:kelola_shift')->group(function () { // 4.43 (dulu role:owner,admin_pusat)
         Route::resource('shift', ShiftController::class);
         Route::patch('/shift/{shift}/toggle-aktif', [ShiftController::class, 'toggleAktif'])->name('shift.toggle-aktif');
     });
@@ -418,26 +431,26 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
     Route::get('/absensi-saya', [AbsensiSayaController::class, 'index'])->name('absensi-saya.index');
 
     // Absensi Manual — manajer_cabang, admin_gudang, owner, admin_pusat
-    Route::middleware('role:owner,admin_pusat,manajer_cabang,admin_gudang')->group(function () {
+    // 4.43: ikut centangan Kelola Absensi / Dashboard Absensi (dulu role:owner,admin_pusat,manajer_cabang,admin_gudang)
+    Route::middleware('can:absensi.manage')->group(function () {
         Route::get('/absensi', [AbsensiController::class, 'index'])->name('absensi.index');
         Route::post('/absensi', [AbsensiController::class, 'store'])->name('absensi.store');
         Route::get('/absensi/rekap', [AbsensiController::class, 'rekap'])->name('absensi.rekap');
         Route::get('/absensi/{absensi}/edit', [AbsensiController::class, 'edit'])->name('absensi.edit');
         Route::put('/absensi/{absensi}', [AbsensiController::class, 'update'])->name('absensi.update');
-        // Dashboard & Log Absensi Wajah
-        Route::get('/dashboard/absensi', [DashboardAbsensiController::class, 'index'])->name('dashboard.absensi');
+        // Log Absensi Wajah
         Route::get('/face-attendance/today', [FaceAttendanceController::class, 'today'])->name('face-attendance.today');
         Route::get('/face-attendance/log', [FaceAttendanceController::class, 'log'])->name('face-attendance.log');
     });
+    Route::get('/dashboard/absensi', [DashboardAbsensiController::class, 'index'])->name('dashboard.absensi')->middleware('can:dashboard_absensi');
 
     // Hapus absensi & log face — hanya owner & admin_pusat
-    Route::middleware('role:owner,admin_pusat')->group(function () {
-        Route::delete('/absensi/{absensi}', [AbsensiController::class, 'destroy'])->name('absensi.destroy');
-        Route::delete('/face-attendance/log/{faceAttendance}', [FaceAttendanceController::class, 'destroyLog'])->name('face-attendance.log.destroy');
-    });
+    // 4.43: ikut centangan Hapus Absensi / Hapus Log Absensi Wajah (dulu role:owner,admin_pusat)
+    Route::delete('/absensi/{absensi}', [AbsensiController::class, 'destroy'])->name('absensi.destroy')->middleware('can:hapus_absensi');
+    Route::delete('/face-attendance/log/{faceAttendance}', [FaceAttendanceController::class, 'destroyLog'])->name('face-attendance.log.destroy')->middleware('can:hapus_log_absensi');
 
     // Setup Device Absensi — owner, admin_pusat, manajer_cabang
-    Route::middleware('role:owner,admin_pusat,manajer_cabang')
+    Route::middleware('can:absensi.device') // 4.43 (dulu role:owner,admin_pusat,manajer_cabang)
         ->prefix('absen-device')
         ->name('absen-device.')
         ->group(function () {
@@ -450,7 +463,7 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
         });
 
     // Hari Libur — owner saja
-    Route::middleware('role:owner')->group(function () {
+    Route::middleware('can:kelola_hari_libur')->group(function () { // 4.43 (dulu khusus Owner)
         Route::resource('hari-libur', HariLiburController::class)->parameters(['hari-libur' => 'hariLibur']);
     });
 
@@ -462,7 +475,7 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
     Route::get('/api/face-data/cabang', [FaceRegistrationController::class, 'faceDataCabang'])->name('api.face-data.cabang');
 
     // Registrasi Wajah (Admin/Manajer)
-    Route::middleware('role:owner,admin_pusat,manajer_cabang,admin_gudang')->group(function () {
+    Route::middleware('can:registrasi_wajah')->group(function () { // 4.43 (dulu role:owner,admin_pusat,manajer_cabang,admin_gudang)
         Route::get('/face-registration', [FaceRegistrationController::class, 'index'])->name('face-registration.index');
         Route::get('/face-registration/{karyawan}/register', [FaceRegistrationController::class, 'register'])->name('face-registration.register');
         Route::post('/face-registration/{karyawan}/store', [FaceRegistrationController::class, 'store'])->name('face-registration.store');
@@ -470,15 +483,22 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
     });
 
     // Penggajian — owner, admin_pusat, manajer_cabang
-    Route::middleware('role:owner,admin_pusat,manajer_cabang')->group(function () {
+    // 4.43: lihat = penggajian.view, ubah = penggajian.manage (dulu role:owner,admin_pusat,manajer_cabang)
+    Route::middleware('can:penggajian.view')->group(function () {
         Route::get('/penggajian', [PenggajianController::class, 'index'])->name('penggajian.index');
+    });
+    Route::middleware('can:penggajian.manage')->group(function () {
         Route::get('/penggajian/generate', [PenggajianController::class, 'generate'])->name('penggajian.generate');
         Route::post('/penggajian/generate', [PenggajianController::class, 'prosesGenerate'])->name('penggajian.proses-generate');
         Route::get('/penggajian/create', [PenggajianController::class, 'createSingle'])->name('penggajian.create');
         Route::get('/penggajian/rekap-absensi', [PenggajianController::class, 'rekapAbsensiAjax'])->name('penggajian.rekap-absensi');
         Route::post('/penggajian', [PenggajianController::class, 'storeSingle'])->name('penggajian.store');
+    });
+    Route::middleware('can:penggajian.view')->group(function () {
         Route::get('/penggajian/{penggajian}', [PenggajianController::class, 'show'])->name('penggajian.show');
         Route::get('/penggajian/{penggajian}/cetak', [PenggajianController::class, 'cetak'])->name('penggajian.cetak');
+    });
+    Route::middleware('can:penggajian.manage')->group(function () {
         Route::get('/penggajian/{penggajian}/edit', [PenggajianController::class, 'edit'])->name('penggajian.edit');
         Route::put('/penggajian/{penggajian}', [PenggajianController::class, 'update'])->name('penggajian.update');
         Route::post('/penggajian/{penggajian}/approve', [PenggajianController::class, 'approve'])->name('penggajian.approve');
@@ -492,16 +512,19 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
     Route::post('/cuti/{cuti}/tolak', [CutiController::class, 'tolak'])->name('cuti.tolak');
 
     // Evaluasi 360° — semua role (masing-masing hanya bisa isi penilaian yang ditugaskan)
-    Route::get('/evaluasi', [EvaluationController::class, 'periodIndex'])->name('evaluasi.periods');
+    Route::get('/evaluasi', [EvaluationController::class, 'periodIndex'])->name('evaluasi.periods')->middleware('can:evaluasi.view');
     Route::get('/evaluasi/saya', [EvaluationController::class, 'myReviews'])->name('evaluasi.my-reviews');
-    Route::middleware('role:owner,admin_pusat,manajer_cabang')->group(function () {
+    // 4.43: lihat = evaluasi.view, kelola = evaluasi.manage (dulu role:owner,admin_pusat,manajer_cabang)
+    Route::middleware('can:evaluasi.view')->group(function () {
+        Route::get('/evaluasi/{period}/ranking', [EvaluationController::class, 'ranking'])->name('evaluasi.ranking');
+        Route::get('/evaluasi/{period}/detail', [EvaluationController::class, 'periodDetail'])->name('evaluasi.period-detail');
+    });
+    Route::middleware('can:evaluasi.manage')->group(function () {
         Route::get('/evaluasi/create', [EvaluationController::class, 'periodCreate'])->name('evaluasi.period-create');
         Route::post('/evaluasi', [EvaluationController::class, 'periodStore'])->name('evaluasi.period-store');
         Route::post('/evaluasi/{period}/open', [EvaluationController::class, 'periodOpen'])->name('evaluasi.period-open');
         Route::post('/evaluasi/{period}/close', [EvaluationController::class, 'periodClose'])->name('evaluasi.period-close');
         Route::post('/evaluasi/{period}/finalize', [EvaluationController::class, 'periodFinalize'])->name('evaluasi.period-finalize');
-        Route::get('/evaluasi/{period}/ranking', [EvaluationController::class, 'ranking'])->name('evaluasi.ranking');
-        Route::get('/evaluasi/{period}/detail', [EvaluationController::class, 'periodDetail'])->name('evaluasi.period-detail');
         Route::post('/evaluasi/{evaluation}/assign-rekan', [EvaluationController::class, 'assignRekanKerja'])->name('evaluasi.assign-rekan');
     });
     Route::get('/evaluasi/{evaluation}/result', [EvaluationController::class, 'result'])->name('evaluasi.result');
@@ -637,9 +660,9 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
         Route::get('/hr/absensi', [LaporanHRController::class, 'absensi'])->name('hr.absensi');
         Route::get('/hr/penggajian', [LaporanHRController::class, 'penggajian'])->name('hr.penggajian');
         Route::get('/hr/evaluasi', [LaporanHRController::class, 'evaluasi'])->name('hr.evaluasi');
-        Route::get('/absensi', [LaporanAbsensiController::class, 'index'])->name('absensi');
-        Route::get('/absensi/export/excel', [LaporanAbsensiController::class, 'exportExcel'])->name('absensi.excel');
-        Route::get('/absensi/export/pdf', [LaporanAbsensiController::class, 'exportPdf'])->name('absensi.pdf');
+        Route::get('/absensi', [LaporanAbsensiController::class, 'index'])->name('absensi')->middleware('can:laporan_absensi');
+        Route::get('/absensi/export/excel', [LaporanAbsensiController::class, 'exportExcel'])->name('absensi.excel')->middleware('can:laporan_absensi');
+        Route::get('/absensi/export/pdf', [LaporanAbsensiController::class, 'exportPdf'])->name('absensi.pdf')->middleware('can:laporan_absensi');
         Route::get('/aset', [LaporanAsetController::class, 'index'])->name('aset');
         Route::get('/aset/penyusutan', [LaporanAsetController::class, 'penyusutan'])->name('aset.penyusutan');
         Route::get('/aset/maintenance', [LaporanAsetController::class, 'maintenance'])->name('aset.maintenance');
@@ -840,7 +863,8 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
     Route::get('/panduan/{slug}', [PanduanController::class, 'show'])->name('panduan.show');
 
     // ===== ADMIN: PANDUAN =====
-    Route::middleware('role:owner,admin_pusat')->prefix('admin/panduan')->name('admin.panduan.')->group(function () {
+    // 4.43: ikut centangan Kelola Panduan & Tooltip (dulu role:owner,admin_pusat)
+    Route::middleware('can:panduan.kelola')->prefix('admin/panduan')->name('admin.panduan.')->group(function () {
         Route::get('/',                        [AdminPanduanController::class, 'index'])->name('index');
         Route::get('/create',                  [AdminPanduanController::class, 'create'])->name('create');
         Route::post('/',                       [AdminPanduanController::class, 'store'])->name('store');
@@ -863,7 +887,7 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
     });
 
     // ===== ADMIN: TOOLTIP HELPER =====
-    Route::middleware('role:owner,admin_pusat')->prefix('admin/tooltips')->name('admin.tooltips.')->group(function () {
+    Route::middleware('can:panduan.kelola')->prefix('admin/tooltips')->name('admin.tooltips.')->group(function () {
         Route::get('/',                         [AdminTooltipController::class, 'index'])->name('index');
         Route::get('/create',                   [AdminTooltipController::class, 'create'])->name('create');
         Route::post('/',                        [AdminTooltipController::class, 'store'])->name('store');

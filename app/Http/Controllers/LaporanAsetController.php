@@ -19,7 +19,7 @@ class LaporanAsetController extends Controller
 {
     public function index(Request $request)
     {
-        abort_unless(auth()->user()->can('aset.view'), 403);
+        abort_unless(auth()->user()->can('laporan.aset.view'), 403);
 
         $user = auth()->user();
         $cabangs = Cabang::aktif()->get();
@@ -71,7 +71,7 @@ class LaporanAsetController extends Controller
 
     public function penyusutan(Request $request)
     {
-        abort_unless(auth()->user()->can('aset.view'), 403);
+        abort_unless(auth()->user()->can('laporan.aset.view'), 403);
 
         $user = auth()->user();
         $cabangs = Cabang::aktif()->get();
@@ -123,7 +123,7 @@ class LaporanAsetController extends Controller
 
     public function maintenance(Request $request)
     {
-        abort_unless(auth()->user()->can('aset.view'), 403);
+        abort_unless(auth()->user()->can('laporan.aset.view'), 403);
 
         $user = auth()->user();
         $cabangs = Cabang::aktif()->get();

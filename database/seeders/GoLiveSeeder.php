@@ -52,6 +52,7 @@ class GoLiveSeeder extends Seeder
             ItemCategorySeeder::class,
             AssetCategorySeeder::class,
             RolePermissionSeeder::class,
+            HakAksesMenuSeeder::class,
             PanduanPosSeeder::class,
             PanduanStubSeeder::class,
             PanduanKontenSeeder::class,

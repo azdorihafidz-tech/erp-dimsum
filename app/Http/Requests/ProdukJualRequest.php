@@ -15,9 +15,8 @@ class ProdukJualRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return in_array($this->user()?->role?->value, ['owner', 'admin_pusat', 'admin_gudang', 'manajer_cabang'])
-            // Tahap D 4.38 — role buatan (mis. Kru) boleh kalau diberi hak akses
-            || ($this->user()?->role instanceof \App\Support\CustomRoleValue && $this->user()->can($this->isMethod('post') ? 'master.produk_jual.create' : 'master.produk_jual.edit'));
+        // 4.43: ikut centangan Role & Hak Akses untuk semua role (Owner lolos lewat Gate::before)
+        return (bool) $this->user()?->can($this->isMethod('post') ? 'master.produk_jual.create' : 'master.produk_jual.edit');
     }
 
     /** Cabang pemilik produk (CLAUDE.md 4.39): edit = cabang produk; tambah = cabang aktif / pilihan form. */

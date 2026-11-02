@@ -41,10 +41,12 @@
             <span class="d-none d-sm-inline">Kelola Role</span>
         </a>
         @endif
+        @can('user.create')
         <a href="{{ route('user.create') }}" class="btn btn-primary d-flex align-items-center gap-2">
             <i class="bi bi-person-plus"></i>
             <span>Tambah User</span>
         </a>
+        @endcan
     </div>
 </div>
 
@@ -254,11 +256,14 @@
                     <td class="text-center px-4">
                         <div class="d-flex align-items-center justify-content-center gap-1">
                             <a href="{{ route('user.show', $user) }}" class="btn btn-sm btn-outline-info px-2 py-1" title="Detail" style="min-width:30px"><i class="bi bi-eye"></i></a>
+                            @can('user.edit')
                             <a href="{{ route('user.edit', $user) }}" class="btn btn-sm btn-outline-primary px-2 py-1" title="Edit" style="min-width:30px"><i class="bi bi-pencil"></i></a>
+                            @endcan
                             <div class="dropdown">
                                 <button class="btn btn-sm btn-outline-secondary px-2 py-1" data-bs-toggle="dropdown" style="min-width:30px"><i class="bi bi-three-dots-vertical"></i></button>
                                 <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                                     <li>
+                                        @can('user.edit')
                                         <form method="POST" action="{{ route('user.toggle-aktif', $user) }}">
                                             @csrf @method('PATCH')
                                             <button type="submit" class="dropdown-item"
@@ -267,6 +272,7 @@
                                                 {{ $user->is_active ? 'Nonaktifkan' : 'Aktifkan' }}
                                             </button>
                                         </form>
+                                        @endcan
                                     </li>
                                     <li><hr class="dropdown-divider"></li>
                                     <li>
@@ -346,8 +352,11 @@
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                     <li><a href="{{ route('user.show', $user) }}" class="dropdown-item"><i class="bi bi-eye me-2 text-info"></i>Detail</a></li>
+                    @can('user.edit')
                     <li><a href="{{ route('user.edit', $user) }}" class="dropdown-item"><i class="bi bi-pencil me-2 text-primary"></i>Edit</a></li>
+                    @endcan
                     <li>
+                        @can('user.edit')
                         <form method="POST" action="{{ route('user.toggle-aktif', $user) }}">
                             @csrf @method('PATCH')
                             <button type="submit" class="dropdown-item" onclick="return confirm('{{ $user->is_active ? 'Nonaktifkan' : 'Aktifkan' }} user ini?')">
@@ -355,6 +364,7 @@
                                 {{ $user->is_active ? 'Nonaktifkan' : 'Aktifkan' }}
                             </button>
                         </form>
+                        @endcan
                     </li>
                     <li><hr class="dropdown-divider"></li>
                     <li>

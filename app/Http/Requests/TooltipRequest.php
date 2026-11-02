@@ -9,8 +9,7 @@ class TooltipRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        $role = $this->user()?->role?->value;
-        return in_array($role, ['owner', 'admin_pusat']);
+        return (bool) $this->user()?->can('panduan.kelola'); // 4.43
     }
 
     public function rules(): array

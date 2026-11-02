@@ -6,9 +6,11 @@
 <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2 mb-3">
     <h5 class="mb-0 fw-bold"><i class="bi bi-people me-2 text-primary"></i>Daftar Supplier</h5>
     <div class="d-flex gap-2 align-items-center">
+        @can('supplier.manage')
         <a href="{{ route('supplier.create') }}" class="btn btn-primary btn-sm">
             <i class="bi bi-plus-circle me-1"></i>Tambah Supplier
         </a>
+        @endcan
         <x-panduan-button slug="supplier" />
     </div>
 </div>
@@ -82,15 +84,19 @@
                                 <a href="{{ route('supplier.show', $s) }}" class="btn btn-outline-info" title="Lihat">
                                     <i class="bi bi-eye"></i>
                                 </a>
+                                @can('supplier.manage')
                                 <a href="{{ route('supplier.edit', $s) }}" class="btn btn-outline-warning" title="Edit">
                                     <i class="bi bi-pencil"></i>
                                 </a>
+                                @endcan
+                                @can('supplier.manage')
                                 <form method="POST" action="{{ route('supplier.toggle-aktif', $s) }}" class="d-inline">
                                     @csrf @method('PATCH')
                                     <button type="submit" class="btn btn-outline-{{ $s->is_active ? 'secondary' : 'success' }}" title="{{ $s->is_active ? 'Nonaktifkan' : 'Aktifkan' }}">
                                         <i class="bi bi-{{ $s->is_active ? 'toggle-on' : 'toggle-off' }}"></i>
                                     </button>
                                 </form>
+                                @endcan
                                 <button type="button" class="btn btn-outline-danger" title="Hapus"
                                     onclick="confirmHapus('supplier', {{ $s->id }}, '{{ addslashes($s->nama_supplier) }}')">
                                     <i class="bi bi-trash"></i>
@@ -137,9 +143,11 @@
                 <a href="{{ route('supplier.show', $s) }}" class="btn btn-sm btn-outline-info flex-fill">
                     <i class="bi bi-eye"></i> Lihat
                 </a>
+                @can('supplier.manage')
                 <a href="{{ route('supplier.edit', $s) }}" class="btn btn-sm btn-outline-warning flex-fill">
                     <i class="bi bi-pencil"></i> Edit
                 </a>
+                @endcan
                 <button type="button" class="btn btn-sm btn-outline-danger"
                     onclick="confirmHapus('supplier', {{ $s->id }}, '{{ addslashes($s->nama_supplier) }}')">
                     <i class="bi bi-trash"></i>

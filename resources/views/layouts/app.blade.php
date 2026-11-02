@@ -547,7 +547,7 @@
         @endif
 
         <!-- PENJUALAN -->
-        @canany(['order.view', 'order.create'])
+        @canany(['order.view', 'order.create', 'pelanggan.view', 'jenis-olahan.view', 'master.resep_bumbu.view', 'loyalty.view'])
         <div class="nav-section-title">Penjualan</div>
         @can('order.create')
         <a href="{{ route('penjualan.pos') }}"
@@ -570,13 +570,13 @@
             <span>Pelanggan</span>
         </a>
         @endcan
-        @if(isset($authUser) && in_array($authUser->role?->value, ['owner', 'admin_pusat']))
+        @can('jenis-olahan.view')
         <a href="{{ route('master.jenis-olahan.index') }}"
            class="nav-link {{ request()->routeIs('master.jenis-olahan.*') ? 'active' : '' }}">
             <i class="bi bi-list-check"></i>
             <span>Jenis Menu</span>
         </a>
-        @endif
+        @endcan
         @can('master.resep_bumbu.view')
         <a href="{{ route('master.resep-bumbu.index') }}"
            class="nav-link {{ request()->routeIs('master.resep-bumbu.*') ? 'active' : '' }}">
@@ -633,7 +633,7 @@
         @endcanany
 
         <!-- STOK & GUDANG -->
-        @canany(['stok.view', 'stok.request', 'stok.transfer'])
+        @canany(['stok.view', 'stok.request', 'stok.transfer', 'master.bahan_baku.view', 'master.produk_jual.view', 'item.view', 'pemakaian_perlengkapan.view'])
         <div class="nav-section-title">Stok & Gudang</div>
         @can('stok.view')
         <a href="{{ route('stok.dashboard') }}"
@@ -693,7 +693,7 @@
         @endcanany
 
         <!-- PEMBELIAN -->
-        @canany(['pembelian.view', 'po_dashboard.view'])
+        @canany(['pembelian.view', 'po_dashboard.view', 'supplier.view'])
         <div class="nav-section-title">Pembelian</div>
         @can('pembelian.view')
         <a href="{{ route('pembelian.index') }}"
@@ -701,6 +701,8 @@
             <i class="bi bi-bag-check"></i>
             <span>Purchase Order</span>
         </a>
+        @endcan
+        @can('supplier.view')
         <a href="{{ route('supplier.index') }}"
            class="nav-link {{ request()->routeIs('supplier.*') ? 'active' : '' }}">
             <i class="bi bi-people"></i>
@@ -717,7 +719,7 @@
         @endcanany
 
         <!-- KEUANGAN -->
-        @canany(['keuangan.view', 'keuangan.create', 'setoran.view', 'kategori.view', 'bep.view', 'coa.view', 'transfer_antar_kas.view', 'closing.view'])
+        @canany(['keuangan.view', 'keuangan.create', 'setoran.view', 'setoran_kasir.view', 'kategori.view', 'bep.view', 'coa.view', 'recurring.view', 'transfer_antar_kas.view', 'closing.view'])
         <div class="nav-section-title">Keuangan</div>
         @can('keuangan.view')
         <a href="{{ route('keuangan.dashboard') }}" class="nav-link {{ request()->routeIs('keuangan.dashboard') ? 'active' : '' }}">
@@ -728,7 +730,7 @@
             <i class="bi bi-cash-stack"></i>
             <span>Kas & Transaksi</span>
         </a>
-        @can('laporan.view')
+        @can('laporan.keuangan.view')
         <a href="{{ route('keuangan.laporan') }}" class="nav-link {{ request()->routeIs('keuangan.laporan') ? 'active' : '' }}">
             <i class="bi bi-file-earmark-text"></i>
             <span>Laporan Keuangan</span>
@@ -805,7 +807,7 @@
         @endcanany
 
         <!-- HR / SDM -->
-        @canany(['karyawan.view', 'absensi.view', 'absensi.manage', 'penggajian.view', 'evaluasi.view', 'evaluasi.fill'])
+        @canany(['karyawan.view', 'absensi.view', 'absensi.manage', 'scan_absensi', 'dashboard_absensi', 'laporan_absensi', 'registrasi_wajah', 'kelola_shift', 'kelola_hari_libur', 'penggajian.view', 'cuti.view', 'evaluasi.view', 'evaluasi.fill'])
         <div class="nav-section-title">SDM & Karyawan</div>
         @can('karyawan.view')
         <a href="{{ route('karyawan.index') }}"
@@ -841,7 +843,7 @@
                 <i class="bi bi-person-bounding-box"></i><span>Scan Absensi</span>
             </a>
             @endcan
-            @can('absensi.view')
+            @can('absensi.manage')
             <a href="{{ route('absensi.index') }}" class="nav-link {{ request()->routeIs('absensi.index','absensi.store','absensi.edit','absensi.update') ? 'active' : '' }}">
                 <i class="bi bi-calendar-check"></i><span>Absensi Manual</span>
             </a>
@@ -849,7 +851,7 @@
             <a href="{{ route('absensi-saya.index') }}" class="nav-link {{ request()->routeIs('absensi-saya.*') ? 'active' : '' }}">
                 <i class="bi bi-person-check"></i><span>Absensi Saya</span>
             </a>
-            @can('absensi.view')
+            @can('absensi.manage')
             <a href="{{ route('face-attendance.today') }}" class="nav-link {{ request()->routeIs('face-attendance.today','face-attendance.log') ? 'active' : '' }}">
                 <i class="bi bi-clock-history"></i><span>Log Absensi Wajah</span>
             </a>
@@ -929,7 +931,7 @@
         @endcan
 
         <!-- LAPORAN -->
-        @can('laporan.view')
+        @canany(\App\Support\HakAksesMenu::IZIN_LAPORAN)
         <div class="nav-section-title">Laporan</div>
         @php $laporanActive = request()->routeIs('laporan.*'); @endphp
         <a href="#laporanMenu" data-bs-toggle="collapse" class="nav-link {{ $laporanActive ? 'active' : '' }}" aria-expanded="{{ $laporanActive ? 'true' : 'false' }}">
@@ -938,32 +940,32 @@
             <i class="bi bi-chevron-right nav-arrow"></i>
         </a>
         <div class="collapse {{ $laporanActive ? 'show' : '' }}" id="laporanMenu">
-            @can('order.view')
+            @can('laporan.penjualan.view')
             <a href="{{ route('laporan.penjualan') }}" class="nav-link {{ request()->routeIs('laporan.penjualan') ? 'active' : '' }}">
                 <i class="bi bi-cart3"></i><span>Penjualan</span>
             </a>
             @endcan
-            @can('stok.view')
+            @can('laporan.stok.view')
             <a href="{{ route('laporan.stok') }}" class="nav-link {{ request()->routeIs('laporan.stok','laporan.stok.pergerakan','laporan.stok.minimum') ? 'active' : '' }}">
                 <i class="bi bi-boxes"></i><span>Stok</span>
             </a>
             @endcan
-            @can('keuangan.view')
+            @can('laporan.keuangan.view')
             <a href="{{ route('laporan.keuangan.laba-rugi') }}" class="nav-link {{ request()->routeIs('laporan.keuangan.*') ? 'active' : '' }}">
                 <i class="bi bi-cash-stack"></i><span>Keuangan</span>
             </a>
             @endcan
-            @canany(['karyawan.view', 'absensi.view', 'penggajian.view'])
-            <a href="{{ route('laporan.hr.absensi') }}" class="nav-link {{ request()->routeIs('laporan.hr.*') ? 'active' : '' }}">
+            @canany(['laporan.hr_absensi.view', 'laporan.hr_penggajian.view', 'laporan.hr_evaluasi.view'])
+            <a href="{{ route(auth()->user()->can('laporan.hr_absensi.view') ? 'laporan.hr.absensi' : (auth()->user()->can('laporan.hr_penggajian.view') ? 'laporan.hr.penggajian' : 'laporan.hr.evaluasi')) }}" class="nav-link {{ request()->routeIs('laporan.hr.*') ? 'active' : '' }}">
                 <i class="bi bi-people"></i><span>HR / SDM</span>
             </a>
             @endcanany
-            @can('aset.view')
+            @can('laporan.aset.view')
             <a href="{{ route('laporan.aset') }}" class="nav-link {{ request()->routeIs('laporan.aset','laporan.aset.penyusutan','laporan.aset.maintenance') ? 'active' : '' }}">
                 <i class="bi bi-building-gear"></i><span>Aset</span>
             </a>
             @endcan
-            @can('bep.view')
+            @can('laporan.bep.view')
             <a href="{{ route('laporan.bep') }}" class="nav-link {{ request()->routeIs('laporan.bep','laporan.bep.per-cabang') ? 'active' : '' }}">
                 <i class="bi bi-graph-up-arrow"></i><span>BEP</span>
             </a>
@@ -973,16 +975,22 @@
                 <i class="bi bi-speedometer2"></i><span>BEP Otomatis</span>
             </a>
             @endcan
-            @can('keuangan.view')
+            @can('laporan.transfer_dana.view')
             <a href="{{ route('laporan.setoran') }}" class="nav-link {{ request()->routeIs('laporan.setoran') ? 'active' : '' }}">
                 <i class="bi bi-arrow-left-right"></i><span>Transfer / Perpindahan Dana</span>
             </a>
+            @endcan
+            @can('laporan.kategori.view')
             <a href="{{ route('laporan.kategori') }}" class="nav-link {{ request()->routeIs('laporan.kategori') ? 'active' : '' }}">
                 <i class="bi bi-tags"></i><span>Per Kategori</span>
             </a>
+            @endcan
+            @can('laporan.audit_bukti.view')
             <a href="{{ route('laporan.audit-bukti') }}" class="nav-link {{ request()->routeIs('laporan.audit-bukti') ? 'active' : '' }}">
                 <i class="bi bi-shield-check"></i><span>Audit Bukti</span>
             </a>
+            @endcan
+            @can('laporan.saldo_kas.view')
             <a href="{{ route('laporan.saldo-kas') }}" class="nav-link {{ request()->routeIs('laporan.saldo-kas') ? 'active' : '' }}">
                 <i class="bi bi-wallet2"></i><span>Saldo Kas</span>
             </a>
@@ -1042,16 +1050,16 @@
                 <i class="bi bi-cash-coin"></i><span>Laporan Setoran Kasir</span>
             </a>
             @endcan
-            @if(auth()->check() && auth()->user()->canAccessAllBranches())
+            @if(auth()->check() && auth()->user()->can('laporan.cabang_vs_cabang.view') && auth()->user()->canAccessAllBranches())
             <a href="{{ route('laporan.cabang-vs-cabang') }}" class="nav-link {{ request()->routeIs('laporan.cabang-vs-cabang') ? 'active' : '' }}">
                 <i class="bi bi-bar-chart-steps"></i><span>Cabang vs Cabang</span>
             </a>
             @endif
         </div>
-        @endcan
+        @endcanany
 
         <!-- PENGATURAN -->
-        @if(auth()->check() && (auth()->user()->can('cabang.view') || auth()->user()->can('user.view') || (isset($authUser) && $authUser->role?->value === 'owner')))
+        @if(auth()->check() && (auth()->user()->canAny(['cabang.view', 'user.view', 'pengaturan_penggajian', 'panduan.kelola']) || (isset($authUser) && $authUser->role?->value === 'owner')))
         <div class="nav-section-title">Pengaturan</div>
         @endif
         @can('cabang.view')
@@ -1075,13 +1083,14 @@
             <span>Role & Hak Akses</span>
         </a>
         @endif
-        @can('pengaturan.umum_lihat')
+        {{-- 4.43: Pengaturan Umum tetap khusus Owner --}}
+        @if(isset($authUser) && $authUser->role?->value === 'owner')
         <a href="{{ route('pengaturan.umum') }}"
            class="nav-link {{ request()->routeIs('pengaturan.umum*') ? 'active' : '' }}">
             <i class="bi bi-building-gear"></i>
             <span>Pengaturan Umum</span>
         </a>
-        @endcan
+        @endif
         @can('pengaturan_penggajian')
         <a href="{{ route('pengaturan.penggajian') }}"
            class="nav-link {{ request()->routeIs('pengaturan.penggajian*') ? 'active' : '' }}">
@@ -1089,7 +1098,7 @@
             <span>Pengaturan Penggajian</span>
         </a>
         @endcan
-        @if(isset($authUser) && in_array($authUser->role?->value, ['owner', 'admin_pusat']))
+        @can('panduan.kelola')
         <a href="{{ route('admin.tooltips.index') }}"
            class="nav-link {{ request()->routeIs('admin.tooltips.*') ? 'active' : '' }}">
             <i class="bi bi-question-circle"></i>
@@ -1100,7 +1109,7 @@
             <i class="bi bi-book"></i>
             <span>Panduan Helper</span>
         </a>
-        @endif
+        @endcan
 
         <!-- BANTUAN -->
         <div class="nav-section-title mt-2">Bantuan</div>

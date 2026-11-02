@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
             BackfillStockQtyMinimumSeeder::class, // Backfill stocks.qty_minimum dari items.qty_minimum (idempotent)
             HRSeeder::class,
             RolePermissionSeeder::class,    // Harus paling akhir (butuh semua permission sudah ada)
+            HakAksesMenuSeeder::class,      // 4.43 — izin per menu (setelah RolePermissionSeeder)
             TooltipAdjustmentSeeder::class, // Tooltip percontohan modul adjustment
             PanduanPosSeeder::class,        // Panduan percontohan modul POS
             PanduanStubSeeder::class,       // Panduan stub 46 menu + update modul POS → penjualan

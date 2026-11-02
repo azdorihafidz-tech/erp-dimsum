@@ -237,6 +237,7 @@
                 <span class="fw-semibold text-danger">Zona Berbahaya</span>
             </div>
             <div class="card-body p-4">
+                @can('user.delete')
                 <form method="POST" action="{{ route('user.destroy', $user) }}">
                     @csrf @method('DELETE')
                     <button type="submit" class="btn btn-outline-danger w-100 btn-sm"
@@ -244,6 +245,7 @@
                         <i class="bi bi-trash3 me-2"></i>Hapus User Ini
                     </button>
                 </form>
+                @endcan
             </div>
         </div>
     </div>

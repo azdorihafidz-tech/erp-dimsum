@@ -118,10 +118,12 @@
                                 <i class="bi bi-gear"></i> Setting
                             </a>
                             {{-- Bug7 FIX: route bep.laporan dihapus, arahkan ke laporan.bep --}}
+                            @can('laporan.bep.view')
                             <a href="{{ route('laporan.bep', ['cabang_id' => $s->cabang_id, 'periode' => $s->periode]) }}"
                                class="btn btn-xs btn-outline-success" style="font-size:.75rem;padding:.2rem .5rem">
                                 <i class="bi bi-graph-up"></i> Laporan
                             </a>
+                            @endcan
                         </div>
                     </td>
                 </tr>

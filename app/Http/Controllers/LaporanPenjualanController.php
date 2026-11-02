@@ -17,7 +17,7 @@ class LaporanPenjualanController extends Controller
 {
     public function index(Request $request, AnalisisPenjualanService $analisisPenjualanService)
     {
-        abort_unless(auth()->user()->can('laporan.view'), 403);
+        abort_unless(auth()->user()->can('laporan.penjualan.view'), 403);
 
         $user = auth()->user();
 

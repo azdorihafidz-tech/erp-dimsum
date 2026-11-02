@@ -24,7 +24,7 @@
             <i class="bi bi-file-earmark-excel me-1"></i><span class="d-none d-sm-inline">Export Excel</span>
         </a>
         @endcan
-        @can('laporan.view')
+        @can('laporan.keuangan.view')
         <a href="{{ route('keuangan.laporan') }}" class="btn btn-outline-primary btn-sm">
             <i class="bi bi-file-earmark-text me-1"></i><span class="d-none d-sm-inline">Laporan</span>
         </a>

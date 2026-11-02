@@ -88,7 +88,7 @@
                     </td>
                     <td class="text-end">
                         @if($c->status === 'pending')
-                        @if(isset($authUser) && in_array($authUser->role?->value, ['owner','admin_pusat','manajer_cabang']))
+                        @if(isset($authUser) && $authUser->can('cuti.approve'))
                         <form action="{{ route('cuti.approve', $c) }}" method="POST" class="d-inline">
                             @csrf
                             <button class="btn btn-xs btn-success btn-sm me-1" title="Setujui">
@@ -144,7 +144,7 @@
                     @else
                         <span class="badge bg-warning text-dark">Pending</span>
                     @endif
-                    @if($c->status === 'pending' && isset($authUser) && in_array($authUser->role?->value, ['owner','admin_pusat','manajer_cabang']))
+                    @if($c->status === 'pending' && isset($authUser) && $authUser->can('cuti.approve'))
                     <div class="mt-1 d-flex gap-1 justify-content-end">
                         <form action="{{ route('cuti.approve', $c) }}" method="POST">
                             @csrf

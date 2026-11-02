@@ -9,7 +9,7 @@
         <small class="text-muted">Manajemen periode penilaian triwulanan</small>
     </div>
     <div class="d-flex gap-2 align-items-center">
-        @if(isset($authUser) && in_array($authUser->role?->value, ['owner','admin_pusat','manajer_cabang']))
+        @if(isset($authUser) && $authUser->can('evaluasi.manage'))
         <a href="{{ route('evaluasi.period-create') }}" class="btn btn-primary btn-sm">
             <i class="bi bi-plus-lg me-1"></i><span class="d-none d-sm-inline">Buat Periode Baru</span>
         </a>
@@ -80,7 +80,7 @@
                         @endif
                     </td>
                     <td class="text-end">
-                        @if(isset($authUser) && in_array($authUser->role?->value, ['owner','admin_pusat','manajer_cabang']))
+                        @if(isset($authUser) && $authUser->can('evaluasi.manage'))
                         <a href="{{ route('evaluasi.period-detail', $p) }}" class="btn btn-xs btn-outline-secondary btn-sm me-1" title="Detail">
                             <i class="bi bi-people"></i>
                         </a>

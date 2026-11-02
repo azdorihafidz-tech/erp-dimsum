@@ -226,6 +226,7 @@
                                             'akuntansi'  => 'Akuntansi (COA)',
                                             default      => ucfirst($group),
                                         } }}
+                                        @if($group === 'laporan') <x-tooltip key="role.centangan_laporan" /> @endif
                                     </div>
                                     @foreach($perms as $perm)
                                     <label class="perm-check">
@@ -234,7 +235,8 @@
                                             value="{{ $perm->id }}"
                                             class="form-check-input perm-cb-{{ $role['value'] }}"
                                             {{ in_array($perm->id, $role['permission_ids']) ? 'checked' : '' }}>
-                                        <span>{{ $perm->display_name ?? $perm->name }}</span>
+                                        {{-- 4.43: centangan yang tidak berpengaruh ditampilkan redup --}}
+                                        <span class="{{ str_contains((string) $perm->display_name, 'tidak berpengaruh') || str_contains((string) $perm->display_name, 'tidak dipakai') ? 'text-muted fst-italic' : '' }}">{{ $perm->display_name ?? $perm->name }}</span>
                                     </label>
                                     @endforeach
                                 </div>

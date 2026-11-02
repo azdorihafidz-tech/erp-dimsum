@@ -40,9 +40,11 @@
                 <i class="bi bi-camera-fill me-1"></i>Buka Scan Absen
             </a>
             @else
+            @can('absensi.device')
             <a href="{{ route('absen-device.index') }}" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-tablet me-1"></i>Setup Device
             </a>
+            @endcan
             @endif
             @endif
             <a href="{{ route('face-attendance.log') }}" class="btn btn-outline-secondary btn-sm">

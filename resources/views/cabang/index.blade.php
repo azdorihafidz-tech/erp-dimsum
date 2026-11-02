@@ -43,10 +43,12 @@
         </nav>
     </div>
     <x-panduan-button slug="cabang" />
+    @can('cabang.create')
     <a href="{{ route('cabang.create') }}" class="btn btn-primary d-flex align-items-center gap-2">
         <i class="bi bi-plus-lg"></i>
         <span>Tambah Cabang</span>
     </a>
+    @endcan
 </div>
 
 {{-- STAT CARDS --}}
@@ -251,13 +253,16 @@
                     <td class="text-center px-4">
                         <div class="d-flex align-items-center justify-content-center gap-1">
                             {{-- Edit --}}
+                            @can('cabang.edit')
                             <a href="{{ route('cabang.edit', $cabang) }}"
                                 class="btn btn-sm btn-outline-primary px-2 py-1"
                                 title="Edit" style="min-width:32px">
                                 <i class="bi bi-pencil"></i>
                             </a>
+                            @endcan
 
                             {{-- Toggle Aktif --}}
+                            @can('cabang.edit')
                             <form method="POST" action="{{ route('cabang.toggle-aktif', $cabang) }}">
                                 @csrf
                                 @method('PATCH')
@@ -269,6 +274,7 @@
                                     <i class="bi bi-{{ $cabang->is_active ? 'pause-circle' : 'play-circle' }}"></i>
                                 </button>
                             </form>
+                            @endcan
 
                             {{-- Hapus --}}
                             <button type="button"
@@ -289,9 +295,11 @@
                             @if(request()->hasAny(['search','tipe','status']))
                                 <a href="{{ route('cabang.index') }}" class="btn btn-sm btn-outline-primary mt-2">Reset Filter</a>
                             @else
+                                @can('cabang.create')
                                 <a href="{{ route('cabang.create') }}" class="btn btn-sm btn-primary mt-2">
                                     <i class="bi bi-plus-lg me-1"></i>Tambah Cabang
                                 </a>
+                                @endcan
                             @endif
                         </div>
                     </td>
@@ -387,11 +395,14 @@
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                     <li>
+                        @can('cabang.edit')
                         <a href="{{ route('cabang.edit', $cabang) }}" class="dropdown-item">
                             <i class="bi bi-pencil me-2 text-primary"></i>Edit
                         </a>
+                        @endcan
                     </li>
                     <li>
+                        @can('cabang.edit')
                         <form method="POST" action="{{ route('cabang.toggle-aktif', $cabang) }}">
                             @csrf @method('PATCH')
                             <button type="submit" class="dropdown-item"
@@ -400,6 +411,7 @@
                                 {{ $cabang->is_active ? 'Nonaktifkan' : 'Aktifkan' }}
                             </button>
                         </form>
+                        @endcan
                     </li>
                     <li><hr class="dropdown-divider"></li>
                     <li>
@@ -416,9 +428,11 @@
     <div class="text-center py-5 text-muted">
         <i class="bi bi-inbox" style="font-size:2.5rem;opacity:0.3"></i>
         <p class="mt-2">Tidak ada cabang ditemukan.</p>
+        @can('cabang.create')
         <a href="{{ route('cabang.create') }}" class="btn btn-primary btn-sm">
             <i class="bi bi-plus-lg me-1"></i>Tambah Cabang
         </a>
+        @endcan
     </div>
     @endforelse
 

@@ -16,7 +16,7 @@ class LaporanKeuanganController extends Controller
 {
     public function labaRugi(Request $request)
     {
-        abort_unless(auth()->user()->can('laporan.view'), 403);
+        abort_unless(auth()->user()->can('laporan.keuangan.view'), 403);
 
         $user = auth()->user();
         $cabangs = Cabang::aktif()->get();
@@ -102,7 +102,7 @@ class LaporanKeuanganController extends Controller
 
     public function arusKas(Request $request)
     {
-        abort_unless(auth()->user()->can('laporan.view'), 403);
+        abort_unless(auth()->user()->can('laporan.keuangan.view'), 403);
 
         $user = auth()->user();
         $cabangs = Cabang::aktif()->get();

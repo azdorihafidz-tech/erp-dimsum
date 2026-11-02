@@ -18,10 +18,12 @@
             <i class="bi bi-file-earmark-pdf me-1"></i>
             <span class="d-none d-sm-inline">Export PDF</span>
         </a>
+        @can('laporan.hr_absensi.view')
         <a href="{{ route('laporan.hr.absensi') }}" class="btn btn-outline-primary btn-sm">
             <i class="bi bi-calendar-check me-1"></i>
             <span class="d-none d-sm-inline">Absensi</span>
         </a>
+        @endcan
     </div>
 </div>
 

@@ -6,9 +6,11 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h5 class="mb-0 fw-bold"><i class="bi bi-person-lines-fill me-2 text-primary"></i>Detail Supplier</h5>
     <div class="d-flex gap-2">
+        @can('supplier.manage')
         <a href="{{ route('supplier.edit', $supplier) }}" class="btn btn-sm btn-warning">
             <i class="bi bi-pencil me-1"></i>Edit
         </a>
+        @endcan
         <a href="{{ route('supplier.index') }}" class="btn btn-sm btn-outline-secondary">
             <i class="bi bi-arrow-left me-1"></i>Kembali
         </a>

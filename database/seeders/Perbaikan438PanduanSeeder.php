@@ -36,6 +36,16 @@ class Perbaikan438PanduanSeeder extends Seeder
         $this->appendSections($this->sectionsPos441(), '<!-- POS-441 -->');
         $this->tooltips($this->tooltipsPos441());
 
+        // 4.43 — setiap menu punya centangan sendiri & centangan selalu berlaku
+        $this->gantiTeks('role-hak-akses', [
+            '- Beberapa menu **manajemen** tetap khusus role sistem walau hak aksesnya dicentang untuk role buatan: Cabang, User, Role & Hak Akses, Supplier, Semua Barang (overview), Jenis Menu, Shift, Hari Libur, Registrasi Wajah, kelola Absensi, Penggajian, membuat Evaluasi, dan admin Panduan/Tooltip. Menu operasional (POS, order, stok, PO, keuangan, laporan, closing, Bahan Baku, Produk Jual, Transfer Stok) mengikuti hak akses yang dicentang.'
+                => '- Semua menu mengikuti hak akses yang dicentang, untuk role sistem maupun role buatan. Pengecualian: **Role & Hak Akses** dan **Pengaturan Umum** tetap khusus Owner.',
+            '- **User role buatan dapat pesan 403?** Cek hak akses yang dicentang di tab role tersebut, atau menu itu termasuk menu manajemen khusus role sistem.'
+                => '- **User dapat pesan 403?** Cek hak akses yang dicentang di tab role tersebut. Untuk tambah/ubah, biasanya perlu juga centang "Lihat" menu itu.',
+        ]);
+        $this->appendSections($this->sectionsHakAkses443(), '<!-- HAK-AKSES-443 -->');
+        $this->tooltips($this->tooltipsHakAkses443());
+
         // 4.42 — ambil produk jual dari cabang lain (panduan tersendiri + ringkasan di produk-jual)
         $this->panduanBaru('ambil-produk-cabang', 'Ambil Produk dari Cabang Lain', 'master', $this->panduanAmbilProduk442());
         $this->appendSections($this->sectionsAmbilProduk442(), '<!-- AMBIL-PRODUK-442 -->');
@@ -57,6 +67,42 @@ class Perbaikan438PanduanSeeder extends Seeder
     }
 
     /** Panduan baru — firstOrCreate supaya editan Owner di menu Panduan tidak tertimpa. */
+    /** Ganti kalimat lama di panduan yang sudah ada di database (idempotent: hanya kalau teks lama masih ada). */
+    private function gantiTeks(string $slug, array $ganti): void
+    {
+        $panduan = Panduan::where('slug', $slug)->first();
+        if (! $panduan) {
+            return;
+        }
+        $konten = str_replace(array_keys($ganti), array_values($ganti), (string) $panduan->konten);
+        if ($konten !== $panduan->konten) {
+            $panduan->update(['konten' => $konten]);
+        }
+    }
+
+    private function sectionsHakAkses443(): array
+    {
+        return [
+            'role-hak-akses' => <<<'MD'
+## Pembaruan: setiap menu punya centangan sendiri
+- **Laporan**: setiap laporan punya centangan sendiri di kelompok **Laporan**, mis. "Lihat Laporan Stok". Cukup centang laporan yang boleh dibuka; bagian Laporan di menu kiri muncul kalau role punya minimal satu izin laporan. Centangan lama "Lihat Laporan" tidak dipakai lagi.
+- **Menu yang dulu hanya untuk role tertentu** (Cabang, User, Supplier, Semua Barang, Jenis Menu, Shift, Hari Libur, Absensi, Registrasi Wajah, Device Absensi, Penggajian, Evaluasi, Pengaturan Penggajian, Panduan & Tooltip) sekarang mengikuti centangan. Tambah/ubah biasanya perlu juga centang "Lihat"-nya.
+- **POS** butuh "Buat Order", **Riwayat Order** butuh "Lihat Order".
+- **User**: hanya Owner yang boleh membuat atau mengubah akun Owner. Role yang tidak boleh melihat semua cabang hanya bisa mengurus user di cabangnya sendiri.
+- Centangan bertuliskan **"tidak dipakai — centangan tidak berpengaruh"** atau **"khusus Owner"** tampil redup; mencentangnya tidak mengubah apa pun.
+- Saat pembaruan dipasang, role yang sudah bisa membuka sebuah menu otomatis dicentangkan izin barunya, jadi tidak ada yang kehilangan akses.
+MD,
+        ];
+    }
+
+    private function tooltipsHakAkses443(): array
+    {
+        return [
+            ['key' => 'role.centangan_laporan', 'modul' => 'role', 'title' => 'Izin Laporan',
+                'content' => 'Setiap laporan punya centangan sendiri. Bagian Laporan di menu kiri muncul kalau role punya minimal satu izin laporan.'],
+        ];
+    }
+
     private function panduanBaru(string $slug, string $judul, string $modul, string $konten): void
     {
         Panduan::firstOrCreate(['slug' => $slug], [
@@ -208,11 +254,11 @@ Mengatur siapa boleh membuka menu apa. Ada **7 role sistem** (Owner, Admin Pusat
 
 ## Catatan Penting
 - 7 role sistem tidak bisa dihapus atau diganti namanya.
-- Beberapa menu **manajemen** tetap khusus role sistem walau hak aksesnya dicentang untuk role buatan: Cabang, User, Role & Hak Akses, Supplier, Semua Barang (overview), Jenis Menu, Shift, Hari Libur, Registrasi Wajah, kelola Absensi, Penggajian, membuat Evaluasi, dan admin Panduan/Tooltip. Menu operasional (POS, order, stok, PO, keuangan, laporan, closing, Bahan Baku, Produk Jual, Transfer Stok) mengikuti hak akses yang dicentang.
+- Semua menu mengikuti hak akses yang dicentang, untuk role sistem maupun role buatan. Pengecualian: **Role & Hak Akses** dan **Pengaturan Umum** tetap khusus Owner.
 - Perubahan hak akses berlaku paling lambat 5 menit (cache) — atau minta user logout-login.
 
 ## Troubleshooting
-- **User role buatan dapat pesan 403?** Cek hak akses yang dicentang di tab role tersebut, atau menu itu termasuk menu manajemen khusus role sistem.
+- **User dapat pesan 403?** Cek hak akses yang dicentang di tab role tersebut. Untuk tambah/ubah, biasanya perlu juga centang "Lihat" menu itu.
 - **Tombol Hapus role tidak aktif?** Masih ada user yang memakai role itu — pindahkan user ke role lain dulu.
 MD;
     }

@@ -9,12 +9,16 @@
         <small class="text-muted">Manajemen slip gaji karyawan</small>
     </div>
     <div class="d-flex gap-2">
+        @can('penggajian.manage')
         <a href="{{ route('penggajian.create') }}" class="btn btn-success btn-sm">
             <i class="bi bi-person-plus me-1"></i><span class="d-none d-sm-inline">Buat Per Karyawan</span>
         </a>
+        @endcan
+        @can('penggajian.manage')
         <a href="{{ route('penggajian.generate') }}" class="btn btn-primary btn-sm">
             <i class="bi bi-gear me-1"></i><span class="d-none d-sm-inline">Generate Massal</span>
         </a>
+        @endcan
         <x-panduan-button slug="penggajian" />
     </div>
 </div>
@@ -94,14 +98,18 @@
                             <i class="bi bi-eye"></i>
                         </a>
                         @if($p->status === 'draft')
+                        @can('penggajian.manage')
                         <a href="{{ route('penggajian.edit', $p) }}" class="btn btn-sm btn-outline-warning me-1">
                             <i class="bi bi-pencil"></i>
                         </a>
+                        @endcan
+                        @can('penggajian.manage')
                         <form action="{{ route('penggajian.destroy', $p) }}" method="POST" class="d-inline"
                               onsubmit="return confirm('Hapus slip gaji ini?')">
                             @csrf @method('DELETE')
                             <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
                         </form>
+                        @endcan
                         @endif
                     </td>
                 </tr>

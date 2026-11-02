@@ -17,8 +17,8 @@ class UserController extends Controller
         $authUser = $request->user();
         $query = User::with('cabangs');
 
-        // Manajer hanya lihat user di cabangnya sendiri
-        if ($authUser->role === RoleUser::ManajerCabang) {
+        // Role tanpa akses semua cabang hanya lihat user di cabangnya sendiri
+        if (! $authUser->canAccessAllBranches()) {
             $cabangIds = $authUser->cabangs()->pluck('cabangs.id');
             $query->whereHas('cabangs', fn($q) => $q->whereIn('cabangs.id', $cabangIds));
         }
@@ -71,7 +71,7 @@ class UserController extends Controller
     public function create(Request $request)
     {
         $authUser = $request->user();
-        $roles = \App\Support\Roles::semua()->all(); // Tahap D 4.38: + role buatan
+        $roles = \App\Support\Roles::semua($authUser->role === RoleUser::Owner)->all(); // 4.43: Owner hanya oleh Owner
         $cabangs = $authUser->canAccessAllBranches()
             ? Cabang::aktif()->orderBy('nama_cabang')->get()
             : $authUser->cabangs()->aktif()->get();
@@ -110,6 +110,7 @@ class UserController extends Controller
 
     public function show(User $user)
     {
+        $this->pastikanBolehKelola($user);
         $user->load('cabangs', 'karyawan');
         return view('user.show', compact('user'));
     }
@@ -118,16 +119,9 @@ class UserController extends Controller
     {
         $authUser = $request->user();
 
-        // Manajer hanya bisa edit user di cabangnya
-        if ($authUser->role === RoleUser::ManajerCabang) {
-            $authCabangIds = $authUser->cabangs()->pluck('cabangs.id')->toArray();
-            $userCabangIds = $user->cabangs()->pluck('cabangs.id')->toArray();
-            if (empty(array_intersect($authCabangIds, $userCabangIds))) {
-                abort(403, 'Anda tidak berhak mengedit user ini.');
-            }
-        }
+        $this->pastikanBolehKelola($user);
 
-        $roles   = \App\Support\Roles::semua()->all(); // Tahap D 4.38
+        $roles   = \App\Support\Roles::semua($authUser->role === RoleUser::Owner)->all(); // 4.43: Owner hanya oleh Owner
         $cabangs = $authUser->canAccessAllBranches()
             ? Cabang::aktif()->orderBy('nama_cabang')->get()
             : $authUser->cabangs()->aktif()->get();
@@ -140,6 +134,7 @@ class UserController extends Controller
 
     public function update(UserRequest $request, User $user)
     {
+        $this->pastikanBolehKelola($user);
         $data = $request->validated();
 
         $updateData = [
@@ -174,6 +169,8 @@ class UserController extends Controller
 
     public function destroy(User $user, CascadeDeleteService $cascadeService)
     {
+        $this->pastikanBolehKelola($user);
+
         // Safety: tidak bisa hapus diri sendiri
         if ($user->id === auth()->id()) {
             return back()->with('error', 'Tidak dapat menghapus akun Anda sendiri.');
@@ -203,6 +200,8 @@ class UserController extends Controller
      */
     public function toggleAktif(User $user)
     {
+        $this->pastikanBolehKelola($user);
+
         if ($user->id === auth()->id()) {
             return back()->with('error', 'Tidak dapat menonaktifkan akun sendiri.');
         }
@@ -218,6 +217,8 @@ class UserController extends Controller
      */
     public function resetPassword(Request $request, User $user)
     {
+        $this->pastikanBolehKelola($user);
+
         $request->validate([
             'new_password' => ['required', 'confirmed', 'min:8'],
         ], [
@@ -229,5 +230,26 @@ class UserController extends Controller
         $user->update(['password' => Hash::make($request->new_password)]);
 
         return back()->with('success', "Password <strong>{$user->name}</strong> berhasil direset.");
+    }
+
+    /**
+     * 4.43 — akun Owner hanya boleh diurus Owner; role tanpa akses semua
+     * cabang hanya boleh mengurus user yang berbagi cabang dengannya.
+     */
+    private function pastikanBolehKelola(User $user): void
+    {
+        $authUser = auth()->user();
+
+        if ($user->role === RoleUser::Owner && $authUser->role !== RoleUser::Owner) {
+            abort(403, 'Hanya Owner yang boleh mengubah akun Owner.');
+        }
+
+        if (! $authUser->canAccessAllBranches()) {
+            $milik = $authUser->cabangs()->pluck('cabangs.id')->all();
+            $target = $user->cabangs()->pluck('cabangs.id')->all();
+            if (! array_intersect($milik, $target)) {
+                abort(403, 'Anda tidak berhak mengelola user ini.');
+            }
+        }
     }
 }

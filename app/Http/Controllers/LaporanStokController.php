@@ -18,7 +18,7 @@ class LaporanStokController extends Controller
 {
     public function index(Request $request)
     {
-        abort_unless(auth()->user()->can('laporan.view'), 403);
+        abort_unless(auth()->user()->can('laporan.stok.view'), 403);
 
         $user = auth()->user();
         $cabangs = Cabang::aktif()->get();
@@ -78,7 +78,7 @@ class LaporanStokController extends Controller
 
     public function pergerakan(Request $request)
     {
-        abort_unless(auth()->user()->can('laporan.view'), 403);
+        abort_unless(auth()->user()->can('laporan.stok.view'), 403);
 
         $user = auth()->user();
         $cabangs = Cabang::aktif()->get();
@@ -142,7 +142,7 @@ class LaporanStokController extends Controller
 
     public function minimum(Request $request)
     {
-        abort_unless(auth()->user()->can('laporan.view'), 403);
+        abort_unless(auth()->user()->can('laporan.stok.view'), 403);
 
         $user = auth()->user();
         $cabangs = Cabang::aktif()->get();

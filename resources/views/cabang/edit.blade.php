@@ -634,6 +634,7 @@
                 <p class="text-muted mb-3" style="font-size:0.8rem">
                     Menghapus cabang bersifat permanen. Pastikan tidak ada karyawan aktif atau data transaksi.
                 </p>
+                @can('cabang.delete')
                 <form method="POST" action="{{ route('cabang.destroy', $cabang) }}">
                     @csrf @method('DELETE')
                     <button type="submit"
@@ -642,6 +643,7 @@
                         <i class="bi bi-trash3 me-2"></i>Hapus Cabang Ini
                     </button>
                 </form>
+                @endcan
             </div>
         </div>
     </div>

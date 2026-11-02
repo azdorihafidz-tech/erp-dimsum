@@ -24,7 +24,7 @@ class PemakaianPerlengkapanController extends Controller
         $user = auth()->user();
         $lokasiIds = $user->canAccessAllBranches()
             ? Cabang::aktif()->pluck('id')
-            : $user->cabangs()->aktif()->pluck('id');
+            : $user->cabangs()->aktif()->pluck('cabangs.id');
 
         $query = PemakaianPerlengkapan::with(['item', 'cabang', 'createdBy'])
             ->whereIn('cabang_id', $lokasiIds)

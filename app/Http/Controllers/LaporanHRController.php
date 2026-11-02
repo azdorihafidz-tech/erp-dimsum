@@ -20,7 +20,7 @@ class LaporanHRController extends Controller
 {
     public function absensi(Request $request)
     {
-        abort_unless(auth()->user()->can('absensi.view'), 403);
+        abort_unless(auth()->user()->can('laporan.hr_absensi.view'), 403);
 
         $user = auth()->user();
         $cabangs = Cabang::aktif()->get();
@@ -95,7 +95,7 @@ class LaporanHRController extends Controller
 
     public function penggajian(Request $request)
     {
-        abort_unless(auth()->user()->can('penggajian.view'), 403);
+        abort_unless(auth()->user()->can('laporan.hr_penggajian.view'), 403);
 
         $user = auth()->user();
         $cabangs = Cabang::aktif()->get();
@@ -144,7 +144,7 @@ class LaporanHRController extends Controller
 
     public function evaluasi(Request $request)
     {
-        abort_unless(auth()->user()->can('evaluasi.view'), 403);
+        abort_unless(auth()->user()->can('laporan.hr_evaluasi.view'), 403);
 
         $user = auth()->user();
         $cabangs = Cabang::aktif()->get();

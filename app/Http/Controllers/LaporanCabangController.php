@@ -14,7 +14,7 @@ class LaporanCabangController extends Controller
 {
     public function index(Request $request)
     {
-        abort_unless(auth()->user()->canAccessAllBranches(), 403);
+        abort_unless(auth()->user()->can('laporan.cabang_vs_cabang.view') && auth()->user()->canAccessAllBranches(), 403);
 
         $dari    = $request->filled('dari')   ? Carbon::parse($request->dari)->startOfDay()   : Carbon::now()->startOfMonth();
         $sampai  = $request->filled('sampai') ? Carbon::parse($request->sampai)->endOfDay()   : Carbon::now()->endOfDay();

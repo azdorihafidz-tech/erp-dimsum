@@ -124,7 +124,10 @@ class ItemController extends Controller
 
     public function storeKategori(Request $request)
     {
-        abort_unless(auth()->user()->can('item.create'), 403);
+        // 4.43: modal Tambah Kategori dipakai form Bahan Baku & Produk Jual
+        abort_unless(auth()->user()->canAny([
+            'master.bahan_baku.create', 'master.bahan_baku.edit', 'master.produk_jual.create', 'master.produk_jual.edit', 'item.create',
+        ]), 403);
 
         $request->validate([
             'kode_kategori' => 'required|string|max:20|unique:item_categories,kode_kategori',

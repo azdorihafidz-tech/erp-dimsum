@@ -29,9 +29,11 @@
         </ol></nav>
     </div>
     <div class="d-flex gap-2">
+        @can('user.edit')
         <a href="{{ route('user.edit', $user) }}" class="btn btn-primary btn-sm">
             <i class="bi bi-pencil me-1"></i><span class="d-none d-sm-inline">Edit</span>
         </a>
+        @endcan
         <a href="{{ route('user.index') }}" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-arrow-left"></i>
         </a>
@@ -84,9 +86,12 @@
         {{-- Aksi cepat --}}
         <div class="card">
             <div class="card-body p-3 d-flex flex-column gap-2">
+                @can('user.edit')
                 <a href="{{ route('user.edit', $user) }}" class="btn btn-outline-primary btn-sm">
                     <i class="bi bi-pencil me-2"></i>Edit User
                 </a>
+                @endcan
+                @can('user.edit')
                 <form method="POST" action="{{ route('user.toggle-aktif', $user) }}">
                     @csrf
                     <button type="submit" class="btn btn-sm w-100 {{ $user->is_active ? 'btn-outline-warning' : 'btn-outline-success' }}"
@@ -95,8 +100,10 @@
                         {{ $user->is_active ? 'Nonaktifkan' : 'Aktifkan' }}
                     </button>
                 </form>
+                @endcan
                 @if(auth()->id() !== $user->id)
                 <hr class="my-1">
+                @can('user.delete')
                 <form method="POST" action="{{ route('user.destroy', $user) }}">
                     @csrf @method('DELETE')
                     <button type="submit" class="btn btn-outline-danger btn-sm w-100"
@@ -104,6 +111,7 @@
                         <i class="bi bi-trash3 me-2"></i>Hapus User
                     </button>
                 </form>
+                @endcan
                 @endif
             </div>
         </div>
@@ -178,9 +186,11 @@
                                 <i class="bi bi-geo-alt" style="font-size:2rem;opacity:0.2"></i>
                                 <p class="text-muted mt-2 mb-0" style="font-size:0.875rem">Belum ada cabang yang di-assign.</p>
                                 @if(auth()->user()->canAccessAllBranches())
+                                @can('user.edit')
                                 <a href="{{ route('user.edit', $user) }}" class="btn btn-sm btn-outline-primary mt-2">
                                     <i class="bi bi-plus-lg me-1"></i>Assign Cabang
                                 </a>
+                                @endcan
                                 @endif
                             </div>
                         @else
@@ -216,6 +226,7 @@
                         <span class="fw-semibold">Reset Password</span>
                     </div>
                     <div class="card-body p-4">
+                        @can('user.edit')
                         <form method="POST" action="{{ route('user.reset-password', $user) }}" class="row g-3 align-items-end">
                             @csrf
                             <div class="col-12 col-md-4">
@@ -247,6 +258,7 @@
                                 </button>
                             </div>
                         </form>
+                        @endcan
                     </div>
                 </div>
             </div>

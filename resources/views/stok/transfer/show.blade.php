@@ -133,7 +133,7 @@
         </div>
 
         {{-- AKSI: Status DRAFT --}}
-        @if($statusVal === 'draft' && ($authUser->canAccessAllBranches() || $authUser->role?->value === 'admin_gudang'))
+        @if($statusVal === 'draft' && $authUser->can('stok.transfer'))
         <div class="action-card action-card-kirim p-4 mb-3">
             <h6 class="fw-bold mb-2" style="color:#1e40af;font-size:0.88rem">
                 <i class="bi bi-truck me-2"></i>Kirimkan Transfer

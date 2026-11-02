@@ -23,9 +23,11 @@
         </form>
         @endcan
         {{-- Bug7 FIX: arahkan ke laporan.bep (bukan bep.laporan yang sudah dihapus) --}}
+        @can('laporan.bep.view')
         <a href="{{ route('laporan.bep', ['cabang_id' => $cabangId, 'periode' => $periode]) }}" class="btn btn-sm btn-outline-success">
             <i class="bi bi-graph-up me-1"></i>Lihat Laporan
         </a>
+        @endcan
         @endif
         <a href="{{ route('bep.index') }}" class="btn btn-sm btn-outline-secondary">
             <i class="bi bi-arrow-left me-1"></i>Kembali

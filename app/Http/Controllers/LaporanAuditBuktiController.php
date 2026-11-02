@@ -15,7 +15,7 @@ class LaporanAuditBuktiController extends Controller
 {
     public function index(Request $request)
     {
-        abort_unless(auth()->user()->can('laporan.view'), 403);
+        abort_unless(auth()->user()->can('laporan.audit_bukti.view'), 403);
 
         $user    = auth()->user();
         $cabangs = Cabang::aktif()->orderBy('nama_cabang')->get();

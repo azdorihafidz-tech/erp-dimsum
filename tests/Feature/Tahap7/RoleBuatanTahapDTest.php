@@ -93,8 +93,9 @@ class RoleBuatanTahapDTest extends TestCase
 
         $this->actingAs($user->fresh())->withSession(['active_cabang_id' => $cab->id])->get(route('penjualan.index'))->assertOk();
         $this->actingAs($user->fresh())->get(route('closing.index'))->assertForbidden();
-        // Menu manajemen tetap khusus role sistem walau permission dicentang
-        $this->actingAs($user->fresh())->get(route('cabang.index'))->assertForbidden();
+        // 4.43: menu manajemen sekarang juga mengikuti centangan (dulu khusus role sistem)
+        $this->actingAs($user->fresh())->get(route('cabang.index'))->assertOk();
+        $this->actingAs($user->fresh())->get(route('cabang.create'))->assertForbidden();
     }
 
     public function test_role_buatan_dengan_hak_bahan_baku_boleh_simpan_bahan(): void

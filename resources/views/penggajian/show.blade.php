@@ -7,24 +7,30 @@
     <h4 class="mb-0 fw-bold">Detail Slip Gaji</h4>
     <div class="d-flex gap-2 flex-wrap">
         @if($penggajian->status === 'draft')
+        @can('penggajian.manage')
         <a href="{{ route('penggajian.edit', $penggajian) }}" class="btn btn-sm btn-outline-warning">
             <i class="bi bi-pencil me-1"></i>Edit
         </a>
+        @endcan
         @endif
         <a href="{{ route('penggajian.cetak', $penggajian) }}" target="_blank" class="btn btn-sm btn-outline-secondary">
             <i class="bi bi-printer me-1"></i>Cetak
         </a>
         @if($penggajian->status === 'draft')
+        @can('penggajian.manage')
         <form action="{{ route('penggajian.approve', $penggajian) }}" method="POST" class="d-inline">
             @csrf
             <button class="btn btn-sm btn-primary"><i class="bi bi-check-lg me-1"></i>Setujui</button>
         </form>
+        @endcan
         @endif
         @if(in_array($penggajian->status, ['draft','disetujui']))
+        @can('penggajian.manage')
         <form action="{{ route('penggajian.bayar', $penggajian) }}" method="POST" class="d-inline">
             @csrf
             <button class="btn btn-sm btn-success"><i class="bi bi-cash me-1"></i>Tandai Dibayar</button>
         </form>
+        @endcan
         @endif
         <a href="{{ route('penggajian.index') }}" class="btn btn-sm btn-outline-secondary">
             <i class="bi bi-arrow-left me-1"></i>Kembali

@@ -19,7 +19,7 @@ class LaporanBepController extends Controller
 {
     public function index(Request $request)
     {
-        abort_unless(auth()->user()->can('bep.view'), 403);
+        abort_unless(auth()->user()->can('laporan.bep.view'), 403);
 
         $user = auth()->user();
         $cabangs = Cabang::aktif()->cabangSaja()->get();
@@ -142,7 +142,7 @@ class LaporanBepController extends Controller
 
     public function perCabang(Request $request)
     {
-        abort_unless(auth()->user()->can('bep.view'), 403);
+        abort_unless(auth()->user()->can('laporan.bep.view'), 403);
 
         $periode = $request->periode ?? Carbon::now()->format('Y-m');
         $cabangs = Cabang::aktif()->cabangSaja()->get();

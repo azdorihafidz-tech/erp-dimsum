@@ -483,6 +483,7 @@ class PenjualanController extends Controller
 
     public function show(Order $order)
     {
+        $this->pastikanBolehLihat($order);
         $order->load(['cabang', 'kasir', 'pelanggan', 'items.item', 'dikerjakanOleh', 'parentOrder', 'childOrders']);
 
         $isOwner = auth()->user()->role === \App\Enums\RoleUser::Owner;
@@ -528,6 +529,7 @@ class PenjualanController extends Controller
 
     public function struk(Order $order)
     {
+        $this->pastikanBolehLihat($order);
         $order->load(['cabang', 'items.item']);
         $showItemPrice = $this->shouldShowItemPrice($order);
         return view('penjualan.struk', compact('order', 'showItemPrice'));
@@ -535,6 +537,7 @@ class PenjualanController extends Controller
 
     public function strukModal(Order $order)
     {
+        $this->pastikanBolehLihat($order);
         $order->load(['cabang', 'items.item']);
         $copies = (int) request('copies', 1);
         $copies = in_array($copies, [1, 2]) ? $copies : 1;
@@ -751,6 +754,16 @@ class PenjualanController extends Controller
             ->log("Order {$order->nomor_order} ditandai manual sebagai pengganti order {$parentOrder->nomor_order} oleh {$request->user()->name}.");
 
         return back()->with('success', "Order ditandai sebagai pengganti {$parentOrder->nomor_order}.");
+    }
+
+    /**
+     * 4.43 — detail order & struk: punya izin terkait order dan order milik
+     * cabang yang boleh diakses (dulu semua role bisa membuka order mana pun).
+     */
+    private function pastikanBolehLihat(Order $order): void
+    {
+        abort_unless(auth()->user()->canAny(['order.view', 'order.create', 'antrian.lihat', 'antrian.kelola', 'keuangan.view']), 403);
+        abort_unless(\App\Support\CabangAktif::bolehAkses($order->cabang_id), 403, 'Order ini milik cabang lain.');
     }
 
     public function destroy(Order $order, CascadeDeleteService $cascadeService)

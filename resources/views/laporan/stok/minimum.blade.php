@@ -130,7 +130,7 @@
                             @endif
                         </td>
                         <td>
-                            @if(auth()->user()->canAccessAllBranches() || in_array(auth()->user()->role?->value, ['admin_gudang']))
+                            @if(auth()->user()->can('pembelian.create'))
                             <a href="{{ route('pembelian.create') }}" class="btn btn-xs btn-outline-primary" style="font-size:0.7rem;padding:2px 8px">
                                 Beli
                             </a>

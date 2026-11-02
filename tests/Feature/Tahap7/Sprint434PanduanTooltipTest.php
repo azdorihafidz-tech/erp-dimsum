@@ -107,10 +107,9 @@ class Sprint434PanduanTooltipTest extends TestCase
             'name' => 'item.edit',
             'display_name' => 'Edit Master Barang [DEPRECATED]',
         ]);
-        $this->assertDatabaseHas('permissions', [
-            'name' => 'item.delete',
-            'display_name' => 'Hapus Master Barang [DEPRECATED]',
-        ]);
+        // 4.43: item.delete diberi akhiran "(tidak dipakai — ...)", penanda DEPRECATED tetap ada
+        $this->assertStringContainsString('Hapus Master Barang [DEPRECATED]',
+            (string) \App\Models\Permission::where('name', 'item.delete')->value('display_name'));
         // item.view TIDAK deprecated (menu overview masih berguna)
         $this->assertDatabaseHas('permissions', [
             'name' => 'item.view',

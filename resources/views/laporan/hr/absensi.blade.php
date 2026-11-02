@@ -18,10 +18,12 @@
             <i class="bi bi-file-earmark-pdf me-1"></i>
             <span class="d-none d-sm-inline">Export PDF</span>
         </a>
+        @can('laporan.hr_penggajian.view')
         <a href="{{ route('laporan.hr.penggajian') }}" class="btn btn-outline-primary btn-sm">
             <i class="bi bi-cash me-1"></i>
             <span class="d-none d-sm-inline">Penggajian</span>
         </a>
+        @endcan
         <x-panduan-button slug="laporan-hr" />
     </div>
 </div>

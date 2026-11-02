@@ -46,7 +46,7 @@
         </nav>
     </div>
     <div class="d-flex gap-2 align-items-center flex-wrap">
-        @if($authUser->canAccessAllBranches() || $authUser->role?->value === 'admin_gudang')
+        @if($authUser->can('stok.transfer'))
         <a href="{{ route('stock-transfer.create') }}" class="btn btn-primary d-flex align-items-center gap-2" style="min-height:40px">
             <i class="bi bi-plus-lg"></i>
             <span>Buat Transfer</span>
@@ -170,7 +170,7 @@
                             title="Lihat Detail" style="min-width:32px;min-height:32px">
                             <i class="bi bi-eye"></i>
                         </a>
-                        @if(in_array($statusVal, ['draft','dikirim']) && ($authUser->canAccessAllBranches() || $authUser->role?->value === 'admin_gudang'))
+                        @if(in_array($statusVal, ['draft','dikirim']) && $authUser->can('stok.transfer'))
                         <form method="POST" action="{{ route('stock-transfer.batalkan', $tr) }}" class="d-inline">
                             @csrf
                             <button type="submit" class="btn btn-sm btn-outline-warning px-2 py-1"
@@ -199,7 +199,7 @@
                         <div class="text-muted">
                             <i class="bi bi-inbox" style="font-size:2.5rem;opacity:0.3"></i>
                             <p class="mt-2 mb-0">Belum ada data transfer stok.</p>
-                            @if($authUser->canAccessAllBranches() || $authUser->role?->value === 'admin_gudang')
+                            @if($authUser->can('stok.transfer'))
                             <a href="{{ route('stock-transfer.create') }}" class="btn btn-sm btn-primary mt-2">
                                 <i class="bi bi-plus-lg me-1"></i>Buat Transfer
                             </a>
@@ -273,7 +273,7 @@
                     style="min-height:36px;min-width:36px;padding:0;display:flex;align-items:center;justify-content:center">
                     <i class="bi bi-eye"></i>
                 </a>
-                @if(in_array($statusVal, ['draft','dikirim']) && ($authUser->canAccessAllBranches() || $authUser->role?->value === 'admin_gudang'))
+                @if(in_array($statusVal, ['draft','dikirim']) && $authUser->can('stok.transfer'))
                 <form method="POST" action="{{ route('stock-transfer.batalkan', $tr) }}">
                     @csrf
                     <button type="submit" class="btn btn-sm btn-outline-warning w-100" style="min-height:36px"
@@ -298,7 +298,7 @@
     <div class="text-center py-5 text-muted">
         <i class="bi bi-inbox" style="font-size:2.5rem;opacity:0.3"></i>
         <p class="mt-2">Belum ada data transfer stok.</p>
-        @if($authUser->canAccessAllBranches() || $authUser->role?->value === 'admin_gudang')
+        @if($authUser->can('stok.transfer'))
         <a href="{{ route('stock-transfer.create') }}" class="btn btn-primary btn-sm">
             <i class="bi bi-plus-lg me-1"></i>Buat Transfer
         </a>
