@@ -3,43 +3,26 @@
 namespace App\Observers;
 
 use App\Models\PengaturanUmum;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
+use App\Support\Branding;
 
 /**
- * Tahap 7 D'mentai (2026-09-17) — sinkron sebagian CLAUDE.md 4.2 (2 mekanisme
- * logo terpisah). Setiap kali logo diupload lewat Pengaturan Umum, otomatis
- * copy ke `public/images/logo.png` (file statis yang dibaca sidebar/login/
- * PDF header) — supaya Owner tidak perlu upload manual 2x.
+ * 4.44 Poin 3 (Identitas Usaha) — setiap Pengaturan Umum disimpan, cache
+ * identitas usaha (App\Support\Branding) dihapus supaya login, sidebar, struk,
+ * PDF & PWA langsung memakai nama/logo baru.
  *
- * SENGAJA CUMA sinkron logo UTAMA (bukan `logo-icon.png`/8 ikon PWA) — itu
- * butuh crop/resize mascot manual, keterbatasan yang sudah terdokumentasi di
- * CLAUDE.md 4.3, tidak diotomatisasi di sini.
- *
- * Kalau logo DIHAPUS (hapus_logo checkbox), `public/images/logo.png` SENGAJA
- * TIDAK ikut dihapus — biarkan app tetap punya fallback logo statis daripada
- * tampil kosong sama sekali.
+ * Dulu (Tahap 7, 4.12 B3) observer ini menyalin logo ke public/images/logo.png
+ * — file itu ikut git, jadi update program bisa menimpa logo & git pull di
+ * server bentrok. Sekarang logo dibaca langsung dari tempat upload-nya.
  */
 class PengaturanUmumObserver
 {
     public function saved(PengaturanUmum $setting): void
     {
-        if (! $setting->wasChanged('logo_path') || ! $setting->logo_path) {
-            return;
-        }
+        app(Branding::class)->lupakan();
+    }
 
-        if (! Storage::disk('public')->exists($setting->logo_path)) {
-            return;
-        }
-
-        try {
-            $isi = Storage::disk('public')->get($setting->logo_path);
-            file_put_contents(public_path('images/logo.png'), $isi);
-        } catch (\Throwable $e) {
-            // Non-fatal — logo dinamis tetap tersimpan benar di DB/Storage,
-            // cuma sinkronisasi ke file statis yang gagal (mis. permission
-            // folder public/images/). Jangan sampai gagal save Pengaturan Umum.
-            Log::warning('Gagal sinkron logo ke public/images/logo.png: ' . $e->getMessage());
-        }
+    public function deleted(PengaturanUmum $setting): void
+    {
+        app(Branding::class)->lupakan();
     }
 }

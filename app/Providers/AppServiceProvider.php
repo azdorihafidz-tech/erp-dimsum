@@ -62,6 +62,9 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->registerStorageAwareUrlGenerator();
+
+        // 4.44 Poin 3 — identitas usaha (nama/logo) dari Pengaturan Umum
+        $this->app->singleton(\App\Support\Branding::class);
     }
 
     /**
@@ -110,6 +113,9 @@ class AppServiceProvider extends ServiceProvider
     {
         // Gunakan Bootstrap 5 untuk pagination (bukan Tailwind default Laravel 12)
         Paginator::useBootstrapFive();
+
+        // 4.44 — $brand di semua view (data dimuat saat pertama dipakai, bukan di sini)
+        \Illuminate\Support\Facades\View::share('brand', $this->app->make(\App\Support\Branding::class));
 
         // @rupiah($amount) — tampilkan nominal Rupiah terformat, contoh: @rupiah($harga) → Rp 5.000.000
         Blade::directive('rupiah', function ($expression) {

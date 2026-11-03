@@ -85,7 +85,7 @@
 
 <div class="print-header">
     <div>
-        <div class="company-name">{{ config('app.name', "D'mentai") }}</div>
+        <div class="company-name">{{ $brand->namaSingkat() }}</div>
         <div class="company-sub">Sistem ERP — Laporan Absensi Wajah</div>
     </div>
     <div class="report-title">
@@ -186,7 +186,7 @@
 
 <div class="print-footer">
     <div>
-        <div>{{ config('app.name') }} — Laporan Absensi Wajah</div>
+        <div>{{ $brand->namaSingkat() }} — Laporan Absensi Wajah</div>
         <div>Dicetak otomatis oleh sistem pada {{ now()->format('d M Y, H:i') }}</div>
         <div>Total {{ $records->count() }} record | Periode {{ $dari }} s/d {{ $sampai }}</div>
     </div>

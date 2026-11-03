@@ -28,3 +28,5 @@ Thumbs.db
 /deploy-lokal.bat
 /.claude
 .env.testing
+# Logo & ikon usaha hasil upload (Pengaturan Umum) — milik tiap instalasi (4.44)
+/public/uploads/branding

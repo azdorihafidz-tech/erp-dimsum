@@ -13,8 +13,11 @@ class PengaturanUmum extends Model
 
     protected $fillable = [
         'nama_perusahaan',
+        'nama_singkat',
+        'tagline',
         'logo_path',
         'alamat_perusahaan',
+        'telepon',
         'tanggal_mulai_periode',
     ];
 

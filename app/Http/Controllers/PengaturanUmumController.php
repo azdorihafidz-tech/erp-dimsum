@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\PengaturanUmum;
+use App\Support\Branding;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 class PengaturanUmumController extends Controller
@@ -12,54 +14,59 @@ class PengaturanUmumController extends Controller
     {
         abort_unless(auth()->user()->can('pengaturan.umum_lihat'), 403);
 
-        $setting = PengaturanUmum::firstOrCreate([], [
-            'nama_perusahaan'   => "D'mentai",
-            'logo_path'         => null,
-            'alamat_perusahaan' => null,
-        ]);
+        $setting = $this->setting();
 
         return view('pengaturan.umum', compact('setting'));
     }
 
-    public function update(Request $request)
+    public function update(Request $request, Branding $branding)
     {
         abort_unless(auth()->user()->can('pengaturan.umum_edit'), 403);
 
+        // 4.44 — SVG tidak diterima lagi (bisa berisi script & tidak bisa diolah
+        // jadi ikon). Logo baru disimpan ulang sebagai PNG + ikon otomatis.
         $validated = $request->validate([
             'nama_perusahaan'   => ['required', 'string', 'max:100'],
+            'nama_singkat'      => ['nullable', 'string', 'max:30'],
+            'tagline'           => ['nullable', 'string', 'max:150'],
             'alamat_perusahaan' => ['nullable', 'string', 'max:1000'],
+            'telepon'           => ['nullable', 'string', 'max:30'],
             'tanggal_mulai_periode' => ['nullable', 'integer', 'min:1', 'max:28'],
-            'logo'              => ['nullable', 'image', 'mimes:jpg,jpeg,png,svg,webp', 'max:2048'],
+            'logo'              => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+        ], [
+            'logo.mimes' => 'Logo harus berupa gambar JPG, PNG, atau WebP.',
+            'logo.max'   => 'Ukuran logo maksimal 2 MB.',
         ]);
 
-        $setting = PengaturanUmum::firstOrCreate([], [
-            'nama_perusahaan' => "D'mentai",
-        ]);
+        $setting = $this->setting();
 
         $setting->nama_perusahaan   = $validated['nama_perusahaan'];
+        $setting->nama_singkat      = $validated['nama_singkat'] ?? null;
+        $setting->tagline           = $validated['tagline'] ?? null;
         $setting->alamat_perusahaan = $validated['alamat_perusahaan'] ?? null;
+        $setting->telepon           = $validated['telepon'] ?? null;
         if (isset($validated['tanggal_mulai_periode'])) {
             $setting->tanggal_mulai_periode = (int) $validated['tanggal_mulai_periode'];
         }
 
         if ($request->hasFile('logo') && $request->file('logo')->isValid()) {
-            // Hapus logo lama jika ada
-            if ($setting->logo_path && Storage::disk('public')->exists($setting->logo_path)) {
-                Storage::disk('public')->delete($setting->logo_path);
-            }
+            try {
+                $baru = $branding->simpanLogo($request->file('logo'));
+            } catch (\Throwable $e) {
+                Log::warning('Gagal memproses logo: ' . $e->getMessage());
 
-            $path = $request->file('logo')->store('logo', 'public');
-            $setting->logo_path = $path;
-        }
-
-        if ($request->boolean('hapus_logo') && $setting->logo_path) {
-            if (Storage::disk('public')->exists($setting->logo_path)) {
-                Storage::disk('public')->delete($setting->logo_path);
+                return back()->withInput()->withErrors(['logo' => 'Logo gagal diproses. Coba file PNG/JPG lain.']);
             }
+            $this->hapusLogoLamaDisk($setting->logo_path);
+            $setting->logo_path = $baru;
+        } elseif ($request->boolean('hapus_logo') && $setting->logo_path) {
+            $branding->hapusFileLogo();
+            $this->hapusLogoLamaDisk($setting->logo_path);
             $setting->logo_path = null;
         }
 
         $setting->save();
+        $branding->lupakan();
 
         activity()
             ->performedOn($setting)
@@ -68,5 +75,18 @@ class PengaturanUmumController extends Controller
         return redirect()
             ->route('pengaturan.umum')
             ->with('success', 'Pengaturan umum berhasil disimpan.');
+    }
+
+    private function setting(): PengaturanUmum
+    {
+        return PengaturanUmum::firstOrCreate([], ['nama_perusahaan' => "D'mentai"]);
+    }
+
+    /** Logo yang di-upload sebelum fitur Identitas Usaha tersimpan di disk public. */
+    private function hapusLogoLamaDisk(?string $path): void
+    {
+        if ($path && ! str_starts_with($path, Branding::FOLDER . '/') && Storage::disk('public')->exists($path)) {
+            Storage::disk('public')->delete($path);
+        }
     }
 }

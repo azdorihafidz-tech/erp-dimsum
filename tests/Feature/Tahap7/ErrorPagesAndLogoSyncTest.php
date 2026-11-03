@@ -49,32 +49,25 @@ class ErrorPagesAndLogoSyncTest extends TestCase
         $this->assertStringContainsString('#FF6B00', $html);
     }
 
-    public function test_logo_observer_menyalin_file_ke_public_images(): void
+    /**
+     * 4.44 — observer TIDAK lagi menyalin logo ke public/images/logo.png (file
+     * itu ikut git; menimpanya membuat git pull di server bentrok). Logo lama
+     * di disk public dilayani lewat /img/{path}.
+     */
+    public function test_logo_lama_di_disk_public_dipakai_tanpa_menimpa_logo_bawaan(): void
     {
         Storage::fake('public');
         $file = UploadedFile::fake()->image('logo-baru.png', 200, 200);
         $path = $file->store('logo', 'public');
 
-        $backupPath = public_path('images/logo.png.bak-test');
-        if (file_exists(public_path('images/logo.png'))) {
-            copy(public_path('images/logo.png'), $backupPath);
-        }
+        $isiBawaan = file_get_contents(public_path('images/logo.png'));
 
-        try {
-            $setting = PengaturanUmum::getSetting();
-            $setting->logo_path = $path;
-            $setting->save();
+        $setting = PengaturanUmum::getSetting();
+        $setting->logo_path = $path;
+        $setting->save();
 
-            $this->assertFileExists(public_path('images/logo.png'));
-            $isiStatic = file_get_contents(public_path('images/logo.png'));
-            $isiUpload = Storage::disk('public')->get($path);
-            $this->assertSame($isiUpload, $isiStatic, 'Isi file public/images/logo.png harus sama persis dengan file yang diupload.');
-        } finally {
-            if (file_exists($backupPath)) {
-                copy($backupPath, public_path('images/logo.png'));
-                unlink($backupPath);
-            }
-        }
+        $this->assertSame($isiBawaan, file_get_contents(public_path('images/logo.png')));
+        $this->assertSame(url('/img/' . $path), strtok(app(\App\Support\Branding::class)->logoUrl(), '?'));
     }
 
     // ===== Regresi cleanup dead code =====
@@ -93,7 +86,7 @@ class ErrorPagesAndLogoSyncTest extends TestCase
         $response = $this->get('/login');
 
         $response->assertOk();
-        $response->assertSee("D'mentai", false);
+        $response->assertSee("D'mentai");
     }
 
     public function test_regresi_profile_edit_tetap_bisa_diakses(): void

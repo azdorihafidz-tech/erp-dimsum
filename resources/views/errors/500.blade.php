@@ -15,7 +15,7 @@
         {{-- Logo D'mentai --}}
         <div class="mx-auto mb-3 d-flex align-items-center justify-content-center"
              style="width:64px;height:64px;border-radius:16px;background:#FFF8E7;box-shadow:0 4px 16px rgba(255,107,0,0.2)">
-            <img src="{{ asset('images/logo.png') }}" alt="D'mentai" style="width:44px;height:44px;object-fit:contain">
+            <img src="{{ $brand->logoUrl() }}" alt="{{ $brand->namaSingkat() }}" style="width:44px;height:44px;object-fit:contain">
         </div>
 
         {{-- Icon --}}

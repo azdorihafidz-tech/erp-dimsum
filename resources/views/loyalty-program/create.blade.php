@@ -71,7 +71,7 @@
                 <div class="col-12 col-md-4 field-auto-track">
                     <label class="form-label">Tipe Order Dihitung</label>
                     <select name="tipe_item" class="form-select">
-                        <option value="penjualan" {{ old('tipe_item','penjualan')==='penjualan'?'selected':'' }}>Penjualan (D'mentai)</option>
+                        <option value="penjualan" {{ old('tipe_item','penjualan')==='penjualan'?'selected':'' }}>Penjualan ({{ $brand->namaSingkat() }})</option>
                         <option value="jasa_giling" {{ old('tipe_item')==='jasa_giling'?'selected':'' }}>Jasa Giling (legacy)</option>
                     </select>
                 </div>

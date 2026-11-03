@@ -247,12 +247,11 @@
     <!-- HEADER -->
     <div class="header">
         <div class="header-left">
-            @php $pengUrl = $pengaturanUmum->logo_path ? url('/img/' . $pengaturanUmum->logo_path) : null; @endphp
-            @if($pengUrl)
-            <img src="{{ $pengUrl }}" alt="Logo" class="header-logo">
+            @if($brand->adaLogoUpload())
+            <img src="{{ $brand->logoUrl() }}" alt="Logo" class="header-logo">
             @endif
             <div>
-                <div class="header-title">{{ strtoupper($pengaturanUmum->nama_perusahaan ?? "D'MENTAI") }}</div>
+                <div class="header-title">{{ mb_strtoupper($brand->nama()) }}</div>
                 <div class="header-cabang">{{ $cabang->nama_cabang }}</div>
             </div>
         </div>

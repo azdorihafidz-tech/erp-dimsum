@@ -197,7 +197,7 @@
                         <textarea id="footer_struk" name="footer_struk" rows="3"
                             class="form-control form-control-sm @error('footer_struk') is-invalid @enderror"
                             maxlength="500"
-                            placeholder="Contoh:&#10;Terima kasih sudah berbelanja!&#10;D'mentai Cabang Pusat Kota">{{ old('footer_struk') }}</textarea>
+                            placeholder="Contoh:&#10;Terima kasih sudah berbelanja!&#10;{{ $brand->namaSingkat() }} Cabang Pusat Kota">{{ old('footer_struk') }}</textarea>
                         <div class="form-text">
                             Pesan ini muncul di bagian bawah struk POS cabang ini.
                             Multi-baris diperbolehkan. Kosongkan untuk pakai teks default.

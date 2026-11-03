@@ -55,8 +55,8 @@
 <div class="slip">
     {{-- Header --}}
     <div class="header">
-        <h2>D'MENTAI</h2>
-        <p>Dimsum & Gyoza</p>
+        <h2>{{ mb_strtoupper($brand->namaSingkat()) }}</h2>
+        @if($brand->tagline())<p>{{ $brand->tagline() }}</p>@endif
         <p>{{ $penggajian->cabang?->alamat ?? '' }}</p>
     </div>
 
@@ -214,7 +214,7 @@
     </div>
 
     <div style="margin-top:20px;font-size:10px;color:#aaa;text-align:center">
-        Dicetak: {{ now()->format('d/m/Y H:i') }} &mdash; Dokumen resmi D'mentai. Simpan dengan baik.
+        Dicetak: {{ now()->format('d/m/Y H:i') }} &mdash; Dokumen resmi {{ $brand->namaSingkat() }}. Simpan dengan baik.
     </div>
 </div>
 

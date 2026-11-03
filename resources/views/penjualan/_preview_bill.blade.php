@@ -15,7 +15,7 @@
     </style>
 </head>
 <body>
-    <div class="center bold" style="font-size:14px">D'MENTAI</div>
+    <div class="center bold" style="font-size:14px">{{ mb_strtoupper($brand->namaSingkat()) }}</div>
     <div class="center">{{ $cabangAktif?->nama_cabang }}</div>
     <div class="watermark">PREVIEW — BELUM DIBAYAR</div>
     <div class="line"></div>

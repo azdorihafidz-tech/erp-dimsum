@@ -7,11 +7,11 @@
     @laravelPWA
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="D'mentai">
-    <title>{{ config('app.name', "ERP D'mentai") }} - @yield('title', 'Dashboard')</title>
-    <link rel="icon" type="image/png" href="{{ asset('images/logo-icon.png') }}">
-    <link rel="shortcut icon" type="image/png" href="{{ asset('images/logo-icon.png') }}">
-    <link rel="apple-touch-icon" href="/images/icons/icon-192x192.png">
+    <meta name="apple-mobile-web-app-title" content="{{ $brand->namaSingkat() }}">
+    <title>ERP {{ $brand->namaSingkat() }} - @yield('title', 'Dashboard')</title>
+    <link rel="icon" type="image/png" href="{{ $brand->faviconUrl() }}">
+    <link rel="shortcut icon" type="image/png" href="{{ $brand->faviconUrl() }}">
+    <link rel="apple-touch-icon" href="{{ $brand->ikonUrl(192) }}">
 
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -525,11 +525,11 @@
 <nav id="sidebar">
     <div class="sidebar-brand">
         <div class="brand-logo">
-            <img src="{{ asset('images/logo.png') }}" alt="D'mentai" style="width:100%;height:100%;object-fit:contain;border-radius:8px;padding:3px;">
+            <img src="{{ $brand->logoUrl() }}" alt="{{ $brand->namaSingkat() }}" style="width:100%;height:100%;object-fit:contain;border-radius:8px;padding:3px;">
         </div>
         <div class="brand-text">
-            <div class="brand-name">D'mentai</div>
-            <div class="brand-sub">Dimsum &amp; Gyoza</div>
+            <div class="brand-name">{{ $brand->namaSingkat() }}</div>
+            @if($brand->tagline())<div class="brand-sub">{{ $brand->tagline() }}</div>@endif
         </div>
     </div>
 

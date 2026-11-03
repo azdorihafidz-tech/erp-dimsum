@@ -102,7 +102,7 @@ class LaporanAbsensiController extends Controller
             $file = fopen('php://output', 'w');
             fputs($file, "\xEF\xBB\xBF");
 
-            fputcsv($file, [config('app.name', "D'mentai") . ' — Laporan Absensi Wajah']);
+            fputcsv($file, [app(\App\Support\Branding::class)->namaSingkat() . ' — Laporan Absensi Wajah']);
             fputcsv($file, ['Periode: ' . $data['dari'] . ' s/d ' . $data['sampai']]);
             fputcsv($file, ['Dicetak: ' . now()->format('d/m/Y H:i')]);
             fputcsv($file, []);

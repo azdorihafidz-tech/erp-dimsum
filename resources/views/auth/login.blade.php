@@ -1,10 +1,10 @@
 <x-guest-layout>
     <div class="text-center mb-4">
         <div class="auth-logo">
-            <img src="{{ asset('images/logo.png') }}" alt="D'mentai">
+            <img src="{{ $brand->logoUrl() }}" alt="{{ $brand->namaSingkat() }}">
         </div>
         <h1 class="auth-title">Selamat Datang</h1>
-        <p class="auth-subtitle">Masuk ke ERP D'mentai</p>
+        <p class="auth-subtitle">Masuk ke ERP {{ $brand->namaSingkat() }}</p>
     </div>
 
     <!-- Session Status -->

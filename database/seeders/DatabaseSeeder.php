@@ -33,6 +33,7 @@ class DatabaseSeeder extends Seeder
             TooltipKontenSeeder::class,     // Tooltip field-field bermakna seluruh aplikasi
             ClosingPanduanSeeder::class,    // Panduan + tooltip Closing / Tutup Buku (2026-10-17)
             Perbaikan438PanduanSeeder::class, // Panduan + tooltip Perbaikan Harga dst (2026-10-18)
+            IdentitasUsahaSeeder::class,     // Panduan + tooltip Identitas Usaha (2026-11-03)
         ]);
     }
 }

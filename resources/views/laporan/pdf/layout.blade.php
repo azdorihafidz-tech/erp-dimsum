@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <title>{{ $judulLaporan ?? 'Laporan' }} — D'mentai</title>
+    <title>{{ $judulLaporan ?? 'Laporan' }} — {{ $brand->namaSingkat() }}</title>
     <style>
         {{-- Sprint 3 Batch 1a D'mentai (2026-09-21) -- layout PDF laporan
              dipakai SEMUA menu Laporan (bukan cuma yang lama Neraca/Laba
@@ -63,13 +63,13 @@
 <table class="layout header-table">
     <tr>
         <td style="width: 60px;">
-            @if(file_exists(public_path('images/logo.png')))
-            <img src="{{ public_path('images/logo.png') }}" class="logo">
+            @if($brand->logoFile())
+            <img src="{{ $brand->logoFile() }}" class="logo">
             @endif
         </td>
         <td>
-            <div class="company-name">D'mentai</div>
-            <div class="company-sub">Dimsum &amp; Gyoza</div>
+            <div class="company-name">{{ $brand->namaSingkat() }}</div>
+            <div class="company-sub">{{ $brand->subjudul() }}</div>
         </td>
         <td style="text-align:right">
             <div class="report-title">{{ strtoupper($judulLaporan ?? 'LAPORAN') }}</div>

@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Cabang;
 use App\Models\Order;
-use App\Models\PengaturanUmum;
 
 class AntrianDisplayController extends Controller
 {
@@ -14,11 +13,8 @@ class AntrianDisplayController extends Controller
         abort_unless($cabang->is_active && $cabang->antrian_produksi_aktif, 404,
             'Sistem antrian tidak aktif untuk cabang ini.');
 
-        $pengaturanUmum = PengaturanUmum::firstOrCreate([], [
-            'nama_perusahaan' => "D'mentai",
-        ]);
-
-        return view('antrian.display', compact('cabang', 'pengaturanUmum'));
+        // 4.44 — nama & logo usaha dari $brand (App\Support\Branding)
+        return view('antrian.display', compact('cabang'));
     }
 
     /** API JSON untuk polling AJAX dari display TV */
