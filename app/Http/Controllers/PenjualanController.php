@@ -40,7 +40,19 @@ class PenjualanController extends Controller
     {
         $authUser = auth()->user();
         $cabangId = session('active_cabang_id') ?? $authUser->defaultCabangId();
-        $cabangAktif = Cabang::find($cabangId);
+        $cabangAktif = $cabangId ? Cabang::find($cabangId) : null;
+
+        // Mode "Semua Cabang" tanpa cabang default: penjualan wajib tercatat di
+        // 1 cabang → minta pilih dulu, jangan ditebak (dulu error 500).
+        // Gudang Pusat ikut jadi pilihan — POS gudang melayani PO cabang (4.38 Tahap C).
+        if (! $cabangAktif) {
+            $pilihanCabang = ($authUser->canAccessAllBranches() ? Cabang::query() : $authUser->cabangs())
+                ->where('cabangs.is_active', true)
+                ->orderBy('cabangs.nama_cabang')
+                ->get();
+
+            return view('penjualan.pilih-cabang', compact('pilihanCabang'));
+        }
 
         // Tahap 2.5 D'mentai — 'produk_jadi' (tunggal) pecah jadi 2 tipe:
         // 'produk_jual' (grid utama) + 'produk_tambahan' (add-on berbayar,
@@ -212,10 +224,29 @@ class PenjualanController extends Controller
         ]);
     }
 
+    /**
+     * Mode "Semua Cabang": penjualan wajib tercatat di 1 cabang. Jaga-jaga
+     * kalau tab POS lama masih terbuka saat cabang aktif diganti.
+     */
+    private function tolakTanpaCabang($cabangId)
+    {
+        if ($cabangId) {
+            return null;
+        }
+        $pesan = 'Pilih cabang dulu (cabang aktif masih Semua Cabang), lalu ulangi transaksi.';
+
+        return request()->expectsJson()
+            ? response()->json(['success' => false, 'message' => $pesan], 422)
+            : back()->with('error', $pesan);
+    }
+
     public function store(OrderRequest $request)
     {
         $authUser = auth()->user();
         $cabangId = session('active_cabang_id') ?? $authUser->defaultCabangId();
+        if ($tolak = $this->tolakTanpaCabang($cabangId)) {
+            return $tolak;
+        }
 
         $data = $request->validated();
 
@@ -291,6 +322,9 @@ class PenjualanController extends Controller
     {
         $authUser = auth()->user();
         $cabangId = session('active_cabang_id') ?? $authUser->defaultCabangId();
+        if ($tolak = $this->tolakTanpaCabang($cabangId)) {
+            return $tolak;
+        }
         // 4.41 — pilihan tipe disembunyikan / hanya 1 tipe aktif → pakai tipe otomatis cabang
         if (! $request->filled('tipe_transaksi') && ($tipeOtomatis = Cabang::find($cabangId)?->tipeTransaksiOtomatis())) {
             $request->merge(['tipe_transaksi' => $tipeOtomatis]);

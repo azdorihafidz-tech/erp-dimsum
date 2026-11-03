@@ -659,6 +659,12 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 
 **Deploy production**: digabung dgn [[4.39]] — lihat instruksi deploy di sana. Setelah itu: buat supplier "Gudang Pusat" dgn Supplier Internal = Gudang Pusat; cek saklar wajib bukti tiap cabang; koreksi Harga Standar bahan yang terlanjur tertimpa (Owner sendiri).
 
+### 4.44 🟢 Porting dari erp-coffeeshop — Poin 4: POS Minta Pilih Cabang saat "Semua Cabang" (2026-11-03)
+
+**Sumber**: `D:\xampp\htdocs\erp-coffeeshop\PORTING_KE_DIMSUM.md` (coffeeshop commit `c72a84c`+`fe81503`; folder coffeeshop READ-ONLY). Rangkaian porting: Poin 4 (ini) → Poin 3 Identitas Usaha → Poin 1 APK Kasir (sisi ERP) → Poin 2 Label (bawaan MATI per cabang). Kode ini dipasang di 2 DB: `azwc7142_erp_dmentai` (live) & `azwc7142_erp_dimsum` (demo) — deploy ke keduanya, hanya setelah Owner setuju.
+
+**Bug (direproduksi)**: user role akses semua cabang TANPA cabang default membuka POS saat "Semua Cabang" → 500 `Item::tersediaDiCabang(null)`. Fix: `PenjualanController::pos()` menampilkan `penjualan/pilih-cabang.blade.php` (form ke `cabang.switch`) kalau cabang aktif kosong — **Gudang Pusat ikut jadi pilihan** (beda dari coffeeshop: POS gudang melayani PO cabang, 4.38 Tahap C). `tolakTanpaCabang()` di `store()` & `simpanBill()` (422 JSON / back+error). Owner yang PUNYA cabang default tetap seperti dulu (POS cabang default). Test `Tahap7/PosPilihCabangTest` (8).
+
 ### 4.43 🔴 Rapikan Role & Hak Akses — Setiap Menu Punya Centangan Sendiri & Centangan Selalu Berlaku (2026-11-02)
 
 **Laporan Owner**: Laporan Stok tidak bisa dicentang untuk Kasir. Audit 86 menu sidebar menemukan 4 masalah: (1) seluruh bagian **Laporan** di sidebar terkunci izin `laporan.view` ("Lihat Laporan", tercantum di kelompok Keuangan) — Kasir yang punya 8 izin laporan tidak melihat satu pun; 11 laporan tidak punya izin sendiri (cuma `laporan.view` + izin modul), jadi mencentang "Lihat Laporan" untuk Kasir ikut membuka Laporan Keuangan/Saldo Kas/Audit Bukti; (2) ±15 menu dikunci `role:` di route tapi menunya tampil berdasar centangan → role Team dll melihat menu lalu 403; (3) POS/Riwayat Penjualan/detail order tanpa izin sama sekali (siapa pun login bisa transaksi / membuka order cabang lain lewat URL); (4) 11 centangan tidak dipakai halaman mana pun. Bonus: bagian sidebar Penjualan/Stok/Keuangan menyembunyikan menu (Pelanggan, Jenis Menu, Bahan Baku, Produk Jual, Setoran Kasir, dst) kalau role tidak punya izin "induk" bagian itu.
