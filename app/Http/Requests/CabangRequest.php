@@ -46,6 +46,12 @@ class CabangRequest extends FormRequest
             'tipe_transaksi_default'  => ['sometimes', 'in:dine_in,takeaway,frozen'],
             'wajib_bukti_transfer'    => ['sometimes', 'boolean'],
             'wajib_bukti_qris'        => ['sometimes', 'boolean'],
+            // 4.44 Poin 2 — Label Produk (stiker) per cabang
+            'label_cup_aktif'         => ['sometimes', 'boolean'],
+            'label_cup_kategori'      => ['sometimes', 'array'],
+            'label_cup_kategori.*'    => ['string', 'max:20'],
+            'label_cup_lebar_mm'      => ['sometimes', 'integer', 'min:25', 'max:120'],
+            'label_cup_tinggi_mm'     => ['sometimes', 'integer', 'min:15', 'max:120'],
             // 4.38-F — khusus tambah cabang: salin harga & pengaturan barang dari cabang lain
             'salin_dari_cabang_id'    => ['nullable', 'integer', 'exists:cabangs,id'],
             'take_away_fee'           => ['nullable', 'numeric', 'min:0'],

@@ -186,7 +186,11 @@ class CabangController extends Controller
         // Shifts cabang ini
         $shifts = $cabang->shifts;
 
-        return view('cabang.edit', compact('cabang', 'users', 'tipes', 'assignedUsers', 'shifts'));
+        // 4.44 Poin 2 — kategori yang punya produk jual, untuk pilihan Label Produk
+        $kategoriLabelOptions = \App\Models\ItemCategory::whereHas('items', fn ($q) => $q->where('tipe', 'produk_jual'))
+            ->orderBy('nama_kategori')->get(['id', 'kode_kategori', 'nama_kategori']);
+
+        return view('cabang.edit', compact('cabang', 'users', 'tipes', 'assignedUsers', 'shifts', 'kategoriLabelOptions'));
     }
 
     /**
@@ -196,6 +200,10 @@ class CabangController extends Controller
     {
         $data = $request->validated();
         $data['kode_cabang'] = strtoupper($data['kode_cabang']);
+        // 4.44 Poin 2 — semua checkbox kategori label kosong = tidak ada kategori berlabel
+        if ($request->boolean('label_cup_form')) {
+            $data['label_cup_kategori'] = array_values($request->input('label_cup_kategori', []));
+        }
 
         $oldKepalaCabangId = $cabang->kepala_cabang_id;
         $cabang->update($data);

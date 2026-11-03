@@ -34,6 +34,7 @@ class DatabaseSeeder extends Seeder
             ClosingPanduanSeeder::class,    // Panduan + tooltip Closing / Tutup Buku (2026-10-17)
             Perbaikan438PanduanSeeder::class, // Panduan + tooltip Perbaikan Harga dst (2026-10-18)
             IdentitasUsahaSeeder::class,     // Panduan + tooltip Identitas Usaha (2026-11-03)
+            LabelProdukSeeder::class,        // Izin + panduan + tooltip Label Produk (2026-11-03)
         ]);
     }
 }

@@ -802,6 +802,8 @@ $produkJadiJson = $semuaItemDropdown->map(fn($i) => [
 <script>
 const produkJadi = @json($produkJadiJson);
 window.POS_NOMOR_MEJA_AKTIF = {{ $cabangAktif?->nomor_meja_aktif ? 'true' : 'false' }};
+// 4.44 Poin 2 — kolom catatan per item (ikut tercetak di Label Produk) hanya kalau label aktif di cabang ini
+window.POS_LABEL_AKTIF = {{ $cabangAktif?->label_cup_aktif ? 'true' : 'false' }};
 window.POS_SERVICE_CHARGE_PERSEN = {{ (float) ($cabangAktif?->service_charge_persen ?? 0) }};
 window.POS_TAKE_AWAY_FEE = {{ (float) ($cabangAktif?->take_away_fee ?? 0) }};
 // Tahap B 4.38 — wajib bukti bayar per cabang
@@ -922,6 +924,10 @@ function tambahProduk() {
                     <i class="bi bi-trash"></i>
                 </button>
             </div>
+            ${window.POS_LABEL_AKTIF ? `<div class="col-12">
+                <input type="text" name="items[${idx}][catatan]" class="form-control form-control-sm" maxlength="255"
+                    placeholder="Catatan item (opsional) — ikut tercetak di label" title="Ikut tercetak di Label Produk">
+            </div>` : ''}
             <div class="col-12">
                 <div class="d-flex justify-content-between align-items-center">
                     <small class="text-muted" id="stokInfo_${idx}"></small>

@@ -19,6 +19,7 @@ class Cabang extends Model
         'radius_absen_meter', 'jam_masuk', 'is_active',
         'antrian_produksi_aktif', 'running_text_aktif', 'footer_struk',
         'izinkan_sembunyi_harga_struk',
+        'label_cup_aktif', 'label_cup_kategori', 'label_cup_lebar_mm', 'label_cup_tinggi_mm',
     ];
 
     protected $fillable = [
@@ -51,6 +52,11 @@ class Cabang extends Model
         // Tahap B 4.38 — wajib bukti bayar non-tunai per cabang
         'wajib_bukti_transfer',
         'wajib_bukti_qris',
+        // 4.44 Poin 2 — Label Produk (stiker) per cabang, nama kolom = coffeeshop "label cup"
+        'label_cup_aktif',
+        'label_cup_kategori',
+        'label_cup_lebar_mm',
+        'label_cup_tinggi_mm',
     ];
 
     protected function casts(): array
@@ -73,7 +79,25 @@ class Cabang extends Model
             'pilih_tipe_transaksi'   => 'boolean',
             'take_away_fee'          => 'decimal:2',
             'service_charge_persen'  => 'decimal:2',
+            'label_cup_aktif'        => 'boolean',
+            'label_cup_kategori'     => 'array',
+            'label_cup_lebar_mm'     => 'integer',
+            'label_cup_tinggi_mm'    => 'integer',
         ];
+    }
+
+    /**
+     * 4.44 Poin 2 — kode kategori yang dicetak Label Produk. Belum pernah
+     * diatur (NULL) = semua kategori yang punya produk jual.
+     */
+    public function kategoriLabelCup(): array
+    {
+        if (is_array($this->label_cup_kategori)) {
+            return array_values($this->label_cup_kategori);
+        }
+
+        return \App\Models\ItemCategory::whereHas('items', fn ($q) => $q->where('tipe', 'produk_jual'))
+            ->pluck('kode_kategori')->filter()->values()->all();
     }
 
     /** Tahap 3 D'mentai — cek apakah tipe transaksi ini aktif utk cabang ini. */

@@ -1556,6 +1556,10 @@ window.waitForBootstrapAndOpenStruk = function (orderId, copies, retries) {
 {{-- 4.44 Poin 1 — jembatan printer aplikasi Android (tidak berbuat apa-apa di browser biasa) --}}
 @auth
 <x-apk-printer />
+{{-- 4.44 Poin 2 — overlay cetak Label Produk (struk, detail order) --}}
+@can('label_cup.print')
+<x-cup-label-overlay />
+@endcan
 @endauth
 
 @stack('scripts')

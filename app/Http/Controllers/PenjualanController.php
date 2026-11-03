@@ -348,6 +348,7 @@ class PenjualanController extends Controller
             'items.*.qty'        => 'required|numeric|min:0.001',
             'items.*.satuan'     => 'nullable|string|max:20',
             'items.*.harga_satuan' => 'required|numeric|min:0',
+            'items.*.catatan'    => 'nullable|string|max:255', // 4.44 Poin 2 — Label Produk
         ]);
 
         try {
@@ -584,7 +585,14 @@ class PenjualanController extends Controller
             && auth()->user()->can('loyalty.klaim.buat')
             && LoyaltyProgram::eventBased()->aktif()->exists();
 
-        return view('penjualan._struk_modal_content', compact('order', 'copies', 'showItemPrice', 'adaEventBasedAktif'));
+        // 4.44 Poin 2 — tombol Label Produk (0 = cabang label mati / tidak ada item berlabel)
+        $jumlahLabelCup = 0;
+        if (auth()->user()->can('label_cup.print') && $order->cabang?->label_cup_aktif) {
+            $labelSvc = app(\App\Services\CupLabelService::class);
+            $jumlahLabelCup = $labelSvc->jumlah($labelSvc->untukOrder($order));
+        }
+
+        return view('penjualan._struk_modal_content', compact('order', 'copies', 'showItemPrice', 'adaEventBasedAktif', 'jumlahLabelCup'));
     }
 
     public function edit(Order $order)

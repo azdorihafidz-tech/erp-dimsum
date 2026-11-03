@@ -130,6 +130,9 @@ Route::get('/antrian/data/{cabang}',    [AntrianDisplayController::class, 'data'
 
 Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
 
+    // 4.44 Poin 2 — Label Produk (stiker) per order. Izin & cabang dicek di controller.
+    Route::get('/label-cup/order/{order}', [\App\Http\Controllers\CupLabelController::class, 'order'])->name('label-cup.order');
+
     // Dashboard
     // Struk modal — AJAX partial, tanpa layout app
     Route::get('/penjualan/{order}/struk-modal', [PenjualanController::class, 'strukModal'])->name('penjualan.struk-modal');

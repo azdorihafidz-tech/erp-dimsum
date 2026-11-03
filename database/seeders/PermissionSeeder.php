@@ -254,6 +254,9 @@ class PermissionSeeder extends Seeder
             // role mana pun (Owner-only via Gate::before).
             ...ClosingPermissionSeeder::PERMISSIONS,
 
+            // 4.44 Poin 2 — Label Produk (stiker); fiturnya mati per cabang sampai dinyalakan
+            LabelProdukSeeder::PERMISSION,
+
             // Chart of Accounts (Fase 1 Akuntansi) — Owner-only default, sama
             // pola dengan master.resep_bumbu.* dan lihat_backup/dll. Kalau perlu
             // delegasi, Owner centang manual di UI Role & Hak Akses.

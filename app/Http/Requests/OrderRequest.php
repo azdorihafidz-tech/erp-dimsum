@@ -56,6 +56,8 @@ class OrderRequest extends FormRequest
             'items.*.tipe'       => 'nullable|in:produk_jadi,jasa_giling',
             'items.*.item_id'    => 'nullable|exists:items,id',
             'items.*.item_variant_id' => 'nullable|exists:item_variants,id',
+            // 4.44 Poin 2 — catatan per item, ikut tercetak di Label Produk
+            'items.*.catatan'        => 'nullable|string|max:255',
             'items.*.nama_item'  => 'required|string',
             'items.*.qty'        => 'required|numeric|min:0.001',
             // Satuan yang klien klaim dikirim -- server TETAP mengambil

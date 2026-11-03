@@ -251,6 +251,16 @@
         </a>
     </div>
 
+    {{-- 4.44 Poin 2 — Label Produk (stiker), dicetak terpisah dari struk --}}
+    @if(($jumlahLabelCup ?? 0) > 0)
+    <div class="d-grid mb-3">
+        <button class="btn btn-warning" type="button"
+                onclick="window.openCupLabel && window.openCupLabel('{{ route('label-cup.order', $order) }}')">
+            🏷️ Cetak Label ({{ $jumlahLabelCup }} stiker)
+        </button>
+    </div>
+    @endif
+
     {{-- Grup 2b: OPSIONAL — Buat Klaim Loyalty (event-based), cuma tampil
          kalau pelanggan terdaftar & ada program event_based aktif --}}
     @if($adaEventBasedAktif ?? false)
@@ -853,8 +863,11 @@ $_struData = [
     //  APLIKASI KASIR ANDROID (4.44 Poin 1)
     //  Data struk sama persis (buildReceipt, termasuk buka laci untuk
     //  tunai) — hanya jalur kirimnya lewat jembatan Bluetooth aplikasi,
-    //  tanpa memilih printer. Cetak otomatis kalau diaktifkan di aplikasi.
+    //  tanpa memilih printer. Cetak otomatis kalau diaktifkan di aplikasi,
+    //  lalu Label Produk menyusul (4.44 Poin 2, kalau ada item berlabel).
     // ============================================================
+    var LABEL_URL = @json(($jumlahLabelCup ?? 0) > 0 ? route('label-cup.order', $order) : null);
+
     async function cetakApk() {
         var btn = el('strukBtnApk');
         if (btn) btn.disabled = true;
@@ -889,7 +902,15 @@ $_struData = [
             return;
         }
         if (!info.auto_struk) return;
-        cetakApk();
+
+        // Label otomatis hanya untuk transaksi baru di halaman POS (ada resetPosForm),
+        // bukan saat struk dibuka ulang dari Detail Order / Riwayat (cetak ulang).
+        var transaksiBaru = typeof window.resetPosForm === 'function';
+        cetakApk().then(function (ok) {
+            if (ok && transaksiBaru && LABEL_URL && info.auto_label && window.openCupLabel) {
+                window.openCupLabel(LABEL_URL, { otomatis: true });
+            }
+        });
     })();
 
 })();
