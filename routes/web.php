@@ -117,6 +117,13 @@ Route::get('/offline.html', function () {
     ]);
 })->name('pwa.offline');
 
+// 4.44 Poin 1 — identitas usaha untuk aplikasi kasir Android "Kasir POS".
+// Publik: hanya identitas yang memang tampil di halaman login. APK menolak
+// alamat ERP yang tidak punya endpoint ini (erp: true). Format JSON = kontrak APK.
+Route::get('/app-info', function (\App\Support\Branding $brand) {
+    return response()->json(['erp' => true] + $brand->untukAplikasi());
+})->name('app.info');
+
 // ===== ANTRIAN PRODUKSI — DISPLAY PUBLIK (tanpa auth) =====
 Route::get('/antrian/display/{cabang}', [AntrianDisplayController::class, 'show'])->name('antrian.display');
 Route::get('/antrian/data/{cabang}',    [AntrianDisplayController::class, 'data'])->name('antrian.data');

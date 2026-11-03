@@ -546,6 +546,13 @@
         </a>
         @endif
 
+        {{-- 4.44 Poin 1 — hanya tampil kalau ERP dibuka dari aplikasi Android "Kasir POS" (lihat components/apk-printer) --}}
+        <a href="#" id="kdApkSettingsLink" class="nav-link" style="display:none"
+           onclick="window.KDApk && window.KDApk.bukaPengaturan(); return false;">
+            <i class="bi bi-printer"></i>
+            <span>Pengaturan Printer Aplikasi</span>
+        </a>
+
         <!-- PENJUALAN -->
         @canany(['order.view', 'order.create', 'pelanggan.view', 'jenis-olahan.view', 'master.resep_bumbu.view', 'loyalty.view'])
         <div class="nav-section-title">Penjualan</div>
@@ -1545,6 +1552,11 @@ window.waitForBootstrapAndOpenStruk = function (orderId, copies, retries) {
     }
 };
 </script>
+
+{{-- 4.44 Poin 1 — jembatan printer aplikasi Android (tidak berbuat apa-apa di browser biasa) --}}
+@auth
+<x-apk-printer />
+@endauth
 
 @stack('scripts')
 </body>

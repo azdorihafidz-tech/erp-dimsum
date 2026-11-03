@@ -11,6 +11,7 @@ use Illuminate\Database\Seeder;
  * Menulis ulang panduan `pengaturan-umum` (isi lama menyebut ikon PWA harus
  * dibuat developer — sekarang otomatis) + 3 tooltip baru. Idempotent
  * (updateOrCreate) — aman dijalankan ulang di production.
+ * Poin 1: bagian "Aplikasi Kasir di Tablet" ditambahkan ke panduan `pos`.
  */
 class IdentitasUsahaSeeder extends Seeder
 {
@@ -78,6 +79,44 @@ MARKDOWN
             ]);
         }
 
+        $this->tambahPanduanAplikasiKasir();
+
         $this->command?->info('✅ Panduan & tooltip Identitas Usaha tersimpan (idempotent).');
+    }
+
+    /** 4.44 Poin 1 — bagian "Aplikasi Kasir di Tablet" di panduan POS (sekali saja, ada marker). */
+    private function tambahPanduanAplikasiKasir(): void
+    {
+        $marker = '<!-- APK-KASIR-444 -->';
+        $panduan = Panduan::where('slug', 'pos')->first();
+        if (! $panduan || str_contains((string) $panduan->konten, $marker)) {
+            return;
+        }
+
+        $bagian = <<<'MARKDOWN'
+
+
+{MARKER}
+## Aplikasi Kasir di Tablet (Cetak Tanpa Pilih Printer)
+
+Kalau POS dibuka dari aplikasi Android **Kasir POS** (bukan dari Chrome), struk dicetak langsung ke printer Bluetooth yang sudah diatur di aplikasi — kasir tidak perlu memilih printer setiap transaksi.
+
+**Pengaturan sekali per tablet:**
+1. Pasangkan (pair) printer struk di Pengaturan Bluetooth tablet.
+2. Buka aplikasi Kasir POS → **Pengaturan Printer** → ketik alamat ERP → **Hubungkan**.
+3. Pilih printer struk, aktifkan **Cetak struk otomatis** kalau diinginkan, lalu tekan **Tes Cetak**.
+
+**Saat transaksi:**
+- Setelah Bayar, struk tercetak otomatis (atau tekan **Cetak Struk** di jendela struk).
+- Pembayaran **tunai** ikut membuka laci uang (laci tersambung ke printer struk).
+- Tombol **Buka Laci** di POS juga memakai printer dari aplikasi, dan tetap tercatat di log buka laci.
+- Menu **Pengaturan Printer Aplikasi** di sidebar hanya muncul di aplikasi kasir.
+
+Kalau dibuka dari Chrome/PC, cara cetak lama (Pilih Printer Bluetooth / Cetak Browser) tetap sama seperti sebelumnya.
+
+**Struk tidak keluar?** Pastikan printer menyala & sudah di-pair, lalu buka Pengaturan Printer Aplikasi dan tekan Tes Cetak.
+MARKDOWN;
+
+        $panduan->update(['konten' => rtrim((string) $panduan->konten) . str_replace('{MARKER}', $marker, $bagian)]);
     }
 }

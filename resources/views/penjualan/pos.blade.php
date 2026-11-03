@@ -2017,6 +2017,22 @@ async function bukaLaciManual() {
     const alasan = prompt('Alasan buka laci?', 'Ambil kembalian');
     if (!alasan) return;
 
+    // 4.44 Poin 1 — aplikasi kasir Android: buka laci lewat printer struk yang diatur di aplikasi
+    if (window.KDApk && window.KDApk.ada()) {
+        try {
+            await window.KDApk.bukaLaci();
+            await fetch(LACI_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': LACI_CSRF },
+                body: JSON.stringify({ alasan }),
+            });
+            await window.showAlert('success', 'Berhasil', 'Laci berhasil dibuka.');
+        } catch (e) {
+            await window.showAlert('error', 'Gagal Buka Laci', e.message);
+        }
+        return;
+    }
+
     if (!navigator.bluetooth) {
         await window.showAlert('error', 'Bluetooth Tidak Didukung', 'Browser tidak mendukung Web Bluetooth. Gunakan Chrome atau Edge.');
         return;
