@@ -44,7 +44,7 @@ class LaporanBepController extends Controller
         // Pendapatan aktual periode ini
         $pendapatanAktual = Order::withoutGlobalScopes()
             ->where('tanggal_order', 'like', $periode . '%')
-            ->where('status', '!=', StatusOrder::Dibatalkan)
+            ->penjualanSah()
             ->when($cabangId, fn($q) => $q->where('cabang_id', $cabangId))
             ->sum('total_bayar');
 
@@ -158,7 +158,7 @@ class LaporanBepController extends Controller
             $pendapatan = Order::withoutGlobalScopes()
                 ->where('cabang_id', $cabang->id)
                 ->where('tanggal_order', 'like', $periode . '%')
-                ->where('status', '!=', StatusOrder::Dibatalkan)
+                ->penjualanSah()
                 ->sum('total_bayar');
 
             $bepRupiah = $setting?->products->sum('bep_rupiah') ?? 0;

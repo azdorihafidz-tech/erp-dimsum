@@ -51,7 +51,23 @@ class Perbaikan438PanduanSeeder extends Seeder
         $this->appendSections($this->sectionsAmbilProduk442(), '<!-- AMBIL-PRODUK-442 -->');
         $this->tooltips($this->tooltipsAmbilProduk442());
 
+        // 4.45 — Batalkan vs Hapus order (order dibayar wajib Batalkan dulu)
+        $this->appendSections($this->sectionsBatalHapus445(), '<!-- BATAL-HAPUS-445 -->');
+
         $this->command?->info('✅ Panduan & tooltip Perbaikan 4.38 tersimpan (idempotent).');
+    }
+
+    private function sectionsBatalHapus445(): array
+    {
+        return [
+            'riwayat-order' => <<<'MD'
+## 🔄 Update 2026-11-04 — Batalkan vs Hapus
+- **Batalkan** (tombol ❌ merah di daftar Riwayat atau di Detail Order) = transaksi tidak jadi. Stok bahan **dikembalikan**, uang di kas **dikurangi**, dan order hilang dari semua laporan. Status berubah jadi **Dibatalkan** (tetap terlihat di Riwayat).
+- **Hapus** (tombol 🗑️) hanya untuk order yang sudah **Dibatalkan** atau **bill yang belum dibayar**. Order yang sudah dibayar **tidak bisa dihapus langsung**, harus dibatalkan dulu.
+- Kasir hanya bisa membatalkan order **hari ini**. Order hari sebelumnya dibatalkan oleh Owner.
+- Laporan (Laba Rugi, Penjualan, Setoran Harian, Dashboard, dll) tidak menghitung order yang dibatalkan, dihapus, maupun bill yang belum dibayar.
+MD,
+        ];
     }
 
     private function appendSections(array $sections, string $marker): void

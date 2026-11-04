@@ -35,7 +35,7 @@ class AnalisisPenjualanService
         return Cache::remember($key, self::CACHE_TTL, function () use ($cabangId, $dari, $sampai) {
             $query = Order::withoutGlobalScopes()
                 ->selectRaw('DATE(tanggal_order) as tanggal, SUM(total_bayar) as omzet_harian, COUNT(*) as jumlah_harian')
-                ->where('status', '!=', StatusOrder::Dibatalkan)
+                ->penjualanSah()
                 ->whereBetween('tanggal_order', [$dari->toDateString(), $sampai->toDateString()]);
 
             if ($cabangId) {

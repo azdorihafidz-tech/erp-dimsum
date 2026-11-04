@@ -260,7 +260,7 @@ class LaporanLabaRugiService
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->leftJoin('items', 'items.id', '=', 'order_items.item_id')
             ->whereBetween('orders.tanggal_order', [$start->toDateString(), $end->toDateString()])
-            ->where('orders.status', '!=', StatusOrder::Dibatalkan->value);
+            ->whereNotIn('orders.status', \App\Enums\StatusOrder::bukanPenjualan())->whereNull('orders.deleted_at');
 
         if ($cabangId) {
             $query->where('orders.cabang_id', $cabangId);

@@ -9,6 +9,18 @@ enum StatusOrder: string
     case Selesai = 'selesai';
     case Dibatalkan = 'dibatalkan';
 
+    /**
+     * Status yang BUKAN penjualan sah — tidak dihitung omzet/HPP/jumlah order
+     * di laporan & dashboard: bill tersimpan yang belum dibayar (pending) dan
+     * order dibatalkan. Sama dengan aturan Closing (4.37).
+     *
+     * @return string[]
+     */
+    public static function bukanPenjualan(): array
+    {
+        return [self::Pending->value, self::Dibatalkan->value];
+    }
+
     public function label(): string
     {
         return match($this) {

@@ -316,7 +316,7 @@ class BepController extends Controller
                 ->where('orders.cabang_id', $cabangId)
                 ->whereYear('orders.tanggal_order', (int) $tahun)
                 ->whereMonth('orders.tanggal_order', (int) $bulan)
-                ->where('orders.status', '!=', 'dibatalkan')
+                ->whereNotIn('orders.status', \App\Enums\StatusOrder::bukanPenjualan())->whereNull('orders.deleted_at')
                 ->whereNull('orders.deleted_at')
                 ->whereNull('order_items.deleted_at')
                 ->whereNotNull('order_items.item_id')

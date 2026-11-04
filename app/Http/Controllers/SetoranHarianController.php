@@ -105,7 +105,7 @@ class SetoranHarianController extends Controller
         $ordersAgg = Order::withoutGlobalScopes()
             ->selectRaw('tanggal_order as tgl, cabang_id, COUNT(*) as jumlah_order, SUM(total_bayar) as total_omzet')
             ->whereBetween('tanggal_order', [$dari->toDateString(), $sampai->toDateString()])
-            ->where('status', '!=', 'dibatalkan')
+            ->penjualanSah()
             ->when($cabangId, fn ($q) => $q->where('cabang_id', $cabangId))
             ->groupBy('tanggal_order', 'cabang_id')
             ->get()

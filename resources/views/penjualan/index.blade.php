@@ -3,6 +3,7 @@
 @section('title', 'Riwayat Penjualan')
 
 @section('content')
+@php $isOwner = auth()->user()->role === \App\Enums\RoleUser::Owner; @endphp
 <div class="d-flex flex-column flex-sm-row justify-content-between align-items-start align-items-sm-center gap-2 mb-3">
     <h5 class="mb-0 fw-bold"><i class="bi bi-cart3 me-2 text-success"></i>Riwayat Penjualan</h5>
     <div class="d-flex gap-2 align-items-center">
@@ -104,11 +105,22 @@
                                 </a>
                                 @endif
                                 @endcan
+                                @can('order.batalkan')
+                                @if($o->status === \App\Enums\StatusOrder::Selesai)
+                                <button type="button" class="btn btn-outline-danger" title="{{ ($isOwner || $o->created_at->isToday()) ? 'Batalkan (stok & kas dikembalikan)' : 'Order dari hari sebelumnya, hanya Owner yang bisa membatalkan' }}"
+                                    @disabled(!($isOwner || $o->created_at->isToday()))
+                                    onclick="confirmBatalkan('{{ addslashes($o->nomor_order) }}', '{{ route('penjualan.batalkan', $o->id) }}')">
+                                    <i class="bi bi-x-circle"></i>
+                                </button>
+                                @endif
+                                @endcan
                                 @can('order.delete')
-                                <button type="button" class="btn btn-outline-danger" title="Hapus"
+                                @if(in_array($o->status, [\App\Enums\StatusOrder::Pending, \App\Enums\StatusOrder::Dibatalkan]))
+                                <button type="button" class="btn btn-outline-secondary" title="Hapus"
                                     onclick="confirmHapus('{{ addslashes($o->nomor_order) }}', '{{ route('penjualan.destroy', $o->id) }}')">
                                     <i class="bi bi-trash"></i>
                                 </button>
+                                @endif
                                 @endcan
                             </div>
                         </td>
@@ -163,11 +175,22 @@
                 </a>
                 @endif
                 @endcan
+                @can('order.batalkan')
+                @if($o->status === \App\Enums\StatusOrder::Selesai)
+                <button type="button" class="btn btn-sm btn-outline-danger" title="Batalkan"
+                    @disabled(!($isOwner || $o->created_at->isToday()))
+                    onclick="confirmBatalkan('{{ addslashes($o->nomor_order) }}', '{{ route('penjualan.batalkan', $o->id) }}')">
+                    <i class="bi bi-x-circle"></i>
+                </button>
+                @endif
+                @endcan
                 @can('order.delete')
-                <button type="button" class="btn btn-sm btn-outline-danger"
+                @if(in_array($o->status, [\App\Enums\StatusOrder::Pending, \App\Enums\StatusOrder::Dibatalkan]))
+                <button type="button" class="btn btn-sm btn-outline-secondary" title="Hapus"
                     onclick="confirmHapus('{{ addslashes($o->nomor_order) }}', '{{ route('penjualan.destroy', $o->id) }}')">
                     <i class="bi bi-trash"></i>
                 </button>
+                @endif
                 @endcan
             </div>
         </div>
@@ -183,8 +206,39 @@
 
 @include('components.cascade-delete-modal', ['entity' => 'Order', 'childList' => ['Detail item / produk dalam order ini']])
 
+@can('order.batalkan')
+{{-- Modal Batalkan (dipakai semua baris) — beda dari Hapus: stok & kas dikembalikan. --}}
+<div class="modal fade" id="modalBatalkanList" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+        <div class="modal-content">
+            <form method="POST" id="formBatalkanList" action="">
+                @csrf
+                <div class="modal-header">
+                    <h6 class="modal-title mb-0"><i class="bi bi-x-circle me-2 text-danger"></i>Batalkan Order <span id="batalkanListNomor"></span></h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    @include('penjualan._alasan-batal-fields')
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                    <button type="submit" class="btn btn-danger btn-sm"><i class="bi bi-x-circle me-1"></i>Ya, Batalkan Order</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endcan
+
 @push('scripts')
 <script>
+function confirmBatalkan(nomor, url) {
+    var form = document.getElementById('formBatalkanList');
+    form.reset();
+    form.action = url;
+    document.getElementById('batalkanListNomor').textContent = nomor;
+    new bootstrap.Modal(document.getElementById('modalBatalkanList')).show();
+}
 function confirmHapus(nama, deleteUrl) {
     document.getElementById('cascadeModalEntityName').textContent = nama;
     document.getElementById('cascadeModalForm').action = deleteUrl;

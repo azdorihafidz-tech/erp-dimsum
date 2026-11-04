@@ -253,7 +253,7 @@ class LabaRugiFormalService
     {
         $query = OrderItem::query()
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
-            ->where('orders.status', '!=', StatusOrder::Dibatalkan->value)
+            ->whereNotIn('orders.status', \App\Enums\StatusOrder::bukanPenjualan())->whereNull('orders.deleted_at')
             ->whereBetween('orders.tanggal_order', [$mulai->toDateString(), $akhir->toDateString()])
             ->whereNull('orders.deleted_at')
             ->whereNull('order_items.deleted_at');

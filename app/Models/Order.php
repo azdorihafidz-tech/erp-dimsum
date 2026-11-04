@@ -111,6 +111,17 @@ class Order extends Model
         ];
     }
 
+    /**
+     * Penjualan sah untuk laporan: belum dihapus, bukan bill belum dibayar,
+     * bukan dibatalkan. deleted_at ditulis eksplisit karena banyak laporan
+     * memakai withoutGlobalScopes() (yang ikut mematikan SoftDeletes).
+     */
+    public function scopePenjualanSah($query)
+    {
+        return $query->whereNull($query->qualifyColumn('deleted_at'))
+            ->whereNotIn($query->qualifyColumn('status'), StatusOrder::bukanPenjualan());
+    }
+
     public function cabang()
     {
         return $this->belongsTo(Cabang::class);

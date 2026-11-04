@@ -160,7 +160,7 @@ class BepOtomatisService
     {
         $adaJasaGiling = DB::table('orders')
             ->where('tipe_order', 'jasa_giling')
-            ->where('status', '!=', 'dibatalkan')
+            ->whereNotIn('status', \App\Enums\StatusOrder::bukanPenjualan())->whereNull('deleted_at')
             ->whereBetween('tanggal_order', [$mulai->toDateString(), $akhir->toDateString()])
             ->whereNull('deleted_at')
             ->when($cabangId, fn ($q) => $q->where('cabang_id', $cabangId))
@@ -169,7 +169,7 @@ class BepOtomatisService
         $query = DB::table('order_items')
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->where('orders.tipe_order', $adaJasaGiling ? 'jasa_giling' : 'penjualan')
-            ->where('orders.status', '!=', 'dibatalkan')
+            ->whereNotIn('orders.status', \App\Enums\StatusOrder::bukanPenjualan())->whereNull('orders.deleted_at')
             ->whereBetween('orders.tanggal_order', [$mulai->toDateString(), $akhir->toDateString()])
             ->whereNull('orders.deleted_at')
             ->whereNull('order_items.deleted_at');

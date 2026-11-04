@@ -70,7 +70,7 @@ class EvidenceBasedFindingsService
     private function temuanProduktivitasTransaksi(Carbon $mulai, Carbon $akhir, ?int $cabangId): array
     {
         $query = Order::withoutGlobalScopes()
-            ->where('status', '!=', \App\Enums\StatusOrder::Dibatalkan)
+            ->penjualanSah()
             ->whereBetween('tanggal_order', [$mulai->toDateString(), $akhir->toDateString()]);
         if ($cabangId) {
             $query->where('cabang_id', $cabangId);
@@ -140,7 +140,7 @@ class EvidenceBasedFindingsService
         $query = DB::table('orders')
             ->join('users', 'orders.kasir_id', '=', 'users.id')
             ->whereNull('orders.deleted_at')
-            ->where('orders.status', '!=', 'dibatalkan')
+            ->whereNotIn('orders.status', \App\Enums\StatusOrder::bukanPenjualan())->whereNull('orders.deleted_at')
             ->whereBetween('orders.tanggal_order', [$mulai->toDateString(), $akhir->toDateString()]);
         if ($cabangId) {
             $query->where('orders.cabang_id', $cabangId);

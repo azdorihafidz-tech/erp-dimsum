@@ -811,6 +811,14 @@ class PenjualanController extends Controller
     public function destroy(Order $order, CascadeDeleteService $cascadeService)
     {
         abort_unless(auth()->user()->can('order.delete'), 403, 'Anda tidak memiliki akses untuk menghapus order.');
+        abort_unless(\App\Support\CabangAktif::bolehAkses($order->cabang_id), 403, 'Order ini milik cabang lain.');
+
+        // Hapus hanya menyembunyikan order (stok & kas TIDAK dikembalikan). Order yang
+        // sudah dibayar wajib dibatalkan dulu supaya stok & kas kembali dengan benar.
+        if (! in_array($order->status, [StatusOrder::Pending, StatusOrder::Dibatalkan], true)) {
+            return back()->with('error', "Order {$order->nomor_order} sudah dibayar sehingga tidak bisa dihapus langsung. "
+                . 'Klik Batalkan dulu (stok dan uang kas dikembalikan otomatis), setelah itu baru bisa dihapus bila perlu.');
+        }
 
         try {
             $nomor   = $order->nomor_order;

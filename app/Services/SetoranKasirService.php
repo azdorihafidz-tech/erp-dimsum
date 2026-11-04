@@ -37,7 +37,7 @@ class SetoranKasirService
             ->whereHas('order', function ($q) use ($cabangId, $tanggal) {
                 $q->where('cabang_id', $cabangId)
                     ->whereDate('tanggal_order', $tanggal)
-                    ->where('status', '!=', StatusOrder::Dibatalkan);
+                    ->penjualanSah();
             })
             ->selectRaw('metode, SUM(jumlah) as total')
             ->groupBy('metode')

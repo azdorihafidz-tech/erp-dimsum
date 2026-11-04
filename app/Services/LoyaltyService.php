@@ -48,7 +48,7 @@ class LoyaltyService
         $query = DB::table('orders')
             ->where('pelanggan_id', $pelangganId)
             ->where('tipe_order', $program->tipe_item)
-            ->where('status', '!=', 'dibatalkan')
+            ->whereNotIn('status', \App\Enums\StatusOrder::bukanPenjualan())->whereNull('deleted_at')
             ->whereNull('deleted_at');
 
         if ($program->periode_mulai) {
@@ -85,7 +85,7 @@ class LoyaltyService
             $jumlahOrderTanpaData = DB::table('orders')
                 ->where('pelanggan_id', $pelangganId)
                 ->where('tipe_order', $program->tipe_item)
-                ->where('status', '!=', 'dibatalkan')
+                ->whereNotIn('status', \App\Enums\StatusOrder::bukanPenjualan())->whereNull('deleted_at')
                 ->whereNull('deleted_at')
                 ->where(function ($q) use ($agregat) {
                     $q->whereNull($agregat['kolom'])->orWhere($agregat['kolom'], 0);
@@ -123,7 +123,7 @@ class LoyaltyService
         $totals = DB::table('orders')
             ->join('pelanggans', 'pelanggans.id', '=', 'orders.pelanggan_id')
             ->where('orders.tipe_order', $program->tipe_item)
-            ->where('orders.status', '!=', 'dibatalkan')
+            ->whereNotIn('orders.status', \App\Enums\StatusOrder::bukanPenjualan())->whereNull('orders.deleted_at')
             ->whereNull('orders.deleted_at')
             ->whereNull('pelanggans.deleted_at')
             ->when($program->periode_mulai, fn ($q) => $q->whereDate('orders.tanggal_order', '>=', $program->periode_mulai))

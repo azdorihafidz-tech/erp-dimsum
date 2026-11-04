@@ -659,6 +659,20 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 
 **Deploy production**: digabung dgn [[4.39]] — lihat instruksi deploy di sana. Setelah itu: buat supplier "Gudang Pusat" dgn Supplier Internal = Gudang Pusat; cek saklar wajib bukti tiap cabang; koreksi Harga Standar bahan yang terlanjur tertimpa (Owner sendiri).
 
+### 4.45 🔴 Order "Dihapus" Masih Masuk Laporan — Batalkan vs Hapus (2026-11-04)
+
+**Laporan Owner**: transaksi "sudah dibatalkan" masih masuk Laporan Laba Rugi. **Root cause (data live)**: kasir memakai tombol **Hapus** (🗑️ di daftar Riwayat), bukan Batalkan. Hapus (`CascadeDeleteService::deleteOrderCascade`) hanya soft-delete order + order_items + transaksi_keuangans — **stok tidak dikembalikan, saldo kas tidak dikurangi, status tetap selesai** — dan banyak laporan tetap menghitungnya karena memakai `DB::table` atau `Order::withoutGlobalScopes()` (yang ikut mematikan SoftDeletes). Data live: 32 order selesai terhapus (Rp 5,4 jt) di 7 lokasi. Bonus: bill tersimpan yang belum dibayar (`pending`) dihitung sebagai omzet di ~40 query.
+
+**Fix**:
+- `StatusOrder::bukanPenjualan()` = `[pending, dibatalkan]` + scope `Order::penjualanSah()` (`whereNull(orders.deleted_at)` + `whereNotIn(orders.status, …)`, kolom di-qualify). 40 query di 17 file diganti (Dashboard, Laporan Penjualan/Laba Rugi/Konsumsi Bahan/BEP/Jam Ramai/Eksekutif, Setoran Harian, Setoran Kasir, Laba Rugi Formal, Loyalty, Analisis). Query `DB::table` memakai `whereNotIn(...bukanPenjualan())->whereNull('orders.deleted_at')`. **Pengecualian sengaja**: `PenjualanController` `ordersGudang` (nota PO aktif boleh pending). **Laporan order baru WAJIB pakai `penjualanSah()`** (atau pola raw yang sama) — jangan `where('status','!=',Dibatalkan)` saja.
+- `PenjualanController::destroy()`: hanya order `pending`/`dibatalkan` yang boleh dihapus (selain itu flash error "Batalkan dulu") + cek `CabangAktif::bolehAkses`. Riwayat: tombol **Batalkan** (modal bersama `#modalBatalkanList`, alasan dari partial `penjualan/_alasan-batal-fields.blade.php` yang juga dipakai Detail Order; non-Owner hanya order hari ini) untuk order Selesai; tombol Hapus hanya untuk Pending/Dibatalkan.
+- Panduan `riwayat-order` bagian `<!-- BATAL-HAPUS-445 -->` (Perbaikan438PanduanSeeder).
+- **Data lama tidak dikoreksi otomatis (keputusan Owner)**: Owner memulihkan manual di Data Terhapus → Orders lalu Batalkan (restore mengembalikan order/item/transaksi → Batalkan membalik stok & kas). `deploy-445.php` mencetak daftarnya.
+
+**Test**: `Tahap7/PembatalanOrderLaporanTest` (11). Regresi: hanya 10 kegagalan lama. Cek data live lokal: Laba Rugi Batuphat 3 Nov omzet 2.105.000 → 2.042.000 (baris Best Seller Box Gyoza dari order terhapus 003-2026-00110 hilang).
+
+**Deploy**: `git pull` → `https://<alamat-erp>/deploy-445.php?confirm=YES-BATAL445` (panduan + cache + daftar order terhapus; lock `storage/deploy-445.lock`) → hapus `public/deploy-445.php`. Kedua instalasi.
+
 ### 4.44 🟢 Porting dari erp-coffeeshop — Poin 4: POS Minta Pilih Cabang saat "Semua Cabang" (2026-11-03)
 
 **Sumber**: `D:\xampp\htdocs\erp-coffeeshop\PORTING_KE_DIMSUM.md` (coffeeshop commit `c72a84c`+`fe81503`; folder coffeeshop READ-ONLY). Rangkaian porting: Poin 4 (ini) → Poin 3 Identitas Usaha → Poin 1 APK Kasir (sisi ERP) → Poin 2 Label (bawaan MATI per cabang). Kode ini dipasang di 2 DB: `azwc7142_erp_dmentai` (live) & `azwc7142_erp_dimsum` (demo) — deploy ke keduanya, hanya setelah Owner setuju.

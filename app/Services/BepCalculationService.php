@@ -60,7 +60,7 @@ class BepCalculationService
         $totalPendapatan = 0;
         if (class_exists(Order::class)) {
             $totalPendapatan = Order::where('cabang_id', $cabangId)
-                ->where('status', '!=', StatusOrder::Dibatalkan)
+                ->penjualanSah()
                 ->where('tanggal_order', 'like', $periode . '%')
                 ->sum('total_bayar');
         }

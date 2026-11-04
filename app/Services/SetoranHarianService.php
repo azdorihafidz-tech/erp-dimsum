@@ -74,7 +74,7 @@ class SetoranHarianService
     {
         $query = DB::table('orders')
             ->whereBetween('tanggal_order', [$start->toDateString(), $end->toDateString()])
-            ->where('status', '!=', StatusOrder::Dibatalkan->value);
+            ->whereNotIn('status', \App\Enums\StatusOrder::bukanPenjualan())->whereNull('deleted_at');
         if ($cabangId) {
             $query->where('cabang_id', $cabangId);
         }
@@ -166,7 +166,7 @@ class SetoranHarianService
     {
         $query = Order::withoutGlobalScopes()
             ->whereBetween('tanggal_order', [$start->toDateString(), $end->toDateString()])
-            ->where('status', '!=', StatusOrder::Dibatalkan);
+            ->penjualanSah();
         if ($cabangId) {
             $query->where('cabang_id', $cabangId);
         }

@@ -24,7 +24,7 @@ class JamRamaiService
     public function getAnalisaJamRamai(Carbon $mulai, Carbon $akhir, ?int $cabangId = null): array
     {
         $baseQuery = Order::withoutGlobalScopes()
-            ->where('status', '!=', StatusOrder::Dibatalkan)
+            ->penjualanSah()
             ->whereBetween('tanggal_order', [$mulai->toDateString(), $akhir->toDateString()]);
         if ($cabangId) {
             $baseQuery->where('cabang_id', $cabangId);
