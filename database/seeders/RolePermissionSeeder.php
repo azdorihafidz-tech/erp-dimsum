@@ -73,6 +73,7 @@ class RolePermissionSeeder extends Seeder
             // Closing / Tutup Buku (2026-10-17)
             ...ClosingPermissionSeeder::ROLE_DEFAULTS['admin_pusat'],
             'label_cup.print', // 4.44 Poin 2 — Label Produk
+            ...LaporanPenjualanKasirSeeder::ROLE_DEFAULTS['admin_pusat'], // 4.46
         ],
 
         'admin_gudang' => [
@@ -137,6 +138,7 @@ class RolePermissionSeeder extends Seeder
             // Closing / Tutup Buku (2026-10-17)
             ...ClosingPermissionSeeder::ROLE_DEFAULTS['manajer_cabang'],
             'label_cup.print', // 4.44 Poin 2 — Label Produk
+            ...LaporanPenjualanKasirSeeder::ROLE_DEFAULTS['manajer_cabang'], // 4.46
         ],
 
         'kasir' => [
@@ -161,6 +163,7 @@ class RolePermissionSeeder extends Seeder
             // Closing / Tutup Buku (2026-10-17)
             ...ClosingPermissionSeeder::ROLE_DEFAULTS['kasir'],
             'label_cup.print', // 4.44 Poin 2 — Label Produk
+            ...LaporanPenjualanKasirSeeder::ROLE_DEFAULTS['kasir'], // 4.46
         ],
 
         'operator_produksi' => [

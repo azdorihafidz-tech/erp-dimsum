@@ -63,6 +63,7 @@ class GoLiveSeeder extends Seeder
             Perbaikan438PanduanSeeder::class,
             IdentitasUsahaSeeder::class,
             LabelProdukSeeder::class,
+            LaporanPenjualanKasirSeeder::class, // 4.46 — izin + panduan Laporan di menu Penjualan
         ]);
 
         $gudang = Cabang::updateOrCreate(

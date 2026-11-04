@@ -804,7 +804,7 @@ class PenjualanController extends Controller
      */
     private function pastikanBolehLihat(Order $order): void
     {
-        abort_unless(auth()->user()->canAny(['order.view', 'order.create', 'antrian.lihat', 'antrian.kelola', 'keuangan.view']), 403);
+        abort_unless(auth()->user()->canAny(['order.view', 'order.create', 'antrian.lihat', 'antrian.kelola', 'keuangan.view', 'penjualan.laporan_transaksi.view']), 403);
         abort_unless(\App\Support\CabangAktif::bolehAkses($order->cabang_id), 403, 'Order ini milik cabang lain.');
     }
 

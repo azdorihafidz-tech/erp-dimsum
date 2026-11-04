@@ -35,6 +35,7 @@ class DatabaseSeeder extends Seeder
             Perbaikan438PanduanSeeder::class, // Panduan + tooltip Perbaikan Harga dst (2026-10-18)
             IdentitasUsahaSeeder::class,     // Panduan + tooltip Identitas Usaha (2026-11-03)
             LabelProdukSeeder::class,        // Izin + panduan + tooltip Label Produk (2026-11-03)
+            LaporanPenjualanKasirSeeder::class, // 4.46 — izin + panduan Laporan di menu Penjualan
         ]);
     }
 }

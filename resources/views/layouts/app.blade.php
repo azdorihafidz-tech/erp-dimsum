@@ -554,7 +554,8 @@
         </a>
 
         <!-- PENJUALAN -->
-        @canany(['order.view', 'order.create', 'pelanggan.view', 'jenis-olahan.view', 'master.resep_bumbu.view', 'loyalty.view'])
+        @canany(['order.view', 'order.create', 'pelanggan.view', 'jenis-olahan.view', 'master.resep_bumbu.view', 'loyalty.view',
+                 'penjualan.laporan_transaksi.view', 'penjualan.laporan_produk.view', 'penjualan.laporan_kategori.view'])
         <div class="nav-section-title">Penjualan</div>
         @can('order.create')
         <a href="{{ route('penjualan.pos') }}"
@@ -568,6 +569,14 @@
            class="nav-link {{ request()->routeIs('penjualan.index','penjualan.show') ? 'active' : '' }}">
             <i class="bi bi-cart3"></i>
             <span>Riwayat Order</span>
+        </a>
+        @endcan
+        {{-- 4.46 — laporan penjualan yang bisa dibuka kasir --}}
+        @can('penjualan.laporan_transaksi.view')
+        <a href="{{ route('penjualan.laporan.transaksi') }}"
+           class="nav-link {{ request()->routeIs('penjualan.laporan.transaksi') ? 'active' : '' }}">
+            <i class="bi bi-graph-up-arrow"></i>
+            <span>Laporan Transaksi</span>
         </a>
         @endcan
         @can('pelanggan.view')

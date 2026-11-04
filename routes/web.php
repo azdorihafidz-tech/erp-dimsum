@@ -378,6 +378,8 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
         // akan ketangkep sebagai {order} (string) duluan lalu 404 di route model binding.
         Route::get('/penjualan/cek-pengganti', [PenjualanController::class, 'cekPengganti'])->name('penjualan.cek-pengganti');
     });
+    // 4.46 — Laporan di menu Penjualan (bisa dibuka kasir). Izin dicek di controller.
+    Route::get('/penjualan/laporan/transaksi', [\App\Http\Controllers\LaporanTransaksiKasirController::class, 'index'])->name('penjualan.laporan.transaksi');
     Route::get('/penjualan', [PenjualanController::class, 'index'])->name('penjualan.index')->middleware('can:order.view');
     Route::get('/penjualan/{order}', [PenjualanController::class, 'show'])->name('penjualan.show');
     Route::get('/penjualan/{order}/struk', [PenjualanController::class, 'struk'])->name('penjualan.struk');
