@@ -579,6 +579,13 @@
             <span>Laporan Transaksi</span>
         </a>
         @endcan
+        @can('penjualan.laporan_produk.view')
+        <a href="{{ route('penjualan.laporan.produk') }}"
+           class="nav-link {{ request()->routeIs('penjualan.laporan.produk') ? 'active' : '' }}">
+            <i class="bi bi-box-seam"></i>
+            <span>Laporan Produk</span>
+        </a>
+        @endcan
         @can('pelanggan.view')
         <a href="{{ route('pelanggan.index') }}"
            class="nav-link {{ request()->routeIs('pelanggan.*') ? 'active' : '' }}">

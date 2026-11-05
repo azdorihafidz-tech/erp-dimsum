@@ -33,6 +33,26 @@ class CabangAktif
         return $id ? Cabang::find($id) : null;
     }
 
+    /**
+     * Cabang untuk laporan menu Penjualan (4.46) = cabang aktif di header.
+     * Pengaman: role cabang yang sesinya masih menunjuk cabang yang bukan
+     * miliknya (mis. penugasan cabang diubah saat masih login) dikembalikan ke
+     * cabangnya sendiri — tidak pernah null ("Semua Cabang"). -1 = tidak punya cabang.
+     */
+    public static function untukLaporan(): ?int
+    {
+        $user = auth()->user();
+        $id = self::id();
+        if ($user->canAccessAllBranches()) {
+            return $id;
+        }
+        if ($id && self::bolehAkses($id)) {
+            return $id;
+        }
+
+        return $user->defaultCabangId() ?? $user->cabangs()->value('cabangs.id') ?? -1;
+    }
+
     /** User boleh mengelola data milik cabang ini? (NULL = data lama, boleh). */
     public static function bolehAkses(?int $cabangId): bool
     {

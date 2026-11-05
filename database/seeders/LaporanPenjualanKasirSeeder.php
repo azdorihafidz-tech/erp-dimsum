@@ -79,12 +79,67 @@ class LaporanPenjualanKasirSeeder extends Seeder
         }
 
         $this->panduanTransaksi();
+        $this->panduanProduk();
         $this->tooltip();
 
         $this->command?->info('✅ Laporan Penjualan (kasir): izin lihat untuk ' . $roles->implode(', ')
             . '; izin keuntungan untuk ' . implode(', ', array_keys(array_filter(
                 self::ROLE_DEFAULTS, fn ($l) => in_array(self::IZIN_KEUNTUNGAN, $l, true)
             ))) . ' (idempotent).');
+    }
+
+    private function panduanProduk(): void
+    {
+        Panduan::updateOrCreate(['slug' => 'laporan-produk-kasir'], [
+            'judul'  => 'Laporan Penjualan Produk (menu Penjualan)',
+            'konten' => <<<'MARKDOWN'
+## Tujuan
+Melihat produk apa saja yang terjual, berapa banyak (qty), dan berapa pendapatannya — per produk. Cocok untuk mengetahui produk terlaris. Menu ini ada di bagian **Penjualan** dan bisa dibuka kasir.
+
+## Langkah-langkah
+
+### 1. Pilih periode
+- Tombol **Hari ini / Bulan ini / Tahun ini / Selama ini**, atau
+- isi **Dari tanggal** dan **Sampai tanggal** lalu klik **Tampilkan**.
+
+### 2. Saring (opsional)
+- **Kategori** — tampilkan produk dari satu kategori saja.
+- **Cari produk** — ketik nama atau kode produk.
+- Klik nama kategori di bawah nama produk untuk langsung menyaring kategori itu. **Hapus filter** mengembalikan semua produk.
+
+### 3. Baca grafik
+Grafik **10 Produk Teratas** bisa diurutkan menurut **Qty** atau **Pendapatan** (dan **Keuntungan** untuk yang berhak) dengan tombol di pojok kanan atas grafik. Arahkan jari/mouse ke batang untuk melihat angka lengkapnya.
+
+### 4. Baca tabel
+- Klik judul kolom **Produk**, **Qty**, **Pendapatan** (atau **Untung**) untuk mengurutkan.
+- Produk yang terjual dalam beberapa varian punya tombol **N varian** — klik untuk melihat rincian per varian.
+
+### 5. Export
+**Export Excel** / **Export PDF** menyimpan isi halaman sesuai periode dan filter yang sedang dipilih.
+
+## Arti kolom
+- **Qty** — jumlah yang terjual.
+- **Penjualan** — harga × qty di keranjang (sebelum diskon order).
+- **Diskon** — diskon order dibagi ke setiap produk di order itu sesuai porsi harganya. Contoh: order Rp 100.000 berisi produk A Rp 60.000 dan B Rp 40.000, diskon Rp 10.000 → A kena Rp 6.000, B kena Rp 4.000.
+- **Pendapatan** — penjualan − diskon.
+- **Transaksi** — banyaknya order yang berisi produk itu.
+- **Modal / Untung / Margin** — hanya untuk role yang punya izin **Lihat Keuntungan di Laporan Penjualan**. Untung = pendapatan − modal bahan (HPP).
+
+## Catatan Penting
+- **Service charge & take away fee** tidak termasuk produk mana pun, jadi ditampilkan sebagai baris sendiri di bawah tabel. Total pendapatan produk + baris itu = pendapatan di **Laporan Transaksi**. Saat filter kategori/pencarian aktif, baris ini tidak ditampilkan.
+- Data mengikuti **cabang yang dipilih di pojok kanan atas**; kasir selalu melihat cabangnya sendiri. Di **Semua Cabang**, produk dengan Kode Item yang sama di beberapa cabang digabung jadi 1 baris.
+- Transaksi yang **dibatalkan**, **dihapus**, atau **bill tersimpan yang belum dibayar** tidak dihitung.
+
+## Troubleshooting
+- **Menu tidak ada di sidebar?** Minta Owner mencentang **Laporan Penjualan Produk (menu Penjualan)** di Role & Hak Akses.
+- **Produk muncul 2 kali di Semua Cabang?** Kode Item produk itu berbeda antar cabang — samakan Kode Item-nya di menu Produk Jual.
+- **Kolom Untung tidak ada?** Role Anda tidak punya izin melihat keuntungan.
+MARKDOWN
+            ,
+            'modul'  => 'penjualan',
+            'urutan' => 71,
+            'aktif'  => true,
+        ]);
     }
 
     private function panduanTransaksi(): void
@@ -159,6 +214,12 @@ MARKDOWN
                 'content' => 'Pendapatan dikurangi modal bahan (HPP) setiap order. Gaji, sewa, dan biaya operasional lain tidak ikut dikurangi.'],
             ['key' => 'laporan_transaksi_kasir.rentang', 'title' => 'Rentang tanggal',
                 'content' => 'Pilih tanggal awal dan akhir lalu klik Tampilkan. Rentang sampai 3 bulan tampil per hari, lebih panjang tampil per bulan. Klik bulan/hari untuk rincian.'],
+            ['key' => 'laporan_produk_kasir.pendapatan', 'title' => 'Pendapatan produk',
+                'content' => 'Penjualan produk dikurangi bagian diskon order. Belum termasuk service charge & take away fee (ditampilkan terpisah di bawah tabel).'],
+            ['key' => 'laporan_produk_kasir.penjualan', 'title' => 'Penjualan',
+                'content' => 'Harga × qty di keranjang, sebelum diskon order.'],
+            ['key' => 'laporan_produk_kasir.diskon', 'title' => 'Diskon',
+                'content' => 'Diskon order dibagi ke setiap produk di order itu sesuai porsi harganya.'],
             ['key' => 'laporan_transaksi_kasir.tingkat', 'title' => 'Klik untuk rincian',
                 'content' => 'Klik batang grafik atau baris tabel untuk turun: tahun → bulan → hari → transaksi → struk. Tombol Kembali naik satu tingkat.'],
         ];
