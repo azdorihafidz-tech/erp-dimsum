@@ -104,7 +104,10 @@ Di bagian atas ada 4 tombol:
 - **Tahun ini** → grafik dan rincian per bulan di tahun ini.
 - **Selama ini** → grafik dan rincian per tahun sejak transaksi pertama.
 
-Untuk melihat tanggal tertentu, isi kotak **Lihat tanggal** di sebelah kanan.
+Untuk periode lain, isi **Dari tanggal** dan **Sampai tanggal** di sebelah kanan lalu klik **Tampilkan**:
+- Rentang sampai 3 bulan → rincian **per hari**.
+- Rentang lebih panjang → rincian **per bulan**; klik bulannya untuk melihat per hari (masih di dalam rentang yang dipilih).
+- Dari dan sampai tanggal yang sama → langsung daftar transaksi hari itu.
 
 ### 2. Klik untuk melihat lebih rinci
 Klik **batang grafik** atau **baris tabel** untuk turun satu tingkat:
@@ -115,10 +118,14 @@ Contoh: pilih **Tahun ini** → klik **Oktober** → muncul rincian setiap hari 
 
 ### 3. Kembali ke tingkat sebelumnya
 - Tombol **Kembali** naik satu tingkat (mis. dari 15 Oktober ke Oktober).
-- Atau klik jejak halaman di sebelahnya (mis. **Selama ini › 2026 › Oktober › 15 Oktober**) untuk langsung lompat ke tingkat mana pun.
+- Atau klik jejak halaman di sebelahnya (mis. **Selama ini › 2026 › Oktober › 15 Oktober**, atau **Rentang 1 Jul – 5 Nov 2026 › Oktober 2026 › 15 Oktober**) untuk langsung lompat ke tingkat mana pun.
 
 ### 4. Export
 Tombol **Export Excel** dan **Export PDF** menyimpan isi halaman yang sedang dibuka. Contoh: sedang membuka Oktober → file berisi rincian per hari bulan Oktober.
+
+## Grafik
+- Tombol ikon di pojok kanan atas grafik mengganti tampilan **batang** atau **garis** (pilihan diingat di perangkat ini).
+- Arahkan jari/mouse ke grafik untuk melihat angka lengkap; label **Tertinggi** dan **Rata-rata** di atas grafik merangkum periode yang dibuka.
 
 ## Arti angka
 - **Jumlah Transaksi** — banyaknya order yang sudah dibayar.
@@ -150,6 +157,8 @@ MARKDOWN
                 'content' => 'Uang yang dibayar pelanggan: sudah dikurangi diskon, termasuk service charge dan take away fee. Transaksi dibatalkan, dihapus, atau bill belum dibayar tidak dihitung.'],
             ['key' => 'laporan_transaksi_kasir.keuntungan', 'title' => 'Keuntungan',
                 'content' => 'Pendapatan dikurangi modal bahan (HPP) setiap order. Gaji, sewa, dan biaya operasional lain tidak ikut dikurangi.'],
+            ['key' => 'laporan_transaksi_kasir.rentang', 'title' => 'Rentang tanggal',
+                'content' => 'Pilih tanggal awal dan akhir lalu klik Tampilkan. Rentang sampai 3 bulan tampil per hari, lebih panjang tampil per bulan. Klik bulan/hari untuk rincian.'],
             ['key' => 'laporan_transaksi_kasir.tingkat', 'title' => 'Klik untuk rincian',
                 'content' => 'Klik batang grafik atau baris tabel untuk turun: tahun → bulan → hari → transaksi → struk. Tombol Kembali naik satu tingkat.'],
         ];

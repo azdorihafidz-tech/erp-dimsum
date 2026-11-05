@@ -22,7 +22,7 @@ class LaporanTransaksiKasirController extends Controller
     {
         abort_unless(auth()->user()->can('penjualan.laporan_transaksi.view'), 403);
 
-        $cabangId = CabangAktif::id();
+        $cabangId = self::cabangLaporan();
         $lihatUntung = auth()->user()->can(LaporanPenjualanKasirSeeder::IZIN_KEUNTUNGAN);
         $posisi = $svc->bacaPosisi($request);
 
@@ -43,7 +43,7 @@ class LaporanTransaksiKasirController extends Controller
         }
 
         $judul = $svc->judul($posisi);
-        $cabangNama = CabangAktif::model()?->nama_cabang ?? 'Semua Cabang';
+        $cabangNama = $cabangId ? (\App\Models\Cabang::find($cabangId)?->nama_cabang ?? '-') : 'Semua Cabang';
 
         if (in_array($request->export, ['excel', 'pdf'], true)) {
             return $this->export($request->export, $posisi, $baris, $total, $judul, $cabangNama, $lihatUntung);
@@ -60,13 +60,33 @@ class LaporanTransaksiKasirController extends Controller
             'lihatUntung' => $lihatUntung,
             'jejak'       => $svc->jejak($posisi),
             'cepat'       => $svc->pilihanCepatAktif($posisi),
+            'isian'       => $svc->isianRentang($posisi),
         ]);
+    }
+
+    /**
+     * Cabang laporan = cabang aktif di header. Pengaman: role cabang yang sesinya
+     * masih menunjuk cabang yang bukan miliknya (mis. penugasan cabang diubah saat
+     * masih login) dikembalikan ke cabangnya sendiri — tidak pernah "Semua Cabang".
+     */
+    public static function cabangLaporan(): ?int
+    {
+        $user = auth()->user();
+        $id = CabangAktif::id();
+        if ($user->canAccessAllBranches()) {
+            return $id;
+        }
+        if ($id && CabangAktif::bolehAkses($id)) {
+            return $id;
+        }
+
+        return $user->defaultCabangId() ?? $user->cabangs()->value('cabangs.id') ?? -1; // -1 = tidak punya cabang → kosong
     }
 
     private function export(string $format, array $posisi, $baris, array $total, string $judul, string $cabangNama, bool $lihatUntung)
     {
         $nama = 'Laporan-Transaksi-' . str($judul)->before(' (')->slug() . '-' . now()->format('Ymd-His');
-        $semuaCabang = CabangAktif::id() === null;
+        $semuaCabang = self::cabangLaporan() === null;
 
         if ($format === 'excel') {
             return Excel::download(

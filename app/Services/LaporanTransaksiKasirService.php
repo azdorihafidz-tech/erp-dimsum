@@ -44,20 +44,34 @@ class LaporanTransaksiKasirService
      *   ?tahun=2026         → per bulan
      *   ?tahun=2026&bulan=10 → per hari
      *   ?tanggal=2026-10-15 → daftar transaksi
+     *   ?dari=..&sampai=..  → rentang: < 92 hari per hari, lebih panjang per bulan
+     *                         (asal_dari/asal_sampai = rentang awal pilihan user,
+     *                         dibawa saat turun ke bulan/hari supaya bisa kembali)
      *   (kosong)            → hari ini
      *
-     * @return array{level:string,tahun:?int,bulan:?int,tanggal:?Carbon}
+     * @return array{level:string,tahun:?int,bulan:?int,tanggal:?Carbon,rentang:?array,asal:?array}
      */
     public function bacaPosisi(Request $request): array
     {
-        if ($request->filled('tanggal')) {
-            try {
-                $tanggal = Carbon::createFromFormat('Y-m-d', (string) $request->tanggal)->startOfDay();
-            } catch (\Throwable) {
-                abort(404);
-            }
+        $rentang = $this->bacaRentang($request->dari, $request->sampai);
+        $asal = $this->bacaRentang($request->asal_dari, $request->asal_sampai) ?? $rentang;
 
-            return ['level' => 'transaksi', 'tahun' => $tanggal->year, 'bulan' => $tanggal->month, 'tanggal' => $tanggal];
+        if ($request->filled('tanggal')) {
+            $tanggal = $this->bacaTanggal($request->tanggal);
+
+            return ['level' => 'transaksi', 'tahun' => $tanggal->year, 'bulan' => $tanggal->month, 'tanggal' => $tanggal,
+                'rentang' => $rentang, 'asal' => $rentang ? $asal : null];
+        }
+
+        if ($rentang) {
+            if ($rentang['dari']->isSameDay($rentang['sampai'])) {
+                $t = $rentang['dari'];
+
+                return ['level' => 'transaksi', 'tahun' => $t->year, 'bulan' => $t->month, 'tanggal' => $t, 'rentang' => null, 'asal' => null];
+            }
+            $level = $rentang['dari']->diffInDays($rentang['sampai']) < 92 ? 'hari' : 'bulan';
+
+            return ['level' => $level, 'tahun' => null, 'bulan' => null, 'tanggal' => null, 'rentang' => $rentang, 'asal' => $asal];
         }
 
         if ($request->filled('tahun')) {
@@ -68,17 +82,17 @@ class LaporanTransaksiKasirService
                 $bulan = (int) $request->bulan;
                 abort_unless($bulan >= 1 && $bulan <= 12, 404);
 
-                return ['level' => 'hari', 'tahun' => $tahun, 'bulan' => $bulan, 'tanggal' => null];
+                return ['level' => 'hari', 'tahun' => $tahun, 'bulan' => $bulan, 'tanggal' => null, 'rentang' => null, 'asal' => null];
             }
 
-            return ['level' => 'bulan', 'tahun' => $tahun, 'bulan' => null, 'tanggal' => null];
+            return ['level' => 'bulan', 'tahun' => $tahun, 'bulan' => null, 'tanggal' => null, 'rentang' => null, 'asal' => null];
         }
 
         if ($request->boolean('semua')) {
-            return ['level' => 'tahun', 'tahun' => null, 'bulan' => null, 'tanggal' => null];
+            return ['level' => 'tahun', 'tahun' => null, 'bulan' => null, 'tanggal' => null, 'rentang' => null, 'asal' => null];
         }
 
-        return ['level' => 'transaksi', 'tahun' => now()->year, 'bulan' => now()->month, 'tanggal' => today()];
+        return ['level' => 'transaksi', 'tahun' => now()->year, 'bulan' => now()->month, 'tanggal' => today(), 'rentang' => null, 'asal' => null];
     }
 
     /** Query dasar order sah + kolom hpp per order (subquery, tanpa dobel baris). */
@@ -104,6 +118,10 @@ class LaporanTransaksiKasirService
      */
     public function rekap(array $posisi, ?int $cabangId): Collection
     {
+        if ($posisi['rentang']) {
+            return $this->rekapRentang($posisi, $cabangId);
+        }
+
         $level = $posisi['level'];
         $q = $this->base($cabangId);
 
@@ -203,6 +221,7 @@ class LaporanTransaksiKasirService
             $rows = $kelompok->get($jam, collect());
 
             return [
+                'label'        => sprintf('Jam %02d:00–%02d:59', $jam, $jam),
                 'label_pendek' => sprintf('%02d:00', $jam),
                 'transaksi'    => $rows->count(),
                 'pendapatan'   => (float) $rows->sum('pendapatan'),
@@ -229,8 +248,23 @@ class LaporanTransaksiKasirService
      */
     public function jejak(array $posisi): array
     {
-        $jejak = [['label' => 'Selama ini', 'params' => ['semua' => 1]]];
         $level = $posisi['level'];
+
+        if ($posisi['rentang']) {
+            $asal = $posisi['asal'];
+            $jejak = [['label' => 'Rentang ' . self::labelRentang($asal['dari'], $asal['sampai']), 'params' => self::paramsRentang($asal, $asal)]];
+            if (! self::rentangSama($posisi['rentang'], $asal)) {
+                $jejak[] = ['label' => self::labelRentang($posisi['rentang']['dari'], $posisi['rentang']['sampai']),
+                    'params' => self::paramsRentang($posisi['rentang'], $asal)];
+            }
+            if ($level === 'transaksi') {
+                $jejak[] = ['label' => self::tanggal($posisi['tanggal'], 'tgl_bulan'), 'params' => []];
+            }
+
+            return $this->tutupJejak($jejak);
+        }
+
+        $jejak = [['label' => 'Selama ini', 'params' => ['semua' => 1]]];
 
         if ($level !== 'tahun') {
             $jejak[] = ['label' => (string) $posisi['tahun'], 'params' => ['tahun' => $posisi['tahun']]];
@@ -242,6 +276,11 @@ class LaporanTransaksiKasirService
             $jejak[] = ['label' => self::tanggal($posisi['tanggal'], 'tgl_bulan'), 'params' => ['tanggal' => $posisi['tanggal']->toDateString()]];
         }
 
+        return $this->tutupJejak($jejak);
+    }
+
+    private function tutupJejak(array $jejak): array
+    {
         $kembali = count($jejak) > 1 ? $jejak[count($jejak) - 2]['params'] : null;
         $jejak[count($jejak) - 1]['params'] = null; // posisi sekarang tidak diberi link
 
@@ -251,6 +290,11 @@ class LaporanTransaksiKasirService
     /** Judul halaman sesuai posisi, mis. "Oktober 2026". */
     public function judul(array $posisi): string
     {
+        if ($posisi['rentang'] && $posisi['level'] !== 'transaksi') {
+            return self::labelRentang($posisi['rentang']['dari'], $posisi['rentang']['sampai'])
+                . ($posisi['level'] === 'hari' ? ' (per hari)' : ' (per bulan)');
+        }
+
         return match ($posisi['level']) {
             'tahun'     => 'Selama ini (per tahun)',
             'bulan'     => 'Tahun ' . $posisi['tahun'] . ' (per bulan)',
@@ -263,6 +307,9 @@ class LaporanTransaksiKasirService
     public function pilihanCepatAktif(array $posisi): ?string
     {
         $now = now();
+        if ($posisi['rentang']) {
+            return null;
+        }
 
         return match (true) {
             $posisi['level'] === 'transaksi' && $posisi['tanggal']->isToday() => 'hari_ini',
@@ -271,6 +318,121 @@ class LaporanTransaksiKasirService
             $posisi['level'] === 'tahun' => 'semua',
             default => null,
         };
+    }
+
+    /** Isi awal kotak rentang tanggal: periode yang sedang dibuka. */
+    public function isianRentang(array $posisi): array
+    {
+        if ($posisi['asal']) {
+            return [$posisi['asal']['dari'], $posisi['asal']['sampai']];
+        }
+
+        return match ($posisi['level']) {
+            'transaksi' => [$posisi['tanggal'], $posisi['tanggal']],
+            'hari'      => [Carbon::create($posisi['tahun'], $posisi['bulan'], 1), Carbon::create($posisi['tahun'], $posisi['bulan'], 1)->endOfMonth()->startOfDay()],
+            'bulan'     => [Carbon::create($posisi['tahun'], 1, 1), Carbon::create($posisi['tahun'], 12, 31)],
+            default     => [null, null],
+        };
+    }
+
+    /** Rekap per hari / per bulan dalam rentang tanggal pilihan user. */
+    private function rekapRentang(array $posisi, ?int $cabangId): Collection
+    {
+        $dari = $posisi['rentang']['dari'];
+        $sampai = $posisi['rentang']['sampai']->copy()->min(today());
+        $perHari = $posisi['level'] === 'hari';
+        $ekspresi = $perHari ? "DATE_FORMAT(orders.tanggal_order, '%Y-%m-%d')" : "DATE_FORMAT(orders.tanggal_order, '%Y-%m')";
+
+        $data = $this->base($cabangId)
+            ->whereBetween('orders.tanggal_order', [$dari->toDateString(), $posisi['rentang']['sampai']->toDateString()])
+            ->groupBy(DB::raw($ekspresi))
+            ->selectRaw("{$ekspresi} as kunci")
+            ->selectRaw('COUNT(*) as transaksi, COALESCE(SUM(orders.total_bayar),0) as pendapatan, COALESCE(SUM(oi_hpp.hpp),0) as hpp')
+            ->toBase()->get()->keyBy('kunci');
+
+        $baris = collect();
+        $t = $perHari ? $dari->copy() : $dari->copy()->startOfMonth();
+        while ($t->lte($sampai)) {
+            if ($perHari) {
+                $kunci = $t->toDateString();
+                $label = self::tanggal($t);
+                $pendek = $t->format('j') . ' ' . mb_substr(self::BULAN[$t->month], 0, 3);
+                $params = ['tanggal' => $kunci] + self::paramsRentang($posisi['rentang'], $posisi['asal']);
+            } else {
+                $kunci = $t->format('Y-m');
+                $label = self::BULAN[$t->month] . ' ' . $t->year;
+                $pendek = mb_substr(self::BULAN[$t->month], 0, 3) . ' ' . $t->format('y');
+                $sub = ['dari' => $t->copy()->max($dari), 'sampai' => $t->copy()->endOfMonth()->startOfDay()->min($posisi['rentang']['sampai'])];
+                $params = self::paramsRentang($sub, $posisi['asal']);
+            }
+            $r = $data->get($kunci);
+            $pendapatan = (float) ($r->pendapatan ?? 0);
+            $hpp = (float) ($r->hpp ?? 0);
+            $baris->push([
+                'kunci' => $kunci, 'label' => $label, 'label_pendek' => $pendek, 'params' => $params,
+                'transaksi' => (int) ($r->transaksi ?? 0), 'pendapatan' => $pendapatan, 'hpp' => $hpp, 'keuntungan' => $pendapatan - $hpp,
+            ]);
+            $perHari ? $t->addDay() : $t->addMonthNoOverflow()->startOfMonth();
+        }
+
+        return $baris;
+    }
+
+    /** Query string untuk rentang (+ rentang asal kalau berbeda). */
+    public static function paramsRentang(array $rentang, ?array $asal): array
+    {
+        $p = ['dari' => $rentang['dari']->toDateString(), 'sampai' => $rentang['sampai']->toDateString()];
+        if ($asal && ! self::rentangSama($rentang, $asal)) {
+            $p += ['asal_dari' => $asal['dari']->toDateString(), 'asal_sampai' => $asal['sampai']->toDateString()];
+        }
+
+        return $p;
+    }
+
+    public static function rentangSama(array $a, array $b): bool
+    {
+        return $a['dari']->isSameDay($b['dari']) && $a['sampai']->isSameDay($b['sampai']);
+    }
+
+    /** "Oktober 2026" (1 bulan penuh) / "1 Okt – 20 Okt 2026" / "1 Okt 2025 – 5 Nov 2026". */
+    public static function labelRentang(Carbon $dari, Carbon $sampai): string
+    {
+        $bln = fn (Carbon $t) => mb_substr(self::BULAN[$t->month], 0, 3);
+        if ($dari->isSameDay($sampai)) {
+            return self::tanggal($dari, 'tgl_bulan') . ' ' . $dari->year;
+        }
+        if ($dari->day === 1 && $sampai->isSameDay($dari->copy()->endOfMonth())) {
+            return self::BULAN[$dari->month] . ' ' . $dari->year;
+        }
+        if ($dari->year === $sampai->year) {
+            return $dari->format('j') . ' ' . $bln($dari) . ' – ' . $sampai->format('j') . ' ' . $bln($sampai) . ' ' . $sampai->year;
+        }
+
+        return $dari->format('j') . ' ' . $bln($dari) . ' ' . $dari->year . ' – ' . $sampai->format('j') . ' ' . $bln($sampai) . ' ' . $sampai->year;
+    }
+
+    private function bacaTanggal($nilai): Carbon
+    {
+        try {
+            $t = Carbon::createFromFormat('Y-m-d', (string) $nilai)->startOfDay();
+        } catch (\Throwable) {
+            abort(404);
+        }
+        abort_unless($t->year >= 2000 && $t->year <= 2100, 404);
+
+        return $t;
+    }
+
+    /** @return array{dari:Carbon,sampai:Carbon}|null — dibalik otomatis kalau terbalik. */
+    private function bacaRentang($dari, $sampai): ?array
+    {
+        if (blank($dari) || blank($sampai)) {
+            return null;
+        }
+        $a = $this->bacaTanggal($dari);
+        $b = $this->bacaTanggal($sampai);
+
+        return $a->lte($b) ? ['dari' => $a, 'sampai' => $b] : ['dari' => $b, 'sampai' => $a];
     }
 
     /** range(1, n) yang aman untuk n = 0 (range(1, 0) di PHP justru [1, 0]). */

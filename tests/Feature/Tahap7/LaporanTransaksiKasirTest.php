@@ -219,7 +219,7 @@ class LaporanTransaksiKasirTest extends TestCase
     {
         $this->actingAs($this->buatUser('kasir', $this->c->id))->withSession(['active_cabang_id' => $this->c->id]);
         $svc = app(\App\Services\LaporanTransaksiKasirService::class);
-        $posisi = ['level' => 'bulan', 'tahun' => 2026, 'bulan' => null, 'tanggal' => null];
+        $posisi = ['level' => 'bulan', 'tahun' => 2026, 'bulan' => null, 'tanggal' => null, 'rentang' => null, 'asal' => null];
         $baris = $svc->rekap($posisi, $this->c->id)->map(fn ($r) => array_diff_key($r, ['hpp' => 1, 'keuntungan' => 1]));
         $total = array_diff_key($svc->total($baris), ['hpp' => 1, 'keuntungan' => 1]);
 
@@ -229,6 +229,111 @@ class LaporanTransaksiKasirTest extends TestCase
 
         $rows = (new \App\Exports\LaporanTransaksiKasirExport('bulan', $svc->rekap($posisi, $this->c->id), $svc->total($svc->rekap($posisi, $this->c->id)), 'Tahun 2026', 'Outlet Lap', true, false))->array();
         $this->assertSame(['Bulan', 'Jumlah Transaksi', 'Pendapatan', 'Modal (HPP)', 'Keuntungan'], $rows[3]);
+    }
+
+    public function test_rentang_pendek_per_hari_lalu_turun_ke_transaksi_dan_kembali(): void
+    {
+        $res = $this->sebagai('kasir')->get($this->url(['dari' => '2026-10-10', 'sampai' => '2026-10-20']))->assertOk();
+        $this->assertSame('hari', $res->viewData('posisi')['level']);
+        $baris = $res->viewData('baris');
+        $this->assertCount(11, $baris);
+        $this->assertSame(2, $res->viewData('total')['transaksi']);
+        $this->assertSame(75000.0, $res->viewData('total')['pendapatan']);
+        $this->assertSame('10 Okt – 20 Okt 2026 (per hari)', $res->viewData('judul'));
+        $this->assertNull($res->viewData('cepat'));
+        $hari15 = $baris->firstWhere('kunci', '2026-10-15');
+        $this->assertSame(['tanggal' => '2026-10-15', 'dari' => '2026-10-10', 'sampai' => '2026-10-20'], $hari15['params']);
+        $this->assertSame(['2026-10-10', '2026-10-20'], array_map(fn ($t) => $t->toDateString(), $res->viewData('isian')));
+
+        $res = $this->sebagai('kasir')->get($this->url($hari15['params']))->assertOk();
+        $this->assertCount(2, $res->viewData('baris'));
+        $jejak = $res->viewData('jejak');
+        $this->assertSame(['Rentang 10 Okt – 20 Okt 2026', '15 Oktober'], array_column($jejak['jejak'], 'label'));
+        $this->assertSame(['dari' => '2026-10-10', 'sampai' => '2026-10-20'], $jejak['kembali']);
+    }
+
+    public function test_rentang_panjang_per_bulan_lalu_bulan_dipotong_rentang(): void
+    {
+        $res = $this->sebagai('admin_pusat')->get($this->url(['dari' => '2025-12-01', 'sampai' => '2026-11-04']))->assertOk();
+        $this->assertSame('bulan', $res->viewData('posisi')['level']);
+        $baris = $res->viewData('baris');
+        $this->assertSame(['2025-12', '2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10', '2026-11'], $baris->pluck('kunci')->all());
+        $this->assertSame(4, $res->viewData('total')['transaksi']);
+        $this->assertSame(145000.0, $res->viewData('total')['pendapatan']);
+
+        $okt = $baris->firstWhere('kunci', '2026-10');
+        $this->assertSame(['dari' => '2026-10-01', 'sampai' => '2026-10-31', 'asal_dari' => '2025-12-01', 'asal_sampai' => '2026-11-04'], $okt['params']);
+
+        $res = $this->sebagai('admin_pusat')->get($this->url($okt['params']))->assertOk();
+        $this->assertSame('hari', $res->viewData('posisi')['level']);
+        $this->assertSame('Oktober 2026 (per hari)', $res->viewData('judul'));
+        $jejak = $res->viewData('jejak');
+        $this->assertSame(['Rentang 1 Des 2025 – 4 Nov 2026', 'Oktober 2026'], array_column($jejak['jejak'], 'label'));
+        $this->assertSame(['dari' => '2025-12-01', 'sampai' => '2026-11-04'], $jejak['kembali']);
+
+        $hari = $res->viewData('baris')->firstWhere('kunci', '2026-10-15');
+        $this->assertSame('2025-12-01', $hari['params']['asal_dari']);
+        $jejak = $this->sebagai('admin_pusat')->get($this->url($hari['params']))->viewData('jejak');
+        $this->assertSame(['Rentang 1 Des 2025 – 4 Nov 2026', 'Oktober 2026', '15 Oktober'], array_column($jejak['jejak'], 'label'));
+
+        // Bulan pertama ikut dipotong tanggal awal rentang
+        $res = $this->sebagai('admin_pusat')->get($this->url(['dari' => '2026-06-20', 'sampai' => '2026-11-04']))->assertOk();
+        $this->assertSame(['dari' => '2026-06-20', 'sampai' => '2026-06-30', 'asal_dari' => '2026-06-20', 'asal_sampai' => '2026-11-04'],
+            $res->viewData('baris')->first()['params']);
+    }
+
+    public function test_rentang_terbalik_dibalik_dan_satu_hari_jadi_daftar_transaksi(): void
+    {
+        $res = $this->sebagai('kasir')->get($this->url(['dari' => '2026-10-20', 'sampai' => '2026-10-10']))->assertOk();
+        $this->assertSame(75000.0, $res->viewData('total')['pendapatan']);
+
+        $res = $this->sebagai('kasir')->get($this->url(['dari' => '2026-10-15', 'sampai' => '2026-10-15']))->assertOk();
+        $this->assertSame('transaksi', $res->viewData('posisi')['level']);
+        $this->assertCount(2, $res->viewData('baris'));
+
+        $this->sebagai('kasir')->get($this->url(['dari' => '2026-10-15', 'sampai' => 'besok']))->assertNotFound();
+        $this->sebagai('kasir')->get($this->url(['dari' => '2026-10-10', 'sampai' => '2026-10-20', 'export' => 'excel']))->assertOk();
+        $this->sebagai('admin_pusat')->get($this->url(['dari' => '2025-12-01', 'sampai' => '2026-11-04', 'export' => 'pdf']))->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+    }
+
+    public function test_grafik_baru_dan_form_rentang_tampil(): void
+    {
+        $this->sebagai('kasir')->get($this->url(['tahun' => 2026]))->assertOk()
+            ->assertSee('id="formRentang"', false)->assertSee('name="dari"', false)->assertSee('name="sampai"', false)
+            ->assertSee('lt-jenis', false)->assertSee('Tertinggi:')->assertSee('Rata-rata:')
+            ->assertSee('id="grafikTransaksi"', false);
+        // Periode tanpa transaksi: tidak ada grafik kosong, tampil pesan
+        $this->sebagai('kasir')->get($this->url(['tahun' => 2026, 'bulan' => 3]))->assertOk()
+            ->assertSee('Belum ada transaksi di periode ini.')->assertDontSee('id="grafikTransaksi"', false);
+    }
+
+    public function test_hak_akses_bawaan_per_role_dan_tampil_di_halaman_role(): void
+    {
+        (new \Database\Seeders\LaporanPenjualanKasirSeeder())->run();
+        \Illuminate\Support\Facades\Cache::flush();
+
+        $punya = fn (string $role, string $izin) => \Illuminate\Support\Facades\DB::table('role_permissions')
+            ->join('permissions', 'permissions.id', '=', 'role_permissions.permission_id')
+            ->where('role_permissions.role', $role)->where('permissions.name', $izin)->exists();
+
+        foreach (['kasir', 'manajer_cabang', 'admin_pusat'] as $role) {
+            $this->assertTrue($punya($role, 'penjualan.laporan_transaksi.view'), "{$role} lihat laporan");
+        }
+        $this->assertFalse($punya('kasir', 'penjualan.laporan.keuntungan'));
+        $this->assertTrue($punya('manajer_cabang', 'penjualan.laporan.keuntungan'));
+        $this->assertTrue($punya('admin_pusat', 'penjualan.laporan.keuntungan'));
+
+        // Manajer cabang: lihat keuntungan, tapi hanya cabangnya sendiri
+        $manajer = $this->buatUser('manajer_cabang', $this->c->id);
+        $res = $this->actingAs($manajer)->withSession(['active_cabang_id' => $this->lain->id])->get($this->url(['tanggal' => '2026-10-15']))->assertOk();
+        $this->assertTrue($res->viewData('lihatUntung'));
+        $this->assertSame([50000.0, 25000.0], $res->viewData('baris')->pluck('pendapatan')->all());
+
+        // Halaman Role & Hak Akses menampilkan 4 centangan baru
+        $this->actingAs($this->buatUser('owner'))->get(route('role.index'))->assertOk()
+            ->assertSee('Laporan Transaksi (menu Penjualan)')
+            ->assertSee('Lihat Keuntungan di Laporan Penjualan (Transaksi/Produk/Kategori)');
     }
 
     public function test_menu_sidebar_tampil_untuk_kasir(): void
