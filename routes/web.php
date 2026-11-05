@@ -381,6 +381,7 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
     // 4.46 — Laporan di menu Penjualan (bisa dibuka kasir). Izin dicek di controller.
     Route::get('/penjualan/laporan/transaksi', [\App\Http\Controllers\LaporanTransaksiKasirController::class, 'index'])->name('penjualan.laporan.transaksi');
     Route::get('/penjualan/laporan/produk', [\App\Http\Controllers\LaporanProdukKasirController::class, 'index'])->name('penjualan.laporan.produk');
+    Route::get('/penjualan/laporan/kategori', [\App\Http\Controllers\LaporanKategoriKasirController::class, 'index'])->name('penjualan.laporan.kategori');
     Route::get('/penjualan', [PenjualanController::class, 'index'])->name('penjualan.index')->middleware('can:order.view');
     Route::get('/penjualan/{order}', [PenjualanController::class, 'show'])->name('penjualan.show');
     Route::get('/penjualan/{order}/struk', [PenjualanController::class, 'struk'])->name('penjualan.struk');

@@ -108,6 +108,34 @@ class LaporanBarangKasirService
         })->values();
     }
 
+    /**
+     * Rekap per kategori + daftar produk di dalamnya (dari produk(), jadi
+     * angkanya selalu sama dengan Laporan Produk). Produk tanpa kategori
+     * dikumpulkan di "Tanpa kategori" (kategori_id null; filter = -1).
+     */
+    public function kategori(Carbon $dari, Carbon $sampai, ?int $cabangId): Collection
+    {
+        $transaksi = $this->base($dari, $sampai, $cabangId)
+            ->groupBy('ic.id')
+            ->selectRaw('ic.id as kategori_id, COUNT(DISTINCT oi.order_id) as transaksi')
+            ->get()->keyBy(fn ($r) => (int) $r->kategori_id);
+
+        return $this->produk($dari, $sampai, $cabangId)
+            ->groupBy(fn ($p) => (int) $p['kategori_id'])
+            ->map(function (Collection $produk, int $id) use ($transaksi) {
+                $t = self::total($produk);
+
+                return [
+                    'kategori_id'   => $id ?: null,
+                    'kategori'      => $produk->first()['kategori'],
+                    'jumlah_produk' => $produk->count(),
+                    'transaksi'     => (int) ($transaksi->get($id)->transaksi ?? 0),
+                    'margin'        => $t['pendapatan'] > 0 ? round($t['keuntungan'] / $t['pendapatan'] * 100, 1) : null,
+                    'produk'        => self::urutkan($produk, 'qty')->map(fn ($p) => array_diff_key($p, ['varian' => 1]))->values(),
+                ] + $t;
+            })->values();
+    }
+
     /** Service charge + take away fee order sah di periode (tidak dibagi ke produk). */
     public function biayaTambahan(Carbon $dari, Carbon $sampai, ?int $cabangId): float
     {
@@ -127,10 +155,10 @@ class LaporanBarangKasirService
             ->get(['ic.id', 'ic.nama_kategori']);
     }
 
-    /** Urutkan baris: qty / pendapatan / keuntungan / nama. */
-    public static function urutkan(Collection $rows, string $urut): Collection
+    /** Urutkan baris: qty / pendapatan / keuntungan / nama (kolom nama bisa 'kategori'). */
+    public static function urutkan(Collection $rows, string $urut, string $kolomNama = 'nama'): Collection
     {
-        return ($urut === 'nama' ? $rows->sortBy(fn ($r) => mb_strtolower($r['nama'])) : $rows->sortByDesc($urut))->values();
+        return ($urut === 'nama' ? $rows->sortBy(fn ($r) => mb_strtolower($r[$kolomNama])) : $rows->sortByDesc($urut))->values();
     }
 
     /** @return array{qty:float,transaksi:int,penjualan:float,diskon:float,pendapatan:float,hpp:float,keuntungan:float} */

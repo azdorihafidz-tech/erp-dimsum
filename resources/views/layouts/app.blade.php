@@ -586,6 +586,13 @@
             <span>Laporan Produk</span>
         </a>
         @endcan
+        @can('penjualan.laporan_kategori.view')
+        <a href="{{ route('penjualan.laporan.kategori') }}"
+           class="nav-link {{ request()->routeIs('penjualan.laporan.kategori') ? 'active' : '' }}">
+            <i class="bi bi-tags"></i>
+            <span>Laporan Kategori</span>
+        </a>
+        @endcan
         @can('pelanggan.view')
         <a href="{{ route('pelanggan.index') }}"
            class="nav-link {{ request()->routeIs('pelanggan.*') ? 'active' : '' }}">

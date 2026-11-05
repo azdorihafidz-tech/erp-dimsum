@@ -80,6 +80,7 @@ class LaporanPenjualanKasirSeeder extends Seeder
 
         $this->panduanTransaksi();
         $this->panduanProduk();
+        $this->panduanKategori();
         $this->tooltip();
 
         $this->command?->info('✅ Laporan Penjualan (kasir): izin lihat untuk ' . $roles->implode(', ')
@@ -138,6 +139,55 @@ MARKDOWN
             ,
             'modul'  => 'penjualan',
             'urutan' => 71,
+            'aktif'  => true,
+        ]);
+    }
+
+    private function panduanKategori(): void
+    {
+        Panduan::updateOrCreate(['slug' => 'laporan-kategori-kasir'], [
+            'judul'  => 'Laporan Penjualan Kategori (menu Penjualan)',
+            'konten' => <<<'MARKDOWN'
+## Tujuan
+Melihat penjualan per **kategori** (mis. Dimsum, Gyoza, Minuman, Frozen): berapa qty, pendapatan, dan porsinya dari total penjualan — lalu melihat produk apa saja di dalam setiap kategori. Menu ini ada di bagian **Penjualan** dan bisa dibuka kasir.
+
+## Langkah-langkah
+
+### 1. Pilih periode
+Tombol **Hari ini / Bulan ini / Tahun ini / Selama ini**, atau isi **Dari tanggal** dan **Sampai tanggal** lalu klik **Tampilkan**.
+
+### 2. Baca grafik porsi
+Grafik donat menunjukkan bagian setiap kategori. Tombol di pojok kanan atas grafik mengganti ukurannya: **Pendapatan**, **Qty** (dan **Keuntungan** untuk yang berhak). Daftar di sebelahnya menampilkan nilai dan persentase setiap kategori.
+
+### 3. Lihat produk di dalam kategori
+Klik baris kategori di tabel → muncul produk-produk kategori itu beserta qty dan pendapatannya. Klik lagi untuk menutup.
+Tautan **Buka kategori ini di Laporan Produk** membuka Laporan Produk yang sudah tersaring ke kategori itu (lengkap dengan grafik dan rincian varian).
+
+### 4. Urutkan & export
+- Klik judul kolom **Kategori**, **Qty**, **Pendapatan** (atau **Untung**) untuk mengurutkan.
+- **Export Excel** / **Export PDF** menyimpan kategori beserta produk di dalamnya.
+
+## Arti kolom
+- **Produk** — banyaknya jenis produk yang terjual di kategori itu.
+- **Penjualan / Diskon / Pendapatan** — sama seperti Laporan Produk: diskon order dibagi ke setiap produk sesuai porsi harganya.
+- **Porsi** — bagian pendapatan kategori dari total pendapatan produk.
+- **Modal / Untung / Margin** — hanya untuk role yang punya izin **Lihat Keuntungan di Laporan Penjualan**.
+
+## Catatan Penting
+- Angka setiap kategori = jumlah semua produk di kategori itu, jadi selalu sama dengan Laporan Produk.
+- Produk yang belum diberi kategori dikumpulkan di **Tanpa kategori**.
+- **Service charge & take away fee** ditampilkan sebagai baris sendiri di bawah tabel; total kategori + baris itu = pendapatan di **Laporan Transaksi**.
+- Data mengikuti **cabang yang dipilih di pojok kanan atas**; kasir selalu melihat cabangnya sendiri.
+- Transaksi yang **dibatalkan**, **dihapus**, atau **bill tersimpan yang belum dibayar** tidak dihitung.
+
+## Troubleshooting
+- **Menu tidak ada di sidebar?** Minta Owner mencentang **Laporan Penjualan Kategori (menu Penjualan)** di Role & Hak Akses.
+- **Produk masuk kategori yang salah?** Ganti kategorinya di menu Produk Jual — laporan langsung mengikuti (termasuk untuk penjualan lama).
+- **Tautan ke Laporan Produk tidak ada?** Role Anda belum punya izin Laporan Penjualan Produk.
+MARKDOWN
+            ,
+            'modul'  => 'penjualan',
+            'urutan' => 72,
             'aktif'  => true,
         ]);
     }
@@ -220,6 +270,8 @@ MARKDOWN
                 'content' => 'Harga × qty di keranjang, sebelum diskon order.'],
             ['key' => 'laporan_produk_kasir.diskon', 'title' => 'Diskon',
                 'content' => 'Diskon order dibagi ke setiap produk di order itu sesuai porsi harganya.'],
+            ['key' => 'laporan_kategori_kasir.rincian', 'title' => 'Rincian per kategori',
+                'content' => 'Angka kategori = jumlah semua produk di kategori itu. Klik baris kategori untuk melihat produknya; produk tanpa kategori masuk "Tanpa kategori".'],
             ['key' => 'laporan_transaksi_kasir.tingkat', 'title' => 'Klik untuk rincian',
                 'content' => 'Klik batang grafik atau baris tabel untuk turun: tahun → bulan → hari → transaksi → struk. Tombol Kembali naik satu tingkat.'],
         ];
