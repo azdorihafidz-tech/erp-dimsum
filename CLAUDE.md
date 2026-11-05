@@ -4,7 +4,7 @@
 > Isinya: keputusan bisnis, temuan audit, aturan teknis, dan filosofi kerja.
 
 **Versi**: 4.13  
-**Update terakhir**: 2026-11-03 (Porting erp-coffeeshop: POS pilih cabang, Identitas Usaha, APK Kasir, Label Produk — [[4.44]]; Rapikan Role & Hak Akses — [[4.43]]; Ambil Produk Jual dari cabang lain — [[4.42]]; POS tipe transaksi per cabang & Uang Pas — [[4.41]]; POS stok tersedia dari resep — [[4.40]]; Data barang terpisah per cabang — lihat [[4.39]]; Perbaikan Harga, Wajib Bukti, PO ke Gudang, Role Bebas — lihat [[4.38]])  
+**Update terakhir**: 2026-11-05 (Laporan Transaksi/Produk/Kategori di menu Penjualan untuk kasir — [[4.46]]; Order dihapus tidak masuk laporan — [[4.45]]; Porting erp-coffeeshop: POS pilih cabang, Identitas Usaha, APK Kasir, Label Produk — [[4.44]]; Rapikan Role & Hak Akses — [[4.43]]; Ambil Produk Jual dari cabang lain — [[4.42]]; POS tipe transaksi per cabang & Uang Pas — [[4.41]]; POS stok tersedia dari resep — [[4.40]]; Data barang terpisah per cabang — lihat [[4.39]]; Perbaikan Harga, Wajib Bukti, PO ke Gudang, Role Bebas — lihat [[4.38]])  
 **Status**: 🎉 **PROJECT LIVE DI PRODUCTION** (https://erp.dmentaiindonesia.com — domain lama `erpdimsum.azwacore.com` sudah tidak dipakai; **GO-LIVE data real: lihat [[4.28]]**) — Tahap 1-7 SELESAI SEMUA + rangkaian bug fix & improvement lintas sesi (lihat section 4 utk detail lengkap tiap item): Bug Fix Ronde 2, Rename Jenis Menu/Master Bumbu Pusat, Fitur Import dari Bumbu Pusat, Rename Label & Hapus Gojek/Grab, Fix Foto Produk Production, UI Preview Harga Master/Subtotal Resep (Ronde 3-5), Auto-isi Satuan Master Bumbu Pusat, Fix ENUM Kategori Saldo Awal, Fix Label Kode Kategori Wajib, Default Basis Program Loyalty ke Rp, Widget Total Pembelian Pelanggan, Fix Export Excel Laporan Keuangan. **Sprint 3 Batch 1 SELESAI SEMUA** (5 menu Prioritas 1 — Penjualan, Setoran Kasir, Setoran Harian/Rekap, Stok 3 sub-view, Laba Rugi Produksi — lihat [[4.24]], [[4.25]]) — Sprint 2 (konversi satuan resep) DIDEFER [[12.12]], Sprint 3 Batch 2/3 (17 menu Laporan Prioritas 2/3) + TODO tracking stock movement [[12.14]] MENYUSUL [[12.13]].
 
 ---
@@ -659,6 +659,29 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 
 **Deploy production**: digabung dgn [[4.39]] — lihat instruksi deploy di sana. Setelah itu: buat supplier "Gudang Pusat" dgn Supplier Internal = Gudang Pusat; cek saklar wajib bukti tiap cabang; koreksi Harga Standar bahan yang terlanjur tertimpa (Owner sendiri).
 
+### 4.46 🟢 Laporan Transaksi / Produk / Kategori di Menu Penjualan (Bisa Dibuka Kasir) (2026-11-05)
+
+**Permintaan Owner**: 3 laporan di bagian sidebar **Penjualan** (bukan bagian Laporan) yang bisa dibuka kasir; **keuntungan tidak boleh terlihat kasir**. Laporan Penjualan lama (`laporan.penjualan`) tidak diubah.
+
+**Izin** (`LaporanPenjualanKasirSeeder`, ADDITIVE insertOrIgnore — aman di production): `penjualan.laporan_transaksi.view`, `penjualan.laporan_produk.view`, `penjualan.laporan_kategori.view` → role yang sudah punya `order.view` (termasuk role buatan) + kasir/manajer_cabang/admin_pusat; `penjualan.laporan.keuntungan` → admin_pusat & manajer_cabang (Owner via Gate::before). Juga di-spread ke `PermissionSeeder`/`RolePermissionSeeder`, terdaftar di DatabaseSeeder & GoLiveSeeder. Data live: role Team belum punya `order.view` → menu belum muncul untuk Team (centang manual).
+
+**Aturan keuntungan**: controller MEMBUANG kunci `hpp`/`keuntungan`/`margin` dari data (baris, rincian varian/produk, total) sebelum ke view/export kalau tidak berhak — bukan sekadar disembunyikan di HTML. Bagian JS grafik yang menyebut keuntungan dibungkus `@if($lihatUntung)`. Urut "keuntungan" ditolak untuk kasir. Test memeriksa marker `kotakKeuntungan`, `Untung</th>`, `label: 'Keuntungan'` (kata "Keuntungan" sendiri boleh muncul di teks panduan).
+
+**Cabang**: `CabangAktif::untukLaporan()` (BARU) = cabang aktif header; role tanpa akses semua cabang yang sesinya menunjuk cabang bukan miliknya → dikembalikan ke cabangnya sendiri (bukan null/"Semua Cabang"; -1 kalau tidak punya cabang). **Temuan**: `CabangAktif::id()` sendiri tidak memvalidasi sesi (switcher yang memvalidasi) — sesi basi setelah penugasan cabang diubah masih bisa menunjuk cabang lama di menu lain; belum diubah global.
+
+**1. Laporan Transaksi** (`penjualan.laporan.transaksi`, `LaporanTransaksiKasirService`): bertingkat Selama ini (per tahun) → Tahun (per bulan) → Bulan (per hari) → Hari (daftar transaksi + grafik per jam) → struk (`openStrukModal`, `PenjualanController::pastikanBolehLihat` ikut menerima izin laporan ini). Rentang tanggal `?dari&sampai`: < 92 hari per hari, lebih panjang per bulan; klik bulan → sub-rentang (dipotong ke rentang asal, `asal_dari/asal_sampai` dibawa untuk jejak & Kembali). Pendapatan = `orders.total_bayar`; keuntungan = pendapatan − Σ`order_items.hpp`. Periode belum terjadi tidak ditampilkan. Grafik batang/garis (localStorage), chip Tertinggi/Rata-rata.
+
+**2. Laporan Produk** (`penjualan.laporan.produk`) & **3. Kategori** (`penjualan.laporan.kategori`), `LaporanBarangKasirService`: penjualan = `order_items.total_harga`; **diskon order dibagi per porsi harga** (`orders.diskon × item.total_harga / orders.total_harga`); pendapatan = penjualan − diskon. Service charge + take away fee = `biayaTambahan()` baris terpisah, sehingga **Σ pendapatan produk + biaya tambahan = pendapatan Laporan Transaksi** (diverifikasi data live semua cabang: selisih 0, juga untuk keuntungan). Produk dikelompokkan per **Kode Item** (bukan item_id — data barang per cabang 4.39). Varian dirinci kalau > 1 varian terjual. Kategori = penjumlahan `produk()` (selalu sama dengan Laporan Produk); "Tanpa kategori" = filter `kategori=-1`. Periode bersama `App\Support\PeriodeLaporan` (Hari ini/Bulan ini/Tahun ini/Selama ini/rentang, bawaan hari ini).
+
+**Bahasa tanggal**: `APP_LOCALE=en` di `.env` → `translatedFormat()` keluar bahasa Inggris. Laporan ini memakai `LaporanTransaksiKasirService::tanggal()/labelRentang()` (nama hari/bulan Indonesia sendiri). Laporan lain yang memakai `translatedFormat()` kemungkinan tampil Inggris — belum diubah.
+
+**Temuan data live**: ada produk jual berkategori "Bahan Baku"/"Kemasan" → ikut tampil sebagai kategori penjualan; order diskon hampir 100% (Rp 18.000 → Rp 1) ikut terbagi dengan benar.
+
+**Export**: `LaporanTransaksiKasirExport`, `LaporanBarangKasirExport` (produk/kategori, baris rincian menjorok), PDF `transaksi-pdf`/`barang-pdf`. Panduan `laporan-transaksi-kasir`, `laporan-produk-kasir`, `laporan-kategori-kasir` + tooltip `laporan_transaksi_kasir.*`, `laporan_produk_kasir.*`, `laporan_kategori_kasir.*`.
+
+**Test**: `Tahap7/LaporanTransaksiKasirTest` (17), `LaporanProdukKasirTest` (10), `LaporanKategoriKasirTest` (6). Regresi: hanya 10 kegagalan lama.
+
+**Deploy**: `git pull` → `https://<alamat-erp>/deploy-446.php?confirm=YES-LAPORAN446` (seeder izin+panduan+tooltip, cache; mencetak role ber-izin; lock `storage/deploy-446.lock`) → hapus `public/deploy-446.php`. Kedua instalasi. Gladi lokal sukses, jalan kedua & konfirmasi salah ditolak.
 ### 4.45 🔴 Order "Dihapus" Masih Masuk Laporan — Batalkan vs Hapus (2026-11-04)
 
 **Laporan Owner**: transaksi "sudah dibatalkan" masih masuk Laporan Laba Rugi. **Root cause (data live)**: kasir memakai tombol **Hapus** (🗑️ di daftar Riwayat), bukan Batalkan. Hapus (`CascadeDeleteService::deleteOrderCascade`) hanya soft-delete order + order_items + transaksi_keuangans — **stok tidak dikembalikan, saldo kas tidak dikurangi, status tetap selesai** — dan banyak laporan tetap menghitungnya karena memakai `DB::table` atau `Order::withoutGlobalScopes()` (yang ikut mematikan SoftDeletes). Data live: 32 order selesai terhapus (Rp 5,4 jt) di 7 lokasi. Bonus: bill tersimpan yang belum dibayar (`pending`) dihitung sebagai omzet di ~40 query.
@@ -1601,6 +1624,14 @@ Ditemukan saat Sprint 3 Batch 2 ([[4.26]]), bukan gap implementasi tapi genuinel
 4. Update `LaporanStokPergerakanExport`/`pdf-pergerakan.blade.php` tambah 2 kolom ini setelah data tersedia.
 
 **Alasan defer**: effort backfill data historis tidak trivial (tergantung kelengkapan data movement lama), dan Laporan Stok Index sudah cukup utk cek "stok sekarang" (Owner declined tambah kompleksitas di Sprint 3, cukup kasih info alert pengarah ke situ).
+
+---
+
+### 12.16 TODO (Ditunda Owner 2026-11-05) — Diskon per Produk di POS
+
+**Konteks**: saat membuat Laporan Produk ([[4.46]]) Owner bertanya soal diskon untuk produk tertentu saja. POS sekarang hanya punya **diskon 1 order** (`orders.diskon`); kasir bisa mengubah harga di keranjang tapi itu tidak tercatat sebagai diskon. **Owner memutuskan: tunda, kerjakan kalau ada permintaan dari pengguna aplikasi.**
+
+**Rancangan yang sudah dibahas** (belum diputuskan detailnya): simpan per baris `order_items` harga normal + diskon baris + total setelah diskon (`total_harga` = setelah diskon → laporan lama otomatis benar); diskon order tetap ada; struk tampilkan harga normal, diskon, harga akhir; validasi server (diskon ≤ harga, izin). **Pertanyaan terbuka**: manual oleh kasir vs promo otomatis dari master produk (atau keduanya); persen/rupiah; izin baru "Beri diskon per produk"; per baris vs per satuan. Laporan Produk/Kategori [[4.46]] lalu membaca diskon baris + bagian diskon order.
 
 ---
 
