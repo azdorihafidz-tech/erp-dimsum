@@ -4,7 +4,7 @@
 > Isinya: keputusan bisnis, temuan audit, aturan teknis, dan filosofi kerja.
 
 **Versi**: 4.13  
-**Update terakhir**: 2026-11-05 (Laporan Transaksi/Produk/Kategori di menu Penjualan untuk kasir — [[4.46]]; Order dihapus tidak masuk laporan — [[4.45]]; Porting erp-coffeeshop: POS pilih cabang, Identitas Usaha, APK Kasir, Label Produk — [[4.44]]; Rapikan Role & Hak Akses — [[4.43]]; Ambil Produk Jual dari cabang lain — [[4.42]]; POS tipe transaksi per cabang & Uang Pas — [[4.41]]; POS stok tersedia dari resep — [[4.40]]; Data barang terpisah per cabang — lihat [[4.39]]; Perbaikan Harga, Wajib Bukti, PO ke Gudang, Role Bebas — lihat [[4.38]])  
+**Update terakhir**: 2026-11-07 (POS: harga terkunci + izin Ubah Harga, produk sama digabung, panel bayar tablet — [[4.47]]; Laporan Transaksi/Produk/Kategori di menu Penjualan untuk kasir — [[4.46]]; Order dihapus tidak masuk laporan — [[4.45]]; Porting erp-coffeeshop: POS pilih cabang, Identitas Usaha, APK Kasir, Label Produk — [[4.44]]; Rapikan Role & Hak Akses — [[4.43]]; Ambil Produk Jual dari cabang lain — [[4.42]]; POS tipe transaksi per cabang & Uang Pas — [[4.41]]; POS stok tersedia dari resep — [[4.40]]; Data barang terpisah per cabang — lihat [[4.39]]; Perbaikan Harga, Wajib Bukti, PO ke Gudang, Role Bebas — lihat [[4.38]])  
 **Status**: 🎉 **PROJECT LIVE DI PRODUCTION** (https://erp.dmentaiindonesia.com — domain lama `erpdimsum.azwacore.com` sudah tidak dipakai; **GO-LIVE data real: lihat [[4.28]]**) — Tahap 1-7 SELESAI SEMUA + rangkaian bug fix & improvement lintas sesi (lihat section 4 utk detail lengkap tiap item): Bug Fix Ronde 2, Rename Jenis Menu/Master Bumbu Pusat, Fitur Import dari Bumbu Pusat, Rename Label & Hapus Gojek/Grab, Fix Foto Produk Production, UI Preview Harga Master/Subtotal Resep (Ronde 3-5), Auto-isi Satuan Master Bumbu Pusat, Fix ENUM Kategori Saldo Awal, Fix Label Kode Kategori Wajib, Default Basis Program Loyalty ke Rp, Widget Total Pembelian Pelanggan, Fix Export Excel Laporan Keuangan. **Sprint 3 Batch 1 SELESAI SEMUA** (5 menu Prioritas 1 — Penjualan, Setoran Kasir, Setoran Harian/Rekap, Stok 3 sub-view, Laba Rugi Produksi — lihat [[4.24]], [[4.25]]) — Sprint 2 (konversi satuan resep) DIDEFER [[12.12]], Sprint 3 Batch 2/3 (17 menu Laporan Prioritas 2/3) + TODO tracking stock movement [[12.14]] MENYUSUL [[12.13]].
 
 ---
@@ -659,6 +659,21 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 
 **Deploy production**: digabung dgn [[4.39]] — lihat instruksi deploy di sana. Setelah itu: buat supplier "Gudang Pusat" dgn Supplier Internal = Gudang Pusat; cek saklar wajib bukti tiap cabang; koreksi Harga Standar bahan yang terlanjur tertimpa (Owner sendiri).
 
+### 4.47 🟢 POS: Panel Bayar Mode Tablet, Harga/Unit Terkunci (Izin Baru), Produk Sama Digabung (2026-11-07)
+
+**Temuan test manual Owner di tablet (landscape)**:
+
+1. **Panel bayar mode Tablet**: panel "Ringkasan & Pembayaran" ikut tergeser saat grid produk di-scroll. Fix (HANYA `body.pos-tablet-mode`, layar ≥768px; Desktop tidak berubah): kolom `#posKolomKiri`/`#posKolomKanan` selalu berdampingan (58/42%), `#panelBayar` sticky setinggi layar (flex column), `#panelBayarIsi` scroll sendiri, `#panelBayarKaki` (BARU — dipisah dari card-body, isi: Total `#kakiTotalNilai` yang menyalin `#totalBayarDisplay` lewat MutationObserver, PROSES ORDER, Save Bill, Lihat Riwayat) menempel di bawah. Tombol tetap di dalam `<form id="formPos">`.
+2. **Harga/Unit terkunci**: izin BARU `order.ubah_harga` "Ubah Harga Jual di POS (kolom Harga/Unit)" (grup penjualan, `PosUbahHargaSeeder`, ADDITIVE). **Keputusan Owner: tidak dicentang untuk role mana pun** (Owner via Gate::before) → setelah deploy kasir tidak bisa lagi mengubah harga sampai Owner centang manual. Server (`PenjualanService::resolveItemRows`): tanpa izin, harga dari form DIABAIKAN → `hargaEfektifDiCabang()` (varian: `hargaEfektifDiCabang` varian, seperti dulu); dengan izin, harga dari form dipakai (termasuk varian — dulu harga varian selalu ditimpa server). Tanpa user login (mis. service dipanggil langsung) = dianggap tidak berizin. Form: `window.POS_BOLEH_UBAH_HARGA` → input `readonly` + ikon gembok. Tooltip `pos.harga_unit` di judul Item Order. Potongan harga tetap lewat kolom Diskon.
+3. **Produk sama digabung**: `gabungKeBarisSama(item, variant)` — klik produk + varian sama yang sudah ada di Item Order dan **catatan item kosong** → qty +1 (kedip `.pos-item-tambah`), bukan baris baru; kalau baris punya catatan → baris baru (keputusan Owner). Isi keranjang dari PO tetap baris sendiri (`tambahkanItemKeForm(item, null, false)`). Ringkasan & struk ikut rapi karena diturunkan dari baris. Daftar di Ringkasan & Pembayaran sekarang seperti struk: nama, lalu "qty satuan x Rp harga satuan" + subtotal (`hitungTotal()`).
+
+**Panduan**: `<!-- POS-447 -->` di slug `pos` (PosUbahHargaSeeder, terdaftar di DatabaseSeeder & GoLiveSeeder; izin di-spread ke PermissionSeeder).
+
+**Test**: `Tahap7/PosTabletPanelBayarTest` (1), `PosUbahHargaDanGabungTest` (5) + simulasi Node logika gabung. `KembalianKasSinkronTest`/`BepLoyaltyExtendTest` memanggil service dgn harga beda dari harga produk → sekarang `actingAs(owner)` (perubahan disengaja).
+
+**Catatan lokal**: setelah restart komputer MySQL XAMPP sempat gagal start (`mysql.roles_mapping` crashed), lalu aktif kembali.
+
+**Deploy**: `git pull` → `https://<alamat-erp>/deploy-447.php?confirm=YES-POS447` (seeder + cache; mencetak role pemegang izin; lock `storage/deploy-447.lock`) → hapus `public/deploy-447.php`. Kedua instalasi.
 ### 4.46 🟢 Laporan Transaksi / Produk / Kategori di Menu Penjualan (Bisa Dibuka Kasir) (2026-11-05)
 
 **Permintaan Owner**: 3 laporan di bagian sidebar **Penjualan** (bukan bagian Laporan) yang bisa dibuka kasir; **keuntungan tidak boleh terlihat kasir**. Laporan Penjualan lama (`laporan.penjualan`) tidak diubah.

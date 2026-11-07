@@ -267,6 +267,9 @@ class PenjualanService
     {
         $totalHarga = 0.0;
         $itemRows = [];
+        // 4.47 — tanpa izin "Ubah Harga Jual di POS" harga dari form diabaikan,
+        // selalu pakai harga produk di cabang ini (Owner lolos lewat Gate::before).
+        $bolehUbahHarga = (bool) auth()->user()?->can('order.ubah_harga');
 
         foreach ($items as $row) {
             $masterItem = ! empty($row['item_id']) ? Item::find((int) $row['item_id']) : null;
@@ -278,7 +281,10 @@ class PenjualanService
             }
 
             $hargaSatuan = (float) $row['harga_satuan'];
-            if ($variant && $variant->item_id === $masterItem?->id) {
+            if ($masterItem && ! $bolehUbahHarga) {
+                $hargaSatuan = $cabangId ? $masterItem->hargaEfektifDiCabang($cabangId) : (float) ($masterItem->harga_jual ?? 0);
+            }
+            if ($variant && $variant->item_id === $masterItem?->id && ! $bolehUbahHarga) {
                 // Harga varian ikut harga outlet bila varian tanpa harga khusus (4.38)
                 $hargaSatuan = $variant->hargaEfektifDiCabang($cabangId);
             }

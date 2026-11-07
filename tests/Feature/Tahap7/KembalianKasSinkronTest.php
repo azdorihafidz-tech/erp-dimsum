@@ -44,6 +44,8 @@ class KembalianKasSinkronTest extends TestCase
     private function order($cabang, $kasir, $item, array $payments, float $harga = 5000)
     {
         $total = array_sum(array_column($payments, 'jumlah'));
+        // 4.47 — harga di luar harga produk hanya dihormati utk pemegang izin Ubah Harga (Owner)
+        $this->actingAs($this->buatUser('owner'));
 
         return app(PenjualanService::class)->buatOrder([
             'kasir_id' => $kasir->id, 'tipe_order' => 'penjualan', 'tipe_transaksi' => 'takeaway',

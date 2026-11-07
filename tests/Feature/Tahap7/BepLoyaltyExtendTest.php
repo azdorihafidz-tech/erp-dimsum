@@ -38,6 +38,8 @@ class BepLoyaltyExtendTest extends TestCase
             ['nama_kas' => 'Kas Tunai Test', 'tipe_kas' => 'tunai', 'saldo_awal' => 0, 'saldo_sekarang' => 0, 'is_active' => true]
         );
         $kas = \App\Models\Kas::where('cabang_id', $cabang->id)->where('default_untuk', 'tunai')->first();
+        // 4.47 — harga di luar harga produk hanya dihormati utk pemegang izin Ubah Harga (Owner)
+        $this->actingAs($this->buatUser('owner'));
 
         app(PenjualanService::class)->buatOrder([
             'kasir_id' => $kasirId, 'tipe_order' => 'penjualan', 'tipe_transaksi' => 'takeaway',

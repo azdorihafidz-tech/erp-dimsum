@@ -117,6 +117,52 @@ body.pos-tablet-mode #sectionJumlahBayar .btn { padding: 2px 6px !important; fon
 /* Tombol Proses Transaksi */
 body.pos-tablet-mode #btnProses { padding: 0.45rem 0.75rem !important; font-size: 0.85rem !important; }
 
+/* ── 4.47 Panel Ringkasan & Pembayaran ──
+   Desktop: kaki (tombol aksi) tampil seperti dulu, di bawah isi panel.
+   Tablet (layar ≥768px): 2 kolom berdampingan; panel kanan setinggi layar dan
+   tidak ikut tergeser saat produk di kiri di-scroll; isinya scroll sendiri,
+   Total + PROSES ORDER + Save Bill selalu terlihat di bawah. */
+.pos-bayar-kaki { padding: 0 1rem 1rem; }
+/* 4.47 — kedip singkat saat qty baris bertambah karena produk yang sama diklik lagi */
+@keyframes posItemTambah { from { background: #FFF8E7; border-color: #FF6B00; } to { background: #fff; } }
+.pos-item-row.pos-item-tambah { animation: posItemTambah .6s ease-out; }
+body.pos-tablet-mode .pos-bayar-kaki { padding: 0 10px 7px; }
+.pos-kaki-total { display: none; }
+@media (min-width: 768px) {
+    body.pos-tablet-mode #posKolomKiri  { width: 58.333%; }
+    body.pos-tablet-mode #posKolomKanan { width: 41.667%; }
+    body.pos-tablet-mode #panelBayar {
+        position: sticky !important;
+        top: 0.5rem !important;
+        max-height: calc(100vh - 1rem);
+        display: flex;
+        flex-direction: column;
+        margin-bottom: 0 !important;
+    }
+    body.pos-tablet-mode #panelBayarIsi {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
+    body.pos-tablet-mode #panelBayarKaki {
+        flex-shrink: 0;
+        padding: 6px 10px 8px !important;
+        border-top: 1px solid #e2e8f0;
+        box-shadow: 0 -4px 10px rgba(0,0,0,.06);
+        background: inherit;
+        border-radius: 0 0 10px 10px;
+    }
+    body.pos-tablet-mode .pos-kaki-total {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 4px;
+    }
+    body.pos-tablet-mode #kakiTotalNilai { font-size: 1.1rem; }
+    body.pos-tablet-mode #panelBayarKaki .btn.mt-2 { margin-top: 4px !important; padding-top: 3px; padding-bottom: 3px; font-size: .8rem; }
+}
+
 </style>
 @endpush
 
@@ -194,7 +240,7 @@ body.pos-tablet-mode #btnProses { padding: 0.45rem 0.75rem !important; font-size
     <div id="infoPoAktif" class="alert alert-info small py-2 d-none"></div>
     <div class="row g-3">
         {{-- Kiri: Form Order --}}
-        <div class="col-12 col-lg-7">
+        <div class="col-12 col-lg-7" id="posKolomKiri">
 
             {{-- ===== Tahap 3 D'mentai — Tipe Transaksi + Grid Produk ===== --}}
             {{-- 4.41 — pilihan tipe bisa disembunyikan per cabang (Edit Cabang → Config POS);
@@ -329,7 +375,7 @@ body.pos-tablet-mode #btnProses { padding: 0.45rem 0.75rem !important; font-size
                  (mis. produk belum sempat difoto/di-setup di grid). --}}
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <span>Item Order</span>
+                    <span>Item Order <x-tooltip key="pos.harga_unit" /></span>
                     <button type="button" class="btn btn-sm btn-outline-success" onclick="tambahProduk()">
                         <i class="bi bi-plus-lg me-1"></i><span class="d-none d-sm-inline">Tambah Manual</span>
                     </button>
@@ -347,10 +393,10 @@ body.pos-tablet-mode #btnProses { padding: 0.45rem 0.75rem !important; font-size
         </div>
 
         {{-- Kanan: Ringkasan & Bayar --}}
-        <div class="col-12 col-lg-5">
-            <div class="card sticky-top" style="top:70px">
+        <div class="col-12 col-lg-5" id="posKolomKanan">
+            <div class="card sticky-top" style="top:70px" id="panelBayar">
                 <div class="card-header fw-bold">Ringkasan & Pembayaran</div>
-                <div class="card-body">
+                <div class="card-body" id="panelBayarIsi">
                     {{-- Subtotal list --}}
                     <div id="subtotalList" class="mb-3"></div>
 
@@ -560,6 +606,16 @@ body.pos-tablet-mode #btnProses { padding: 0.45rem 0.75rem !important; font-size
                             <option value="2">2x</option>
                         </select>
                         <span class="text-muted small">struk</span>
+                    </div>
+                </div>
+
+                {{-- 4.47 — Tombol aksi dipisah dari isi panel. Mode Desktop: tampil
+                     persis seperti dulu (di bawah isi). Mode Tablet: menempel di bawah
+                     layar, isi panel di atasnya scroll sendiri. --}}
+                <div class="pos-bayar-kaki" id="panelBayarKaki">
+                    <div class="pos-kaki-total" id="kakiTotal">
+                        <span class="text-muted small">TOTAL BAYAR</span>
+                        <span class="fw-bold" id="kakiTotalNilai">Rp 0</span>
                     </div>
 
                     {{-- Tombol Proses --}}
@@ -804,6 +860,8 @@ const produkJadi = @json($produkJadiJson);
 window.POS_NOMOR_MEJA_AKTIF = {{ $cabangAktif?->nomor_meja_aktif ? 'true' : 'false' }};
 // 4.44 Poin 2 — kolom catatan per item (ikut tercetak di Label Produk) hanya kalau label aktif di cabang ini
 window.POS_LABEL_AKTIF = {{ $cabangAktif?->label_cup_aktif ? 'true' : 'false' }};
+// 4.47 — kolom Harga/Unit hanya bisa diubah pemegang izin "Ubah Harga Jual di POS" (server ikut mengunci)
+window.POS_BOLEH_UBAH_HARGA = {{ auth()->user()?->can('order.ubah_harga') ? 'true' : 'false' }};
 window.POS_SERVICE_CHARGE_PERSEN = {{ (float) ($cabangAktif?->service_charge_persen ?? 0) }};
 window.POS_TAKE_AWAY_FEE = {{ (float) ($cabangAktif?->take_away_fee ?? 0) }};
 // Tahap B 4.38 — wajib bukti bayar per cabang
@@ -839,7 +897,7 @@ async function isiDariPo(poId) {
     po.items.forEach(row => {
         const item = produkJadi.find(p => p.id === row.item_id);
         if (!item || !item.bisa_dijual) { dilewati.push(row.nama); return; }
-        tambahkanItemKeForm(item, null);
+        tambahkanItemKeForm(item, null, false); // baris PO selalu baris sendiri (qty diisi dari PO)
         const idx = itemIdx - 1;
         const qtyEl = document.querySelector(`[name="items[${idx}][qty]"]`);
         if (qtyEl) qtyEl.value = row.qty;
@@ -915,9 +973,9 @@ function tambahProduk() {
                 <input type="hidden" name="items[${idx}][satuan]" id="satuan_${idx}" value="pack">
             </div>
             <div class="col-8 col-sm-3">
-                <label class="form-label small">Harga/Unit</label>
-                <input type="number" name="items[${idx}][harga_satuan]" class="form-control form-control-sm harga-input"
-                    step="1" min="0" value="0" required onchange="hitungSubtotal(${idx})">
+                <label class="form-label small">Harga/Unit${window.POS_BOLEH_UBAH_HARGA ? '' : ' <i class="bi bi-lock-fill text-muted" title="Harga terkunci — hanya akun berizin Ubah Harga Jual di POS"></i>'}</label>
+                <input type="number" name="items[${idx}][harga_satuan]" class="form-control form-control-sm harga-input${window.POS_BOLEH_UBAH_HARGA ? '' : ' bg-light'}"
+                    step="1" min="0" value="0" required onchange="hitungSubtotal(${idx})"${window.POS_BOLEH_UBAH_HARGA ? '' : ' readonly tabindex="-1"'}>
             </div>
             <div class="col-12 col-sm-1 d-flex align-items-end justify-content-end">
                 <button type="button" class="btn btn-sm btn-outline-danger" onclick="hapusItem(this)">
@@ -1000,7 +1058,33 @@ function klikItemTambahanGrid(itemId) {
     tambahkanItemKeForm(item, null);
 }
 
-function tambahkanItemKeForm(item, variant) {
+// 4.47 — produk (+ varian) yang sudah ada di Item Order dan belum diberi
+// catatan item → qty +1, bukan baris baru. Mengembalikan true kalau digabung.
+function gabungKeBarisSama(item, variant) {
+    const varianId = variant ? String(variant.id) : '';
+    const rows = document.querySelectorAll('#itemContainer .pos-item-row');
+    for (const row of rows) {
+        const idx = row.dataset.idx;
+        const sel = row.querySelector(`select[name="items[${idx}][item_id]"]`);
+        if (!sel || String(sel.value) !== String(item.id)) continue;
+        const v = row.querySelector(`input[name="items[${idx}][item_variant_id]"]`);
+        if ((v ? String(v.value) : '') !== varianId) continue;
+        const cat = row.querySelector(`input[name="items[${idx}][catatan]"]`);
+        if (cat && cat.value.trim() !== '') continue;
+        const qty = row.querySelector('.qty-input');
+        if (!qty) continue;
+        qty.value = Math.round(((parseFloat(qty.value) || 0) + 1) * 1000) / 1000;
+        hitungSubtotal(idx);
+        row.classList.remove('pos-item-tambah');
+        void row.offsetWidth;
+        row.classList.add('pos-item-tambah');
+        return true;
+    }
+    return false;
+}
+
+function tambahkanItemKeForm(item, variant, gabung = true) {
+    if (gabung && gabungKeBarisSama(item, variant)) return;
     tambahProduk();
     const idx = itemIdx - 1;
     const row = document.querySelector(`.pos-item-row[data-idx="${idx}"]`);
@@ -1392,11 +1476,13 @@ function hitungTotal() {
         // sub/total -- murni label tampilan.
         const satuan = document.getElementById(`satuan_${idx}`)?.value || '';
         const qtyLabel = parseFloat(qty.toFixed(3));
-        const label = `${nama} ${qtyLabel} ${satuan}`;
-
-        listHtml += `<div class="d-flex justify-content-between align-items-center mb-2">
-            <div class="flex-grow-1 me-2">${label}</div>
-            <div class="text-end fw-medium text-nowrap">Rp ${sub.toLocaleString('id-ID')}</div>
+        // 4.47 — seperti struk: nama, lalu "qty satuan x harga satuan" + subtotal
+        listHtml += `<div class="mb-2">
+            <div class="fw-medium">${escHtml(nama)}</div>
+            <div class="d-flex justify-content-between align-items-center small">
+                <div class="text-muted me-2">${qtyLabel.toLocaleString('id-ID')} ${escHtml(satuan)} x Rp ${harga.toLocaleString('id-ID')}</div>
+                <div class="text-end fw-medium text-nowrap">Rp ${sub.toLocaleString('id-ID')}</div>
+            </div>
         </div>`;
     });
 
@@ -1992,6 +2078,18 @@ function _applyMode(mode, save) {
     var m = 'desktop';
     try { m = localStorage.getItem('pos_mode_tampilan') || 'desktop'; } catch(e) {}
     _applyMode(m, false);
+})();
+
+// 4.47 — Total di bagian bawah panel bayar (mode Tablet) ikut angka TOTAL BAYAR.
+(function() {
+    var sumber = document.getElementById('totalBayarDisplay');
+    var salin  = document.getElementById('kakiTotalNilai');
+    if (!sumber || !salin) return;
+    var ikut = function() { salin.textContent = sumber.textContent; };
+    ikut();
+    if (window.MutationObserver) {
+        new MutationObserver(ikut).observe(sumber, { childList: true, characterData: true, subtree: true });
+    }
 })();
 </script>
 
