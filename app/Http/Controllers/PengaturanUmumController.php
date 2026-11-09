@@ -33,9 +33,20 @@ class PengaturanUmumController extends Controller
             'telepon'           => ['nullable', 'string', 'max:30'],
             'tanggal_mulai_periode' => ['nullable', 'integer', 'min:1', 'max:28'],
             'logo'              => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            // 4.48 — Warna Aplikasi (#RRGGBB). Latar wajib warna terang supaya tulisan terbaca.
+            'warna_utama'       => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
+            'warna_sidebar'     => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/'],
+            'warna_latar'       => ['nullable', 'regex:/^#[0-9a-fA-F]{6}$/', function ($attr, $nilai, $gagal) {
+                if (Branding::hexValid($nilai) && Branding::teksDiAtas($nilai) === '#FFFFFF') {
+                    $gagal('Warna Latar Halaman harus warna terang (mis. putih, krem, abu muda) supaya tulisan tetap terbaca.');
+                }
+            }],
         ], [
             'logo.mimes' => 'Logo harus berupa gambar JPG, PNG, atau WebP.',
             'logo.max'   => 'Ukuran logo maksimal 2 MB.',
+            'warna_utama.regex'   => 'Warna Utama tidak valid (contoh: #FF6B00).',
+            'warna_sidebar.regex' => 'Warna Sidebar tidak valid (contoh: #1A1A1A).',
+            'warna_latar.regex'   => 'Warna Latar tidak valid (contoh: #FFF8E7).',
         ]);
 
         $setting = $this->setting();
@@ -47,6 +58,14 @@ class PengaturanUmumController extends Controller
         $setting->telepon           = $validated['telepon'] ?? null;
         if (isset($validated['tanggal_mulai_periode'])) {
             $setting->tanggal_mulai_periode = (int) $validated['tanggal_mulai_periode'];
+        }
+
+        // 4.48 — sama dengan bawaan / kosong disimpan NULL (= ikut warna bawaan program)
+        foreach (['utama', 'sidebar', 'latar'] as $jenis) {
+            if ($request->has('warna_' . $jenis)) {
+                $hex = Branding::hexValid($validated['warna_' . $jenis] ?? null);
+                $setting->{'warna_' . $jenis} = ($hex && $hex !== Branding::WARNA_BAWAAN[$jenis]) ? $hex : null;
+            }
         }
 
         if ($request->hasFile('logo') && $request->file('logo')->isValid()) {

@@ -48,6 +48,9 @@ class Branding
                     'alamat'       => $s->alamat_perusahaan,
                     'telepon'      => $s->telepon,
                     'logo_path'    => $s->logo_path,
+                    'warna_utama'   => $s->warna_utama,
+                    'warna_sidebar' => $s->warna_sidebar,
+                    'warna_latar'   => $s->warna_latar,
                     'versi'        => $s->updated_at?->timestamp,
                 ] : [];
             });
@@ -105,6 +108,125 @@ class Branding
     public function footerStrukBaris(): array
     {
         return ['Terima kasih atas kunjungan Anda!', $this->namaSingkat() . ($this->tagline() ? ' - ' . $this->tagline() : '')];
+    }
+
+    // ----------------------------------------------------------------- warna
+
+    /**
+     * 4.48 — Warna Aplikasi. Kosong = warna bawaan program (tampilan D'mentai).
+     * Hanya mengubah sidebar, menu aktif/sorotan, latar halaman, grafik, dan
+     * header tabel PDF — warna tombol (hijau/merah/biru) sengaja TIDAK ikut.
+     */
+    public const WARNA_BAWAAN = ['utama' => '#FF6B00', 'sidebar' => '#1A1A1A', 'latar' => '#FFF8E7'];
+
+    /** Tema siap pakai di Pengaturan Umum. */
+    public const TEMA = [
+        'bawaan' => ['label' => 'Oranye & Hitam (bawaan)', 'utama' => '#FF6B00', 'sidebar' => '#1A1A1A', 'latar' => '#FFF8E7'],
+        'kopi'   => ['label' => 'Kopi',   'utama' => '#A0612B', 'sidebar' => '#3B2A20', 'latar' => '#F6EFE7'],
+        'hijau'  => ['label' => 'Hijau',  'utama' => '#2E8B57', 'sidebar' => '#17302A', 'latar' => '#F0F7F2'],
+        'biru'   => ['label' => 'Biru',   'utama' => '#1E6FD9', 'sidebar' => '#14213D', 'latar' => '#EEF3FB'],
+        'merah'  => ['label' => 'Merah',  'utama' => '#D62828', 'sidebar' => '#2B1416', 'latar' => '#FBF0F0'],
+        'ungu'   => ['label' => 'Ungu',   'utama' => '#7B3FBF', 'sidebar' => '#221833', 'latar' => '#F5F0FB'],
+    ];
+
+    public static function hexValid(?string $hex): ?string
+    {
+        $hex = strtoupper(trim((string) $hex));
+
+        return preg_match('/^#[0-9A-F]{6}$/', $hex) ? $hex : null;
+    }
+
+    /** $jenis: utama | sidebar | latar */
+    public function warna(string $jenis): string
+    {
+        return self::hexValid($this->data()['warna_' . $jenis] ?? null) ?? self::WARNA_BAWAAN[$jenis];
+    }
+
+    public function warnaBawaan(): bool
+    {
+        foreach (self::WARNA_BAWAAN as $jenis => $hex) {
+            if ($this->warna($jenis) !== $hex) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /** "255, 107, 0" — untuk rgba(). */
+    public static function rgb(string $hex): string
+    {
+        return implode(', ', self::komponen($hex));
+    }
+
+    /**
+     * Warna tulisan di atas $hex: putih, kecuali warnanya terang (kontras
+     * tulisan putih < 2,5 — mis. kuning, krem, putih) → hitam. Ambang 2,5
+     * sengaja dipilih supaya oranye bawaan tetap bertulisan putih seperti dulu.
+     */
+    public static function teksDiAtas(string $hex): string
+    {
+        return (1.05 / (self::luminansi($hex) + 0.05)) >= 2.5 ? '#FFFFFF' : '#1A1A1A';
+    }
+
+    /** Versi lebih gelap (dipakai hover / gradasi). $persen 0–1. */
+    public static function gelapkan(string $hex, float $persen = 0.18): string
+    {
+        return '#' . collect(self::komponen($hex))
+            ->map(fn ($c) => str_pad(dechex((int) round($c * (1 - $persen))), 2, '0', STR_PAD_LEFT))
+            ->implode('');
+    }
+
+    /** Blok CSS :root yang dipakai layout aplikasi, login, halaman error & offline. */
+    public function cssVariabel(): string
+    {
+        $utama = $this->warna('utama');
+        $sidebar = $this->warna('sidebar');
+        $latar = $this->warna('latar');
+
+        $v = [
+            '--brand-utama'            => $utama,
+            '--brand-utama-rgb'        => self::rgb($utama),
+            '--brand-utama-gelap'      => self::gelapkan($utama),
+            '--brand-utama-teks'       => self::teksDiAtas($utama),
+            '--brand-sidebar'          => $sidebar,
+            '--brand-sidebar-rgb'      => self::rgb($sidebar),
+            '--brand-sidebar-teks-rgb' => self::rgb(self::teksDiAtas($sidebar)),
+            '--brand-latar'            => $latar,
+            '--brand-latar-rgb'        => self::rgb($latar),
+        ];
+
+        return ':root{' . collect($v)->map(fn ($nilai, $nama) => "{$nama}:{$nilai}")->implode(';') . '}';
+    }
+
+    /** Untuk grafik (Chart.js) di halaman. */
+    public function warnaJs(): array
+    {
+        return [
+            'utama'      => $this->warna('utama'),
+            'utamaRgb'   => self::rgb($this->warna('utama')),
+            'utamaGelap' => self::gelapkan($this->warna('utama')),
+            'sidebar' => $this->warna('sidebar'),
+            'latar'   => $this->warna('latar'),
+        ];
+    }
+
+    private static function komponen(string $hex): array
+    {
+        $hex = ltrim(self::hexValid($hex) ?? '#000000', '#');
+
+        return [hexdec(substr($hex, 0, 2)), hexdec(substr($hex, 2, 2)), hexdec(substr($hex, 4, 2))];
+    }
+
+    private static function luminansi(string $hex): float
+    {
+        $c = array_map(function ($v) {
+            $v /= 255;
+
+            return $v <= 0.03928 ? $v / 12.92 : (($v + 0.055) / 1.055) ** 2.4;
+        }, self::komponen($hex));
+
+        return 0.2126 * $c[0] + 0.7152 * $c[1] + 0.0722 * $c[2];
     }
 
     // ------------------------------------------------------------------ logo
@@ -172,6 +294,9 @@ class Branding
             'laravelpwa.name'                => 'ERP ' . $this->namaSingkat(),
             'laravelpwa.manifest.name'       => 'ERP ' . $this->namaSingkat(),
             'laravelpwa.manifest.short_name' => $this->namaSingkat(),
+            // 4.48 — warna bilah aplikasi PWA ikut Warna Aplikasi
+            'laravelpwa.manifest.theme_color'      => $this->warna('utama'),
+            'laravelpwa.manifest.background_color' => $this->warna('sidebar'),
         ];
 
         if ($this->ikonUpload(192)) {

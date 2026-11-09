@@ -29,7 +29,7 @@
                 <input type="date" id="rentangSampai" name="sampai" class="form-control form-control-sm" required
                        value="{{ $periode['sampai']->toDateString() }}" max="{{ today()->toDateString() }}">
             </div>
-            <button type="submit" class="btn btn-sm text-white" style="background:#FF6B00">
+            <button type="submit" class="btn btn-sm" style="background:var(--brand-utama);color:var(--brand-utama-teks)">
                 <i class="bi bi-search me-1"></i>Tampilkan
             </button>
         </form>

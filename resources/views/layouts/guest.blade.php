@@ -9,6 +9,7 @@
     <link rel="shortcut icon" type="image/png" href="{{ $brand->faviconUrl() }}">
     <link rel="apple-touch-icon" href="{{ $brand->faviconUrl() }}">
 
+    <x-brand-warna />
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
@@ -17,7 +18,7 @@
     <style>
         body {
             min-height: 100vh;
-            background: linear-gradient(145deg, #1A1A1A 0%, #2b2b2b 40%, #FF6B00 100%);
+            background: linear-gradient(145deg, var(--brand-sidebar) 0%, var(--brand-sidebar) 40%, var(--brand-utama) 100%);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -63,7 +64,7 @@
             position: absolute;
             top: 0; left: 0; right: 0;
             height: 4px;
-            background: linear-gradient(90deg, #1A1A1A, #FF6B00);
+            background: linear-gradient(90deg, var(--brand-sidebar), var(--brand-utama));
             border-radius: 20px 20px 0 0;
         }
 
@@ -76,8 +77,8 @@
             justify-content: center;
             margin: 0 auto 1rem;
             overflow: hidden;
-            background: #FFF8E7;
-            box-shadow: 0 4px 16px rgba(255,107,0,0.25);
+            background: var(--brand-latar);
+            box-shadow: 0 4px 16px rgba(var(--brand-utama-rgb),0.25);
         }
 
         .auth-logo img {
@@ -106,12 +107,12 @@
         }
 
         .form-control:focus, .form-select:focus {
-            border-color: #FF6B00;
-            box-shadow: 0 0 0 3px rgba(255,107,0,0.15);
+            border-color: var(--brand-utama);
+            box-shadow: 0 0 0 3px rgba(var(--brand-utama-rgb),0.15);
         }
 
         .btn-primary {
-            background: linear-gradient(90deg, #1A1A1A, #FF6B00);
+            background: linear-gradient(90deg, var(--brand-sidebar), var(--brand-utama));
             border: none;
             border-radius: 10px;
             padding: 0.85rem 1.5rem;
@@ -121,12 +122,12 @@
         }
 
         .btn-primary:hover {
-            background: linear-gradient(90deg, #000000, #e05f00);
+            background: linear-gradient(90deg, var(--brand-sidebar), var(--brand-utama-gelap));
             border: none;
         }
 
         .btn-primary:focus {
-            box-shadow: 0 0 0 3px rgba(255,107,0,0.3);
+            box-shadow: 0 0 0 3px rgba(var(--brand-utama-rgb),0.3);
         }
 
         .form-label {
@@ -139,7 +140,7 @@
 
         /* Teks link lupa password */
         a[href*="password"] {
-            color: #FF6B00 !important;
+            color: var(--brand-utama) !important;
         }
         a[href*="password"]:hover {
             color: #1A1A1A !important;

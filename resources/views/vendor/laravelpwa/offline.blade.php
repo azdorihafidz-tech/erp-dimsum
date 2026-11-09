@@ -4,12 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sedang Offline - {{ $brand->namaSingkat() }}</title>
+    <x-brand-warna />
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-            background: #1A1A1A;
-            color: #fff;
+            background: var(--brand-sidebar);
+            color: rgb(var(--brand-sidebar-teks-rgb));
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -23,7 +24,7 @@
             height: 120px;
             margin: 0 auto 24px;
             border-radius: 50%;
-            background: #FF6B00;
+            background: var(--brand-utama);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -34,7 +35,7 @@
         h1 { font-size: 24px; margin: 0 0 12px; }
         p { font-size: 16px; line-height: 1.5; margin: 0 0 24px; opacity: 0.9; }
         button {
-            background: #FF6B00;
+            background: var(--brand-utama);
             color: #fff;
             border: none;
             padding: 12px 32px;

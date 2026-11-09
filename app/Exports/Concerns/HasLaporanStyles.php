@@ -22,7 +22,7 @@ trait HasLaporanStyles
         $sheet->getStyle($range)->getFont()->setBold(true);
         $sheet->getStyle($range)->getFill()
             ->setFillType(Fill::FILL_SOLID)
-            ->getStartColor()->setRGB('FFF8E7');
+            ->getStartColor()->setRGB(ltrim(app(\App\Support\Branding::class)->warna('latar'), '#')); // 4.48 — ikut Warna Latar
     }
 
     /**

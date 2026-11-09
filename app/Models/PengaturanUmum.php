@@ -19,6 +19,9 @@ class PengaturanUmum extends Model
         'alamat_perusahaan',
         'telepon',
         'tanggal_mulai_periode',
+        'warna_utama',
+        'warna_sidebar',
+        'warna_latar',
     ];
 
     protected $casts = [

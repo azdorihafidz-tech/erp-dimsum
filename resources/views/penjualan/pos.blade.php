@@ -16,16 +16,16 @@
 .pos-card { border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; cursor: pointer; overflow: hidden; transition: box-shadow .15s, transform .15s; }
 .pos-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.08); transform: translateY(-2px); }
 .pos-card.habis { opacity: .45; cursor: not-allowed; pointer-events: none; }
-.pos-card .thumb { width: 100%; aspect-ratio: 1/1; background: #FFF8E7; display: flex; align-items: center; justify-content: center; font-size: 2rem; overflow: hidden; }
+.pos-card .thumb { width: 100%; aspect-ratio: 1/1; background: var(--brand-latar); display: flex; align-items: center; justify-content: center; font-size: 2rem; overflow: hidden; }
 .pos-card .thumb img { width: 100%; height: 100%; object-fit: cover; }
 .pos-card .body { padding: .4rem .5rem; }
 .pos-card .nama { font-size: .78rem; font-weight: 600; line-height: 1.2; min-height: 2em; }
-.pos-card .harga { font-size: .76rem; color: #FF6B00; font-weight: 700; }
+.pos-card .harga { font-size: .76rem; color: var(--brand-utama); font-weight: 700; }
 .cat-pill { border-radius: 20px; }
 .item-tambahan-scroll { display: flex; gap: .5rem; overflow-x: auto; padding-bottom: .25rem; }
 .item-tambahan-card { flex: 0 0 auto; width: 100px; border: 1px solid #e2e8f0; border-radius: 8px; padding: .4rem; text-align: center; cursor: pointer; background: #fff; }
-.item-tambahan-card:hover { border-color: #FF6B00; }
-.btn-tipe-transaksi.active { background: #1A1A1A !important; color: #fff !important; border-color: #1A1A1A !important; }
+.item-tambahan-card:hover { border-color: var(--brand-utama); }
+.btn-tipe-transaksi.active { background: var(--brand-sidebar) !important; color: rgb(var(--brand-sidebar-teks-rgb)) !important; border-color: var(--brand-sidebar) !important; }
 
 /* Dropdown salinan — stack vertikal di layar sangat sempit */
 @media (max-width: 360px) {
@@ -124,7 +124,7 @@ body.pos-tablet-mode #btnProses { padding: 0.45rem 0.75rem !important; font-size
    Total + PROSES ORDER + Save Bill selalu terlihat di bawah. */
 .pos-bayar-kaki { padding: 0 1rem 1rem; }
 /* 4.47 — kedip singkat saat qty baris bertambah karena produk yang sama diklik lagi */
-@keyframes posItemTambah { from { background: #FFF8E7; border-color: #FF6B00; } to { background: #fff; } }
+@keyframes posItemTambah { from { background: var(--brand-latar); border-color: var(--brand-utama); } to { background: #fff; } }
 .pos-item-row.pos-item-tambah { animation: posItemTambah .6s ease-out; }
 body.pos-tablet-mode .pos-bayar-kaki { padding: 0 10px 7px; }
 .pos-kaki-total { display: none; }
@@ -815,7 +815,7 @@ body.pos-tablet-mode .pos-bayar-kaki { padding: 0 10px 7px; }
             <div class="modal-body" id="modalVarianBody"></div>
             <div class="modal-footer">
                 <div class="me-auto fw-bold" id="modalVarianHargaPreview"></div>
-                <button type="button" class="btn text-white" style="background:#FF6B00" onclick="konfirmasiVarian()" id="btnKonfirmasiVarian" disabled>
+                <button type="button" class="btn" style="background:var(--brand-utama);color:var(--brand-utama-teks)" onclick="konfirmasiVarian()" id="btnKonfirmasiVarian" disabled>
                     Tambah ke Keranjang
                 </button>
             </div>

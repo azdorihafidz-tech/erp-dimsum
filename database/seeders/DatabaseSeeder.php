@@ -37,6 +37,7 @@ class DatabaseSeeder extends Seeder
             LabelProdukSeeder::class,        // Izin + panduan + tooltip Label Produk (2026-11-03)
             LaporanPenjualanKasirSeeder::class, // 4.46 — izin + panduan Laporan di menu Penjualan
             PosUbahHargaSeeder::class,          // 4.47 — izin Ubah Harga Jual di POS + panduan POS
+            WarnaAplikasiSeeder::class,         // 4.48 — panduan & tooltip Warna Aplikasi (setelah IdentitasUsahaSeeder)
         ]);
     }
 }

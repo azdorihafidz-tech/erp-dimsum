@@ -12,13 +12,13 @@
 
         {{-- Logo D'mentai --}}
         <div class="mx-auto mb-3 d-flex align-items-center justify-content-center"
-             style="width:64px;height:64px;border-radius:16px;background:#FFF8E7;box-shadow:0 4px 16px rgba(255,107,0,0.2)">
+             style="width:64px;height:64px;border-radius:16px;background:var(--brand-latar);box-shadow:0 4px 16px rgba(var(--brand-utama-rgb),0.2)">
             <img src="{{ $brand->logoUrl() }}" alt="{{ $brand->namaSingkat() }}" style="width:44px;height:44px;object-fit:contain">
         </div>
 
         {{-- Icon --}}
         <div class="mb-3">
-            <i class="bi bi-shield-x" style="font-size:80px;color:#FF6B00;opacity:0.9;line-height:1"></i>
+            <i class="bi bi-shield-x" style="font-size:80px;color:var(--brand-utama);opacity:0.9;line-height:1"></i>
         </div>
 
         {{-- HTTP Code + Heading --}}
@@ -33,9 +33,9 @@
         {{-- Info user yang sedang login --}}
         @if($authUser)
         <div class="card border-0 shadow-sm text-start mb-4"
-             style="background:#FFF8E7;border-left:4px solid #FF6B00 !important">
+             style="background:var(--brand-latar);border-left:4px solid var(--brand-utama) !important">
             <div class="card-body py-3 px-4">
-                <div class="fw-semibold mb-2" style="font-size:.75rem;color:#c2410c;text-transform:uppercase;letter-spacing:1px">
+                <div class="fw-semibold mb-2" style="font-size:.75rem;color:var(--brand-utama-gelap);text-transform:uppercase;letter-spacing:1px">
                     <i class="bi bi-person-circle me-1"></i>Akun yang sedang login
                 </div>
                 <table class="table table-sm table-borderless mb-0" style="font-size:.83rem">
@@ -76,22 +76,22 @@
         @endif
 
         <a href="{{ route('dashboard') }}" class="btn text-white px-4"
-           style="min-height:44px;padding-top:10px;padding-bottom:10px;background:linear-gradient(90deg,#1A1A1A,#FF6B00);border:none">
+           style="min-height:44px;padding-top:10px;padding-bottom:10px;background:linear-gradient(90deg,var(--brand-sidebar),var(--brand-utama));border:none">
             <i class="bi bi-arrow-left me-2"></i>Kembali ke Dashboard
         </a>
 
         @else
         {{-- Belum login --}}
         <div class="alert d-flex align-items-center gap-2 text-start mb-4"
-             style="font-size:.85rem;background:#FFF8E7;border:1px solid #FF6B0033;color:#1A1A1A">
-            <i class="bi bi-info-circle-fill flex-shrink-0" style="color:#FF6B00"></i>
+             style="font-size:.85rem;background:var(--brand-latar);border:1px solid rgba(var(--brand-utama-rgb),0.2);color:#1A1A1A">
+            <i class="bi bi-info-circle-fill flex-shrink-0" style="color:var(--brand-utama)"></i>
             <span>
                 Kamu belum masuk. Silakan
-                <a href="{{ route('login') }}" class="fw-semibold" style="color:#FF6B00">login terlebih dahulu</a>.
+                <a href="{{ route('login') }}" class="fw-semibold" style="color:var(--brand-utama)">login terlebih dahulu</a>.
             </span>
         </div>
         <a href="{{ route('login') }}" class="btn text-white px-4"
-           style="min-height:44px;padding-top:10px;padding-bottom:10px;background:linear-gradient(90deg,#1A1A1A,#FF6B00);border:none">
+           style="min-height:44px;padding-top:10px;padding-bottom:10px;background:linear-gradient(90deg,var(--brand-sidebar),var(--brand-utama));border:none">
             <i class="bi bi-box-arrow-in-right me-2"></i>Login
         </a>
         @endauth

@@ -116,7 +116,7 @@ class LaporanLabaRugiProduksiExport implements FromArray, WithStyles
         $sheet->getStyle('A' . $barisHeaderBreakdown . ':H' . $barisHeaderBreakdown)->getFont()->setBold(true);
         $sheet->getStyle('A' . $barisHeaderBreakdown . ':H' . $barisHeaderBreakdown)->getFill()
             ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
-            ->getStartColor()->setRGB('FFF8E7');
+            ->getStartColor()->setRGB(ltrim(app(\App\Support\Branding::class)->warna('latar'), '#')); // 4.48 — ikut Warna Latar
 
         $barisHeaderDetail = $barisHeaderBreakdown + 1 + $this->totalBarisBreakdown + 2;
         $sheet->getStyle('A' . $barisHeaderDetail . ':K' . $barisHeaderDetail)->getFont()->setBold(true);

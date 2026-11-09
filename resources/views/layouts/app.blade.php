@@ -28,19 +28,21 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
+    <x-brand-warna />
     <style>
         :root {
             --sidebar-width: 260px;
-            --sidebar-bg: #1A1A1A;
+            /* 4.48 — warna dari Pengaturan Umum → Warna Aplikasi (komponen brand-warna) */
+            --sidebar-bg: var(--brand-sidebar);
 
-            --sidebar-hover: #FF6B00;
-            --sidebar-active: #FF6B00;
+            --sidebar-hover: var(--brand-utama);
+            --sidebar-active: var(--brand-utama);
             --topbar-height: 60px;
         }
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #FFF8E7;
+            background-color: var(--brand-latar);
             min-height: 100vh;
         }
 
@@ -66,11 +68,11 @@
             background: transparent;
         }
         #sidebar::-webkit-scrollbar-thumb {
-            background: rgba(255,255,255,0.2);
+            background: rgba(var(--brand-sidebar-teks-rgb),0.2);
             border-radius: 2px;
         }
         #sidebar::-webkit-scrollbar-thumb:hover {
-            background: rgba(255,255,255,0.4);
+            background: rgba(var(--brand-sidebar-teks-rgb),0.4);
         }
 
         #sidebar .sidebar-brand {
@@ -79,7 +81,7 @@
             align-items: center;
             padding: 0 1rem;
             background: rgba(0,0,0,0.2);
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+            border-bottom: 1px solid rgba(var(--brand-sidebar-teks-rgb),0.1);
         }
 
         #sidebar .sidebar-brand .brand-logo {
@@ -91,14 +93,14 @@
             align-items: center;
             justify-content: center;
             font-size: 1.1rem;
-            color: white;
+            color: var(--brand-utama-teks);
             font-weight: bold;
             flex-shrink: 0;
         }
 
         #sidebar .sidebar-brand .brand-text {
             margin-left: 0.75rem;
-            color: white;
+            color: rgb(var(--brand-sidebar-teks-rgb));
         }
 
         #sidebar .sidebar-brand .brand-text .brand-name {
@@ -109,20 +111,20 @@
 
         #sidebar .sidebar-brand .brand-text .brand-sub {
             font-size: 0.7rem;
-            color: rgba(255,255,255,0.5);
+            color: rgba(var(--brand-sidebar-teks-rgb),0.5);
         }
 
         #sidebar .nav-section-title {
             font-size: 0.65rem;
             text-transform: uppercase;
             letter-spacing: 0.1em;
-            color: rgba(255,255,255,0.35);
+            color: rgba(var(--brand-sidebar-teks-rgb),0.35);
             padding: 1rem 1rem 0.25rem;
             font-weight: 600;
         }
 
         #sidebar .nav-link {
-            color: rgba(255,255,255,0.7);
+            color: rgba(var(--brand-sidebar-teks-rgb),0.7);
             padding: 0.55rem 1rem;
             border-radius: 0;
             display: flex;
@@ -133,12 +135,12 @@
         }
 
         #sidebar .nav-link:hover {
-            color: white;
+            color: var(--brand-utama-teks);
             background: var(--sidebar-hover);
         }
 
         #sidebar .nav-link.active {
-            color: white;
+            color: var(--brand-utama-teks);
             background: var(--sidebar-active);
         }
 
@@ -167,7 +169,7 @@
         #topbar {
             height: var(--topbar-height);
             background: white;
-            border-bottom: 1px solid #FF6B00;
+            border-bottom: 1px solid var(--brand-utama);
             position: fixed;
             top: 0;
             left: var(--sidebar-width);

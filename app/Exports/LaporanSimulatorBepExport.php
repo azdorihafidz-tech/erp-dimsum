@@ -158,7 +158,7 @@ class SimulatorBepSensitivitasSheet implements \Maatwebsite\Excel\Concerns\FromA
             $baselineCol = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($baselineColIdx + 2);
             $sheet->getStyle($baselineCol . $baselineRowIdx)->getFill()
                 ->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)
-                ->getStartColor()->setRGB('FFF8E7');
+                ->getStartColor()->setRGB(ltrim(app(\App\Support\Branding::class)->warna('latar'), '#')); // 4.48 — ikut Warna Latar
             $sheet->getStyle($baselineCol . $baselineRowIdx)->getFont()->setBold(true);
         }
 

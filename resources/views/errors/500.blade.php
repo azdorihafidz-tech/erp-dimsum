@@ -14,14 +14,14 @@
 
         {{-- Logo D'mentai --}}
         <div class="mx-auto mb-3 d-flex align-items-center justify-content-center"
-             style="width:64px;height:64px;border-radius:16px;background:#FFF8E7;box-shadow:0 4px 16px rgba(255,107,0,0.2)">
+             style="width:64px;height:64px;border-radius:16px;background:var(--brand-latar);box-shadow:0 4px 16px rgba(var(--brand-utama-rgb),0.2)">
             <img src="{{ $brand->logoUrl() }}" alt="{{ $brand->namaSingkat() }}" style="width:44px;height:44px;object-fit:contain">
         </div>
 
         {{-- Icon --}}
         <div class="mb-3">
             <i class="bi bi-exclamation-triangle-fill"
-               style="font-size:80px;color:#FF6B00;opacity:0.9;line-height:1"></i>
+               style="font-size:80px;color:var(--brand-utama);opacity:0.9;line-height:1"></i>
         </div>
 
         {{-- HTTP Code + Heading --}}
@@ -34,9 +34,9 @@
 
         {{-- Info card: waktu + kode referensi --}}
         <div class="card border-0 shadow-sm text-start mb-4"
-             style="background:#FFF8E7;border-left:4px solid #FF6B00 !important">
+             style="background:var(--brand-latar);border-left:4px solid var(--brand-utama) !important">
             <div class="card-body py-3 px-4">
-                <div class="fw-semibold mb-2" style="font-size:.75rem;color:#c2410c;text-transform:uppercase;letter-spacing:1px">
+                <div class="fw-semibold mb-2" style="font-size:.75rem;color:var(--brand-utama-gelap);text-transform:uppercase;letter-spacing:1px">
                     <i class="bi bi-info-circle me-1"></i>Detail Error
                 </div>
                 <table class="table table-sm table-borderless mb-0" style="font-size:.83rem">
@@ -48,7 +48,7 @@
                         <tr>
                             <td class="text-muted ps-0 py-1" style="vertical-align:middle">Kode Referensi</td>
                             <td class="py-1">
-                                <code class="fw-bold" style="color:#FF6B00;font-size:.9rem;letter-spacing:1px">
+                                <code class="fw-bold" style="color:var(--brand-utama);font-size:.9rem;letter-spacing:1px">
                                     {{ $errorRef }}
                                 </code>
                                 <button type="button"
@@ -72,7 +72,7 @@
         </div>
 
         <a href="{{ route('dashboard') }}" class="btn text-white px-4"
-           style="min-height:44px;padding-top:10px;padding-bottom:10px;background:linear-gradient(90deg,#1A1A1A,#FF6B00);border:none">
+           style="min-height:44px;padding-top:10px;padding-bottom:10px;background:linear-gradient(90deg,var(--brand-sidebar),var(--brand-utama));border:none">
             <i class="bi bi-arrow-left me-2"></i>Kembali ke Dashboard
         </a>
 

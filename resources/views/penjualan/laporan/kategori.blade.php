@@ -6,7 +6,7 @@
     $route = 'penjualan.laporan.kategori';
     $q = fn ($v) => rtrim(rtrim(number_format((float) $v, 3, ',', '.'), '0'), ',');
     $kolom = 8 + ($lihatUntung ? 3 : 0);
-    $WARNA = ['#FF6B00', '#1A1A1A', '#20A464', '#F4B400', '#3B82F6', '#8B5CF6', '#EC4899', '#14B8A6', '#94A3B8', '#B45309', '#0EA5E9', '#65A30D'];
+    $WARNA = [$brand->warna('utama'), '#1A1A1A', '#20A464', '#F4B400', '#3B82F6', '#8B5CF6', '#EC4899', '#14B8A6', '#94A3B8', '#B45309', '#0EA5E9', '#65A30D'];
     $warna = fn (int $i) => $WARNA[$i % count($WARNA)];
 @endphp
 
@@ -38,7 +38,7 @@
 {{-- Kotak total --}}
 <div class="row g-3 mb-3">
     <div class="col-6 {{ $lihatUntung ? 'col-lg-3' : 'col-lg-4' }}">
-        <div class="card border-0 shadow-sm h-100" style="border-left:4px solid #1A1A1A !important">
+        <div class="card border-0 shadow-sm h-100" style="border-left:4px solid var(--brand-sidebar) !important">
             <div class="card-body py-3">
                 <div class="text-muted small">Kategori terjual</div>
                 <div class="fs-4 fw-bold">{{ $baris->count() }} <span class="fs-6 fw-normal text-muted">kategori · {{ $baris->sum('jumlah_produk') }} produk</span></div>
@@ -54,10 +54,10 @@
         </div>
     </div>
     <div class="col-12 {{ $lihatUntung ? 'col-sm-6 col-lg-3' : 'col-lg-4' }}">
-        <div class="card border-0 shadow-sm h-100" style="border-left:4px solid #FF6B00 !important">
+        <div class="card border-0 shadow-sm h-100" style="border-left:4px solid var(--brand-utama) !important">
             <div class="card-body py-3">
                 <div class="text-muted small">Pendapatan produk <x-tooltip key="laporan_produk_kasir.pendapatan" /></div>
-                <div class="fs-4 fw-bold" style="color:#FF6B00">{{ fmt_rupiah($total['pendapatan']) }}</div>
+                <div class="fs-4 fw-bold" style="color:var(--brand-utama)">{{ fmt_rupiah($total['pendapatan']) }}</div>
                 @if($total['diskon'] > 0)
                 <div class="small text-muted">Sebelum diskon {{ fmt_rupiah($total['penjualan']) }} · diskon {{ fmt_rupiah($total['diskon']) }}</div>
                 @endif
@@ -83,7 +83,7 @@
 @if($baris->isNotEmpty())
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-header bg-white d-flex align-items-center justify-content-between flex-wrap gap-2">
-        <div class="fw-semibold"><i class="bi bi-pie-chart me-1" style="color:#FF6B00"></i>Porsi per kategori</div>
+        <div class="fw-semibold"><i class="bi bi-pie-chart me-1" style="color:var(--brand-utama)"></i>Porsi per kategori</div>
         <div class="btn-group btn-group-sm" role="group" aria-label="Ukuran grafik">
             <button type="button" class="btn btn-outline-secondary lk-metrik" data-metrik="pendapatan">Pendapatan</button>
             <button type="button" class="btn btn-outline-secondary lk-metrik" data-metrik="qty">Qty</button>
@@ -165,7 +165,7 @@
                     @endif
                 </tr>
                 @foreach($r['produk'] as $p)
-                <tr class="produk-{{ $i }} d-none" style="background:#FFF8E7">
+                <tr class="produk-{{ $i }} d-none" style="background:var(--brand-latar)">
                     <td></td>
                     <td class="ps-4 small"><i class="bi bi-arrow-return-right me-1 text-muted"></i>{{ $p['nama'] }}
                         @if($p['kode'])<span class="text-muted">· {{ $p['kode'] }}</span>@endif</td>
@@ -183,7 +183,7 @@
                 </tr>
                 @endforeach
                 @if($bolehLihatProduk)
-                <tr class="produk-{{ $i }} d-none" style="background:#FFF8E7">
+                <tr class="produk-{{ $i }} d-none" style="background:var(--brand-latar)">
                     <td></td>
                     <td colspan="{{ $kolom - 1 }}" class="ps-4 small">
                         <a href="{{ route('penjualan.laporan.produk', $periode['params'] + ['kategori' => $r['kategori_id'] ?? -1]) }}" class="text-decoration-none">
@@ -242,7 +242,7 @@
 
 @push('styles')
 <style>
-    .lk-metrik.active { background:#1A1A1A; color:#fff; border-color:#1A1A1A; }
+    .lk-metrik.active { background:var(--brand-sidebar); color:rgb(var(--brand-sidebar-teks-rgb)); border-color:var(--brand-sidebar); }
     .lk-legenda { display:flex; align-items:center; gap:8px; padding:6px 4px; border-bottom:1px dashed #eee; font-size:.85rem; }
     .lk-legenda:last-child { border-bottom:0; }
     .lk-legenda .nama { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }

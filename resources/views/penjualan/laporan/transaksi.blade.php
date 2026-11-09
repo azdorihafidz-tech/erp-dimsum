@@ -58,7 +58,7 @@
                 <input type="date" id="rentangSampai" name="sampai" class="form-control form-control-sm" required
                        value="{{ $isian[1]?->toDateString() }}" max="{{ today()->toDateString() }}">
             </div>
-            <button type="submit" class="btn btn-sm text-white" style="background:#FF6B00">
+            <button type="submit" class="btn btn-sm" style="background:var(--brand-utama);color:var(--brand-utama-teks)">
                 <i class="bi bi-search me-1"></i>Tampilkan
             </button>
         </form>
@@ -90,7 +90,7 @@
 {{-- Kotak total --}}
 <div class="row g-3 mb-3">
     <div class="col-6 {{ $lihatUntung ? 'col-lg-4' : 'col-lg-6' }}">
-        <div class="card border-0 shadow-sm h-100" style="border-left:4px solid #1A1A1A !important">
+        <div class="card border-0 shadow-sm h-100" style="border-left:4px solid var(--brand-sidebar) !important">
             <div class="card-body py-3">
                 <div class="text-muted small">Jumlah Transaksi</div>
                 <div class="fs-4 fw-bold">{{ number_format($total['transaksi'], 0, ',', '.') }}</div>
@@ -98,10 +98,10 @@
         </div>
     </div>
     <div class="col-6 {{ $lihatUntung ? 'col-lg-4' : 'col-lg-6' }}">
-        <div class="card border-0 shadow-sm h-100" style="border-left:4px solid #FF6B00 !important">
+        <div class="card border-0 shadow-sm h-100" style="border-left:4px solid var(--brand-utama) !important">
             <div class="card-body py-3">
                 <div class="text-muted small">Pendapatan <x-tooltip key="laporan_transaksi_kasir.pendapatan" /></div>
-                <div class="fs-4 fw-bold" style="color:#FF6B00">{{ fmt_rupiah($total['pendapatan']) }}</div>
+                <div class="fs-4 fw-bold" style="color:var(--brand-utama)">{{ fmt_rupiah($total['pendapatan']) }}</div>
             </div>
         </div>
     </div>
@@ -130,7 +130,7 @@
         <div class="card border-0 shadow-sm h-100 lt-grafik-card">
             <div class="card-header bg-white d-flex align-items-center justify-content-between flex-wrap gap-2">
                 <div class="fw-semibold">
-                    <i class="bi bi-graph-up me-1" style="color:#FF6B00"></i>Grafik per {{ $satuan }}
+                    <i class="bi bi-graph-up me-1" style="color:var(--brand-utama)"></i>Grafik per {{ $satuan }}
                     @unless($isTransaksi)<x-tooltip key="laporan_transaksi_kasir.tingkat" />@endunless
                 </div>
                 @if($grafik->isNotEmpty())
@@ -147,7 +147,7 @@
                 </div>
                 @else
                 <div class="d-flex flex-wrap gap-2 mb-3">
-                    <span class="lt-chip"><i class="bi bi-trophy-fill" style="color:#FF6B00"></i>
+                    <span class="lt-chip"><i class="bi bi-trophy-fill" style="color:var(--brand-utama)"></i>
                         Tertinggi: <strong>{{ $puncak['label'] ?? $puncak['label_pendek'] }}</strong> · {{ fmt_rupiah($puncak['pendapatan']) }}</span>
                     @if($isTransaksi)
                     <span class="lt-chip"><i class="bi bi-people-fill"></i>Tersibuk: <strong>{{ $tersibuk['label_pendek'] }}</strong> · {{ $tersibuk['transaksi'] }} transaksi</span>
@@ -255,8 +255,8 @@
 @push('styles')
 <style>
     .lt-chip { display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:999px;
-        background:#FFF8E7; border:1px solid #ffe2c4; font-size:.8rem; color:#1A1A1A; }
-    .lt-jenis.active { background:#1A1A1A; color:#fff; border-color:#1A1A1A; }
+        background:var(--brand-latar); border:1px solid rgba(var(--brand-utama-rgb),0.25); font-size:.8rem; color:#1A1A1A; }
+    .lt-jenis.active { background:var(--brand-sidebar); color:rgb(var(--brand-sidebar-teks-rgb)); border-color:var(--brand-sidebar); }
     .lt-grafik-card .card-header { border-bottom:1px solid #f1f1f1; }
 </style>
 @endpush
@@ -320,10 +320,10 @@
             data: d.pendapatan,
             yAxisID: 'y',
             order: 2,
-            backgroundColor: batang ? gradasi('#FF6B00', '#FF6B00', 'rgba(255,107,0,0.35)')
-                                    : gradasi('#FF6B00', 'rgba(255,107,0,0.35)', 'rgba(255,107,0,0)'),
-            hoverBackgroundColor: batang ? '#E55F00' : undefined,
-            borderColor: '#FF6B00',
+            backgroundColor: batang ? gradasi(BRAND.utama, BRAND.utama, `rgba(${BRAND.utamaRgb},0.35)`)
+                                    : gradasi(BRAND.utama, `rgba(${BRAND.utamaRgb},0.35)`, `rgba(${BRAND.utamaRgb},0)`),
+            hoverBackgroundColor: batang ? BRAND.utamaGelap : undefined,
+            borderColor: BRAND.utama,
             borderWidth: batang ? 0 : 3,
             borderRadius: 8,
             borderSkipped: false,
@@ -333,7 +333,7 @@
             pointRadius: batang ? 0 : 3,
             pointHoverRadius: 6,
             pointBackgroundColor: '#fff',
-            pointBorderColor: '#FF6B00',
+            pointBorderColor: BRAND.utama,
             pointBorderWidth: 2,
         }];
         @if($lihatUntung)

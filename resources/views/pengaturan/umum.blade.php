@@ -172,6 +172,86 @@
 
                 </div>
             </div>
+
+            {{-- 4.48 — Warna Aplikasi --}}
+            @php
+                $warnaForm = [
+                    'utama'   => ['label' => 'Warna Utama', 'ket' => 'Menu aktif, sorotan, grafik, judul laporan PDF'],
+                    'sidebar' => ['label' => 'Warna Sidebar', 'ket' => 'Latar menu di kiri & halaman login'],
+                    'latar'   => ['label' => 'Warna Latar Halaman', 'ket' => 'Latar di belakang kartu & header tabel Excel/PDF (harus warna terang)'],
+                ];
+            @endphp
+            <div class="card mt-4" id="kartuWarna">
+                <div class="card-header py-3 px-4 d-flex align-items-center flex-wrap gap-2">
+                    <i class="bi bi-palette me-1 text-primary"></i>
+                    <span class="fw-semibold">Warna Aplikasi</span>
+                    <x-tooltip key="pengaturan_umum.warna" placement="top" />
+                    <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" id="btnWarnaBawaan" onclick="pakaiTema('bawaan')">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>Kembalikan ke warna bawaan
+                    </button>
+                </div>
+                <div class="card-body p-4">
+                    <div class="fw-medium mb-2" style="font-size:.875rem">Tema siap pakai</div>
+                    <div class="d-flex flex-wrap gap-2 mb-4" id="pilihanTema">
+                        @foreach(\App\Support\Branding::TEMA as $kunci => $tema)
+                        <button type="button" class="btn btn-sm btn-light border d-flex align-items-center gap-2 tema-btn"
+                                data-tema="{{ $kunci }}" onclick="pakaiTema('{{ $kunci }}')">
+                            <span class="d-inline-flex rounded overflow-hidden border" style="width:42px;height:18px">
+                                <span style="flex:1;background:{{ $tema['sidebar'] }}"></span>
+                                <span style="flex:1;background:{{ $tema['utama'] }}"></span>
+                                <span style="flex:1;background:{{ $tema['latar'] }}"></span>
+                            </span>
+                            {{ $tema['label'] }}
+                        </button>
+                        @endforeach
+                    </div>
+
+                    <div class="row g-3 align-items-start">
+                        <div class="col-md-7">
+                            @foreach($warnaForm as $jenis => $w)
+                            @php $nilai = old('warna_' . $jenis, $brand->warna($jenis)); @endphp
+                            <div class="mb-3">
+                                <label for="warna_{{ $jenis }}" class="form-label fw-medium mb-1">{{ $w['label'] }}</label>
+                                <div class="d-flex align-items-center gap-2">
+                                    <input type="color" class="form-control form-control-color warna-pilih" id="warna_{{ $jenis }}_pilih"
+                                           data-jenis="{{ $jenis }}" value="{{ strtolower($nilai) }}" title="Pilih warna">
+                                    <input type="text" id="warna_{{ $jenis }}" name="warna_{{ $jenis }}" maxlength="7"
+                                           class="form-control warna-hex @error('warna_' . $jenis) is-invalid @enderror" style="max-width:120px"
+                                           data-jenis="{{ $jenis }}" value="{{ strtoupper($nilai) }}" placeholder="#RRGGBB">
+                                </div>
+                                <div class="form-text">{{ $w['ket'] }}</div>
+                                @error('warna_' . $jenis)
+                                    <div class="invalid-feedback d-block">{{ $message }}</div>
+                                @enderror
+                            </div>
+                            @endforeach
+                        </div>
+                        <div class="col-md-5">
+                            <div class="fw-medium mb-2" style="font-size:.875rem">Pratinjau</div>
+                            <div class="border rounded-3 overflow-hidden d-flex" id="pratinjauWarna" style="height:170px;font-size:.72rem">
+                                <div class="pw-sidebar d-flex flex-column py-2" style="width:42%">
+                                    <div class="px-2 mb-2 fw-bold pw-teks-sidebar">{{ $brand->namaSingkat() }}</div>
+                                    <div class="px-2 py-1 pw-teks-sidebar" style="opacity:.7">Dashboard</div>
+                                    <div class="px-2 py-1 pw-aktif">POS - Kasir</div>
+                                    <div class="px-2 py-1 pw-teks-sidebar" style="opacity:.7">Laporan</div>
+                                </div>
+                                <div class="pw-latar flex-grow-1 p-2">
+                                    <div class="bg-white rounded border p-2 mb-2">
+                                        <div class="text-muted">Pendapatan</div>
+                                        <div class="fw-bold pw-teks-utama" style="font-size:.95rem">Rp 2.042.000</div>
+                                    </div>
+                                    <div class="d-flex align-items-end gap-1" style="height:46px">
+                                        @foreach([40, 70, 55, 90, 65] as $t)
+                                        <div class="pw-batang rounded-top" style="flex:1;height:{{ $t }}%"></div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-text">Tampilan seluruh aplikasi ikut berubah setelah <strong>Simpan Pengaturan</strong>. Warna tombol (Simpan, Hapus, dll) tidak berubah.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         {{-- Kolom Kanan --}}
@@ -194,6 +274,10 @@
                     <p class="text-muted mb-2">
                         <i class="bi bi-tv me-1 text-primary"></i>
                         <strong>TV Display Antrian</strong> — logo &amp; nama usaha.
+                    </p>
+                    <p class="text-muted mb-2">
+                        <i class="bi bi-palette me-1 text-primary"></i>
+                        <strong>Warna Aplikasi</strong> — sidebar, menu aktif, latar halaman, login, grafik, judul &amp; header tabel laporan PDF/Excel. Berlaku untuk semua cabang.
                     </p>
                     <p class="text-muted mb-0">
                         <i class="bi bi-phone me-1 text-primary"></i>
@@ -222,6 +306,55 @@
 
 @push('scripts')
 <script>
+// 4.48 — Warna Aplikasi: tema, pemilih warna, pratinjau (aturan teks sama dgn App\Support\Branding)
+const TEMA_WARNA = @json(\App\Support\Branding::TEMA);
+function hexValid(v) { v = String(v || '').trim().toUpperCase(); if (/^[0-9A-F]{6}$/.test(v)) v = '#' + v; return /^#[0-9A-F]{6}$/.test(v) ? v : null; }
+function luminansi(hex) {
+    return [1, 3, 5].map(i => parseInt(hex.substr(i, 2), 16) / 255)
+        .map(c => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4))
+        .reduce((t, c, i) => t + c * [0.2126, 0.7152, 0.0722][i], 0);
+}
+function teksDiAtas(hex) { return 1.05 / (luminansi(hex) + 0.05) >= 2.5 ? '#FFFFFF' : '#1A1A1A'; }
+function nilaiWarna(jenis) { return hexValid(document.getElementById('warna_' + jenis).value); }
+function setWarna(jenis, hex) {
+    document.getElementById('warna_' + jenis).value = hex;
+    document.getElementById('warna_' + jenis + '_pilih').value = hex.toLowerCase();
+}
+function perbaruiPratinjau() {
+    const u = nilaiWarna('utama'), s = nilaiWarna('sidebar'), l = nilaiWarna('latar');
+    const kotak = document.getElementById('pratinjauWarna');
+    if (!kotak) return;
+    if (s) { kotak.querySelector('.pw-sidebar').style.background = s; kotak.querySelectorAll('.pw-teks-sidebar').forEach(e => e.style.color = teksDiAtas(s)); }
+    if (u) {
+        const aktif = kotak.querySelector('.pw-aktif'); aktif.style.background = u; aktif.style.color = teksDiAtas(u);
+        kotak.querySelectorAll('.pw-teks-utama').forEach(e => e.style.color = u);
+        kotak.querySelectorAll('.pw-batang').forEach(e => e.style.background = u);
+    }
+    if (l) kotak.querySelector('.pw-latar').style.background = l;
+    const peringatan = l && teksDiAtas(l) === '#FFFFFF';
+    document.getElementById('warna_latar').classList.toggle('is-invalid', !!peringatan);
+    document.querySelectorAll('.tema-btn').forEach(b => {
+        const t = TEMA_WARNA[b.dataset.tema];
+        b.classList.toggle('border-primary', t.utama === u && t.sidebar === s && t.latar === l);
+    });
+}
+function pakaiTema(kunci) {
+    const t = TEMA_WARNA[kunci];
+    if (!t) return;
+    ['utama', 'sidebar', 'latar'].forEach(j => setWarna(j, t[j]));
+    perbaruiPratinjau();
+}
+document.querySelectorAll('.warna-pilih').forEach(el => el.addEventListener('input', function () {
+    document.getElementById('warna_' + this.dataset.jenis).value = this.value.toUpperCase();
+    perbaruiPratinjau();
+}));
+document.querySelectorAll('.warna-hex').forEach(el => el.addEventListener('input', function () {
+    const hex = hexValid(this.value);
+    if (hex) document.getElementById('warna_' + this.dataset.jenis + '_pilih').value = hex.toLowerCase();
+    perbaruiPratinjau();
+}));
+perbaruiPratinjau();
+
 function previewLogo(input) {
     const preview = document.getElementById('logoPreview');
     if (input.files && input.files[0] && preview) {
