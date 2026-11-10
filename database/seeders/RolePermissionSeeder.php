@@ -74,6 +74,7 @@ class RolePermissionSeeder extends Seeder
             ...ClosingPermissionSeeder::ROLE_DEFAULTS['admin_pusat'],
             'label_cup.print', // 4.44 Poin 2 — Label Produk
             ...LaporanPenjualanKasirSeeder::ROLE_DEFAULTS['admin_pusat'], // 4.46
+            ...Porting449Seeder::ROLE_DEFAULTS['admin_pusat'], // 4.49
         ],
 
         'admin_gudang' => [
@@ -98,6 +99,7 @@ class RolePermissionSeeder extends Seeder
             'pemakaian_perlengkapan.view', 'pemakaian_perlengkapan.create',
             // Master Varian Produk (Tahap 2 D'mentai) — DB+Model saja, UI Tahap 3
             'master.item_varian.view', 'master.item_varian.create', 'master.item_varian.edit', 'master.item_varian.delete',
+            ...Porting449Seeder::ROLE_DEFAULTS['admin_gudang'], // 4.49
         ],
 
         'manajer_cabang' => [
@@ -139,6 +141,7 @@ class RolePermissionSeeder extends Seeder
             ...ClosingPermissionSeeder::ROLE_DEFAULTS['manajer_cabang'],
             'label_cup.print', // 4.44 Poin 2 — Label Produk
             ...LaporanPenjualanKasirSeeder::ROLE_DEFAULTS['manajer_cabang'], // 4.46
+            ...Porting449Seeder::ROLE_DEFAULTS['manajer_cabang'], // 4.49
         ],
 
         'kasir' => [
@@ -164,6 +167,7 @@ class RolePermissionSeeder extends Seeder
             ...ClosingPermissionSeeder::ROLE_DEFAULTS['kasir'],
             'label_cup.print', // 4.44 Poin 2 — Label Produk
             ...LaporanPenjualanKasirSeeder::ROLE_DEFAULTS['kasir'], // 4.46
+            ...Porting449Seeder::ROLE_DEFAULTS['kasir'], // 4.49
         ],
 
         'operator_produksi' => [
@@ -181,6 +185,7 @@ class RolePermissionSeeder extends Seeder
             'scan_absensi',
             // Antrian — operator bisa kelola & lihat display
             'antrian.lihat', 'antrian.kelola', 'antrian.display',
+            ...Porting449Seeder::ROLE_DEFAULTS['operator_produksi'], // 4.49
         ],
 
         'helper' => [

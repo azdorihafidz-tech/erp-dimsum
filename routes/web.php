@@ -244,6 +244,22 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
     Route::post('/stock-transfer/{stockTransfer}/terima', [StockTransferController::class, 'terima'])->name('stock-transfer.terima');
     Route::post('/stock-transfer/{stockTransfer}/batalkan', [StockTransferController::class, 'batalkan'])->name('stock-transfer.batalkan');
 
+    // ===== 4.49 Tahap B1 — PRODUKSI bahan setengah jadi di gudang (porting erp-coffeeshop) =====
+    Route::prefix('produksi')->name('produksi.')->controller(\App\Http\Controllers\ProduksiController::class)->group(function () {
+        Route::get('/resep', 'resepIndex')->name('resep.index');
+        Route::get('/resep/create', 'resepCreate')->name('resep.create');
+        Route::post('/resep', 'resepStore')->name('resep.store');
+        Route::get('/resep/{resep}/edit', 'resepEdit')->name('resep.edit');
+        Route::put('/resep/{resep}', 'resepUpdate')->name('resep.update');
+        Route::delete('/resep/{resep}', 'resepDestroy')->name('resep.destroy');
+
+        Route::get('/', 'index')->name('index');
+        Route::get('/create', 'create')->name('create');
+        Route::post('/', 'store')->name('store');
+        Route::get('/{produksi}', 'show')->name('show');
+        Route::post('/{produksi}/batalkan', 'batalkan')->name('batalkan');
+    });
+
     // ===== MANAJEMEN USER (Owner / Admin Pusat / Manajer Cabang) =====
     // 4.43: per aksi mengikuti centangan (dulu role:owner,admin_pusat,manajer_cabang)
     Route::resource('user', UserController::class)->only(['create', 'store'])->middleware('can:user.create');

@@ -260,6 +260,7 @@ class PermissionSeeder extends Seeder
             // 4.46 — Laporan Transaksi/Produk/Kategori di menu Penjualan (bisa dibuka kasir)
             ...LaporanPenjualanKasirSeeder::PERMISSIONS,
             PosUbahHargaSeeder::PERMISSION,
+            ...Porting449Seeder::PERMISSIONS, // 4.49 — produksi/kiriman/retur (porting coffeeshop)
 
             // Chart of Accounts (Fase 1 Akuntansi) — Owner-only default, sama
             // pola dengan master.resep_bumbu.* dan lihat_backup/dll. Kalau perlu

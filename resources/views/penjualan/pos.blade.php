@@ -27,6 +27,47 @@
 .item-tambahan-card:hover { border-color: var(--brand-utama); }
 .btn-tipe-transaksi.active { background: var(--brand-sidebar) !important; color: rgb(var(--brand-sidebar-teks-rgb)) !important; border-color: var(--brand-sidebar) !important; }
 
+/* ══ 4.49 Tahap C — Tampilan HP (≤ 575px), porting erp-coffeeshop 512ccb2. Tablet & PC tidak terpengaruh. ══ */
+#posBarHp { display: none; }
+@media (max-width: 575.98px) {
+    /* Header ringkas: teks tombol disembunyikan, mode Desktop/Tablet tidak relevan di HP */
+    #posHeader { flex-wrap: wrap; gap: .5rem; }
+    #posHeader .pos-mode-toggle, #posHeader .pos-hp-sembunyi { display: none !important; }
+
+    /* Kartu produk 3 kolom, gambar pendek supaya daftar tidak terlalu panjang */
+    .pos-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; }
+    .pos-card .thumb { aspect-ratio: auto; height: 56px; font-size: 1.4rem; }
+    .pos-card .body { padding: .3rem .35rem; }
+    .pos-card .nama { font-size: .72rem; min-height: 2.4em; }
+    .pos-card .harga { font-size: .72rem; }
+    .pos-card .badge { font-size: .6rem; }
+    #filterKategoriGrid { flex-wrap: nowrap !important; overflow-x: auto; padding-bottom: 2px; }
+    #filterKategoriGrid .cat-pill { flex: 0 0 auto; }
+
+    /* Kartu Pelanggan dilipat (biasanya kosong untuk pembeli walk-in) */
+    #cardPelanggan .card-header { cursor: pointer; }
+    #cardPelanggan .card-header::after { content: ' ▾ (opsional)'; color: #6c757d; font-size: .8rem; }
+    #cardPelanggan.hp-buka .card-header::after { content: ' ▴'; }
+    #cardPelanggan:not(.hp-buka) .card-body { display: none; }
+
+    /* Ringkasan tidak sticky saat ditumpuk di bawah */
+    #panelBayar { position: static !important; }
+
+    /* Bilah keranjang melayang di bawah layar */
+    #posBarHp {
+        display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 1040;
+        align-items: center; gap: .5rem; padding: .55rem .75rem calc(.55rem + env(safe-area-inset-bottom));
+        background: var(--brand-sidebar); color: rgb(var(--brand-sidebar-teks-rgb)); box-shadow: 0 -4px 14px rgba(0,0,0,.25);
+    }
+    #posBarHp .info { flex: 1; line-height: 1.15; min-width: 0; }
+    #posBarHp .info .jml { font-size: .75rem; opacity: .8; }
+    #posBarHp .info .total { font-size: 1.05rem; font-weight: 700; }
+    #posBarHp.kosong .btn-bayar { opacity: .5; }
+    #posBarHp.denyut { animation: posBarDenyut .35s ease; }
+    @keyframes posBarDenyut { 50% { transform: translateY(-4px); } }
+    body.pos-ada-bar #main-content { padding-bottom: 84px !important; }
+}
+
 /* Dropdown salinan — stack vertikal di layar sangat sempit */
 @media (max-width: 360px) {
     #sectionSalinan { flex-wrap: wrap; }
@@ -167,7 +208,7 @@ body.pos-tablet-mode .pos-bayar-kaki { padding: 0 10px 7px; }
 @endpush
 
 @section('content')
-<div class="d-flex align-items-center justify-content-between mb-3">
+<div class="d-flex align-items-center justify-content-between mb-3" id="posHeader">
     <div>
         <h5 class="mb-0 fw-bold"><i class="bi bi-cart3 me-2 text-success"></i>POS - Kasir</h5>
         <small class="text-muted">Cabang aktif: {{ session('cabang_aktif_nama') ?? 'Cabang' }}</small>
@@ -175,16 +216,16 @@ body.pos-tablet-mode .pos-bayar-kaki { padding: 0 10px 7px; }
     <div class="d-flex gap-2 align-items-center">
         @can('antrian.lihat')
         <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#modalCekAntrian">
-            <i class="bi bi-search me-1"></i>Cek Antrian
+            <i class="bi bi-search me-1"></i><span class="pos-hp-sembunyi">Cek Antrian</span>
         </button>
         @endcan
         @can('kas.buka_laci')
         <button type="button" class="btn btn-sm btn-outline-warning" onclick="bukaLaciManual()">
-            <i class="bi bi-unlock me-1"></i>Buka Laci
+            <i class="bi bi-unlock me-1"></i><span class="pos-hp-sembunyi">Buka Laci</span>
         </button>
         @endcan
         {{-- Toggle Mode Tampilan --}}
-        <div class="d-flex align-items-center gap-1">
+        <div class="d-flex align-items-center gap-1 pos-mode-toggle">
             <div class="btn-group btn-group-sm" role="group">
                 <button type="button" id="btnModeDesktop" class="btn btn-outline-secondary"
                         onclick="setModeTampilan('desktop')" title="Mode Desktop">
@@ -275,7 +316,7 @@ body.pos-tablet-mode .pos-bayar-kaki { padding: 0 10px 7px; }
             </div>
 
             {{-- Pelanggan --}}
-            <div class="card mb-3">
+            <div class="card mb-3" id="cardPelanggan">
                 <div class="card-header">Pelanggan</div>
                 <div class="card-body">
                     <div class="row g-2">
@@ -373,7 +414,7 @@ body.pos-tablet-mode .pos-bayar-kaki { padding: 0 10px 7px; }
             {{-- Item Order (keranjang) — diisi otomatis lewat klik grid produk
                  di atas. Tombol "+ Tambah Manual" tetap ada sebagai fallback
                  (mis. produk belum sempat difoto/di-setup di grid). --}}
-            <div class="card">
+            <div class="card" id="cardItemOrder">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <span>Item Order <x-tooltip key="pos.harga_unit" /></span>
                     <button type="button" class="btn btn-sm btn-outline-success" onclick="tambahProduk()">
@@ -637,6 +678,13 @@ body.pos-tablet-mode .pos-bayar-kaki { padding: 0 10px 7px; }
         </div>
     </div>
 </form>
+
+{{-- 4.49 Tahap C — Tampilan HP: bilah keranjang melayang (CSS hanya menampilkannya di layar ≤ 575px) --}}
+<div id="posBarHp" class="kosong">
+    <div class="info"><div class="jml" id="posBarJml">Keranjang kosong</div><div class="total" id="posBarTotal">Rp 0</div></div>
+    <button type="button" class="btn btn-sm btn-outline-light" id="posBarKeranjang"><i class="bi bi-cart3"></i> Keranjang</button>
+    <button type="button" class="btn btn-sm btn-success fw-semibold btn-bayar" id="posBarBayar">Bayar ▸</button>
+</div>
 
 {{--
     Tahap 7 D'mentai (Bug 2 fix) — Bill Tersimpan dipindah ke PALING BAWAH
@@ -2239,6 +2287,47 @@ async function bukaLaciManual() {
         await window.showAlert('success', 'Berhasil', 'Laci berhasil dibuka.');
     }
 }
+// ══ 4.49 Tahap C — Tampilan HP (≤ 575px): bilah keranjang melayang + kartu Pelanggan dilipat ══
+// Porting erp-coffeeshop 512ccb2. Hanya MEMBACA keranjang & total yang sudah ada (MutationObserver) —
+// alur POS tidak diubah. Jumlah = total qty (produk sama digabung jadi qty sejak 4.47).
+(function () {
+    const bar = document.getElementById('posBarHp');
+    if (!bar) return;
+    document.body.classList.add('pos-ada-bar');
+    const isHp = () => window.matchMedia('(max-width: 575.98px)').matches;
+    const ke = id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const atas = el.getBoundingClientRect().top + window.scrollY - 64;
+        window.scrollTo({ top: Math.max(0, atas), behavior: 'smooth' });
+    };
+    document.getElementById('posBarKeranjang')?.addEventListener('click', () => ke('cardItemOrder'));
+    document.getElementById('posBarBayar')?.addEventListener('click', () => ke('panelBayar'));
+
+    const kartuPelanggan = document.getElementById('cardPelanggan');
+    kartuPelanggan?.querySelector('.card-header')?.addEventListener('click', () => {
+        if (isHp()) kartuPelanggan.classList.toggle('hp-buka');
+    });
+
+    let jmlLama = 0;
+    function perbarui() {
+        let jml = 0;
+        document.querySelectorAll('#itemContainer .pos-item-row .qty-input').forEach(q => { jml += parseFloat(q.value) || 0; });
+        jml = Math.round(jml * 100) / 100;
+        document.getElementById('posBarJml').textContent = jml ? jml.toLocaleString('id-ID') + ' item di keranjang' : 'Keranjang kosong';
+        document.getElementById('posBarTotal').textContent = document.getElementById('totalBayarDisplay')?.textContent || 'Rp 0';
+        bar.classList.toggle('kosong', jml === 0);
+        if (jml > jmlLama) { bar.classList.remove('denyut'); void bar.offsetWidth; bar.classList.add('denyut'); }
+        jmlLama = jml;
+    }
+    const amati = new MutationObserver(perbarui);
+    ['itemContainer', 'totalBayarDisplay'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) amati.observe(el, { childList: true, subtree: true, characterData: true });
+    });
+    document.getElementById('itemContainer')?.addEventListener('input', perbarui);
+    perbarui();
+})();
 </script>
 @endpush
 @endsection

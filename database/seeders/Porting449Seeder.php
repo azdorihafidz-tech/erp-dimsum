@@ -3,8 +3,11 @@
 namespace Database\Seeders;
 
 use App\Models\Panduan;
+use App\Models\Permission;
 use App\Models\Tooltip;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 /**
  * 4.49 — porting dari erp-coffeeshop (CLAUDE.md coffeeshop 4.50/4.51/12.15):
@@ -19,12 +22,149 @@ use Illuminate\Database\Seeder;
  */
 class Porting449Seeder extends Seeder
 {
+    /** Izin baru 4.49 (juga di-spread ke PermissionSeeder utk instalasi baru). */
+    public const PERMISSIONS = [
+        ['name' => 'produksi.view',         'display_name' => 'Lihat Produksi (bahan setengah jadi di gudang)', 'group' => 'stok'],
+        ['name' => 'produksi.create',       'display_name' => 'Catat Produksi',                                 'group' => 'stok'],
+        ['name' => 'produksi.batalkan',     'display_name' => 'Batalkan Produksi',                              'group' => 'stok'],
+        ['name' => 'produksi.resep.kelola', 'display_name' => 'Kelola Resep Produksi',                          'group' => 'stok'],
+    ];
+
+    /**
+     * Centangan bawaan — HANYA dipasang saat izin itu pertama kali dibuat,
+     * supaya centangan yang sudah diubah Owner tidak pernah ditimpa. Juga
+     * di-spread ke RolePermissionSeeder utk instalasi baru. Owner selalu bisa (Gate::before).
+     */
+    public const ROLE_DEFAULTS = [
+        'admin_pusat'       => ['produksi.view', 'produksi.create', 'produksi.batalkan', 'produksi.resep.kelola'],
+        'admin_gudang'      => ['produksi.view', 'produksi.create', 'produksi.batalkan', 'produksi.resep.kelola'],
+        'manajer_cabang'    => [],
+        'kasir'             => [],
+        'operator_produksi' => ['produksi.view', 'produksi.create'],
+    ];
+
     public function run(): void
     {
+        $baru = $this->izin();
         $this->labelGambar();
+        $this->posHp();
+        $this->produksi();
+
+        if ($baru) {
+            $this->command?->info('   Izin baru dibuat: ' . implode(', ', $baru));
+        }
 
         $this->command?->info('✅ Porting 4.49: panduan & tooltip (idempotent).');
     }
+
+    /**
+     * Buat izin yang belum ada; role bawaan hanya dicentang untuk izin yang BARU dibuat.
+     *
+     * @return string[] nama izin yang baru dibuat
+     */
+    private function izin(): array
+    {
+        $baru = [];
+        foreach (self::PERMISSIONS as $p) {
+            $perm = Permission::firstOrCreate(['name' => $p['name']], ['display_name' => $p['display_name'], 'group' => $p['group']]);
+            if (! $perm->wasRecentlyCreated) {
+                continue;
+            }
+            $baru[] = $p['name'];
+            $rows = [];
+            foreach (self::ROLE_DEFAULTS as $role => $names) {
+                if (in_array($p['name'], $names, true)) {
+                    $rows[] = ['role' => $role, 'permission_id' => $perm->id];
+                }
+            }
+            DB::table('role_permissions')->insertOrIgnore($rows);
+        }
+
+        Cache::forget('all_permission_names');
+        foreach (array_keys(self::ROLE_DEFAULTS) as $role) {
+            Cache::forget("role_permissions_{$role}");
+        }
+
+        return $baru;
+    }
+
+    // ===================== Tahap B1 — Produksi =====================
+
+    private function produksi(): void
+    {
+        Panduan::updateOrCreate(['slug' => 'produksi'], [
+            'judul'  => 'Produksi Bahan Setengah Jadi',
+            'konten' => self::PANDUAN_PRODUKSI,
+            'modul'  => 'stok',
+            'urutan' => 45,
+            'aktif'  => true,
+        ]);
+
+        foreach ([
+            ['key' => 'produksi.barang_hasil', 'title' => 'Barang hasil',
+                'content' => 'Barang setengah jadi yang dibuat, mis. Isian Ayam atau Chili Oil. Daftarkan dulu di Bahan Baku & Kemasan milik gudang ini (satuan kg/liter/pcs).'],
+            ['key' => 'produksi.qty_hasil_resep', 'title' => 'Hasil per resep',
+                'content' => 'Jumlah barang hasil dari 1 kali resep (dalam satuan barang hasil). Mis. resep ini menghasilkan 2 kg isian.'],
+            ['key' => 'produksi.satuan_takaran', 'title' => 'Satuan takaran',
+                'content' => 'Boleh beda dengan satuan stok bahan: g/kg/ons dan ml/liter dikonversi otomatis (mis. 250 g dari bahan yang stoknya kg = 0,25 kg).'],
+            ['key' => 'produksi.qty_rencana', 'title' => 'Rencana dibuat',
+                'content' => 'Jumlah yang direncanakan. Bahan dipotong dari stok gudang sebanyak resep × rencana ini.'],
+            ['key' => 'produksi.qty_hasil', 'title' => 'Hasil nyata',
+                'content' => 'Jumlah yang benar-benar jadi (boleh beda dari rencana, mis. rencana 5 kg jadi 4,8 kg). Stok barang hasil bertambah sebanyak angka ini.'],
+            ['key' => 'produksi.modal', 'title' => 'Modal per unit',
+                'content' => 'Otomatis = total biaya bahan (FIFO) ÷ hasil nyata. Bisa diisi manual kalau perlu. Modal ini dipakai sebagai HPP saat barang hasil terpakai di penjualan.'],
+            ['key' => 'produksi.batalkan', 'title' => 'Batalkan produksi',
+                'content' => 'Stok hasil ditarik dan bahan dikembalikan. Hanya bisa kalau stok hasil di gudang masih cukup (belum terpakai/terkirim).'],
+        ] as $i => $t) {
+            Tooltip::updateOrCreate(['key' => $t['key']], [
+                'title' => $t['title'], 'content' => $t['content'], 'modul' => 'stok', 'aktif' => true, 'urutan' => 80 + $i,
+            ]);
+        }
+    }
+
+    public const PANDUAN_PRODUKSI = <<<'MARKDOWN'
+## Tujuan
+Mencatat pembuatan **bahan setengah jadi** di gudang — mis. isian ayam, saus, chili oil, adonan — dari bahan baku. Saat produksi disimpan:
+- stok bahan baku di gudang **berkurang** sesuai resep (modal FIFO),
+- stok barang hasil **bertambah** sebanyak hasil nyata, dengan **modal per unit** = biaya bahan ÷ hasil nyata.
+
+Barang hasil lalu bisa dipakai di **komposisi Produk Jual**, dikirim ke cabang, atau dijual. HPP penjualan otomatis memakai modal produksi ini.
+
+Produksi hanya dicatat di cabang bertipe **Gudang Pusat**. Data barang terpisah per cabang, jadi barang hasil dan bahannya harus barang **milik gudang itu**.
+
+## Langkah-langkah
+
+### 1. Daftarkan barang hasil (sekali)
+Di **Bahan Baku & Kemasan** (cabang aktif = gudang), tambahkan barang hasil seperti bahan biasa, mis. "Isian Ayam" satuan **kg**.
+
+### 2. Buat Resep Produksi (sekali)
+1. Buka **Stok & Gudang → Produksi → tab Resep Produksi → Resep Baru**.
+2. Pilih **Barang hasil** dan isi **Hasil per resep** (mis. 2 kg).
+3. Tambahkan bahan beserta **takaran** dan **satuan** (g/kg/ons/ml/liter/pcs). Takaran gram dari bahan yang stoknya kg dikonversi otomatis.
+4. Lihat **Perkiraan modal per unit** di bawah tabel, lalu **Simpan Resep**.
+
+### 3. Catat produksi (setiap kali memasak)
+1. **Produksi → Catat Produksi**, pilih barang yang dibuat.
+2. Isi **Rencana dibuat** — tabel menampilkan kebutuhan bahan dan stok gudang (merah = kurang).
+3. Setelah selesai masak isi **Hasil nyata** (mis. rencana 5 kg, jadi 4,8 kg).
+4. Modal per unit dihitung otomatis; nyalakan **Isi modal per unit secara manual** kalau perlu.
+5. **Simpan Produksi**.
+
+### 4. Batalkan (kalau salah input)
+Buka detail produksi → isi alasan → **Batalkan Produksi**. Stok hasil ditarik dan bahan dikembalikan dengan modal semula. Hanya bisa kalau stok hasil di gudang masih cukup (belum terpakai/terkirim) — kalau sudah terpakai, koreksi lewat **Penyesuaian Stok**.
+
+## Catatan Penting
+- Resep Produksi **berbeda** dengan komposisi Produk Jual: resep produksi dipakai saat **memasak**, komposisi dipotong saat **menu terjual**.
+- Perkiraan biaya di form memakai harga FIFO bahan (stok habis → harga PO terakhir, belum pernah PO → Harga Standar). Angka pasti dihitung saat disimpan.
+- **Harga Standar** barang hasil hanya diisi otomatis kalau masih kosong — angka yang sudah Anda isi tidak ditimpa.
+- Izin: Lihat/Catat Produksi, Batalkan Produksi, Kelola Resep Produksi — diatur di **Role & Hak Akses**.
+
+## Troubleshooting
+- **Menu Produksi kosong / ada peringatan gudang?** Produksi butuh cabang bertipe Gudang Pusat yang Anda kelola.
+- **Barang tidak muncul di pilihan resep?** Pastikan barang itu milik gudang (pilih gudang di pojok kanan atas lalu cek di Bahan Baku & Kemasan) dan tipenya Bahan Baku/Kemasan/Tambahan Gratis.
+- **"Stok bahan di gudang tidak cukup"?** Pesan menyebut semua bahan yang kurang — tambah stok lewat Pembelian atau Penyesuaian Stok dulu.
+- **Perkiraan biaya "harga kosong"?** Bahan belum punya stok berharga, PO, maupun Harga Standar — isi Harga Standar di Bahan Baku & Kemasan.
+MARKDOWN;
 
     // ===================== Tahap D — Label Produk gambar =====================
 
@@ -85,5 +225,26 @@ Kalau satu perangkat masih sedikit meleset, di jendela Label Produk buka **⚙�
 Pastikan juga **ukuran stiker** di Cabang → Edit sama dengan stiker yang terpasang (mis. 40 × 30 mm).
 
 **Catatan pesanan** (kolom Catatan di POS) ikut tercetak di setiap stiker pesanan itu, di bawah catatan item.
+MARKDOWN;
+
+    // ===================== Tahap C — POS tampilan HP =====================
+
+    private function posHp(): void
+    {
+        $p = Panduan::where('slug', 'pos')->first();
+        if ($p && ! str_contains((string) $p->konten, '<!-- POS-HP-449 -->')) {
+            $p->update(['konten' => rtrim((string) $p->konten) . "\n\n" . self::BAGIAN_POS_HP]);
+        }
+    }
+
+    public const BAGIAN_POS_HP = <<<'MARKDOWN'
+<!-- POS-HP-449 -->
+## Memakai POS di HP
+Di layar HP, POS otomatis memakai tampilan ringkas (tablet & PC tidak berubah):
+- Produk tampil **3 kolom** dengan gambar kecil; deretan kategori bisa digeser ke samping.
+- Kartu **Pelanggan** dilipat — ketuk judulnya kalau perlu mengisi nama/telepon.
+- **Bilah di bawah layar** selalu menampilkan jumlah item & total. Ketuk **Keranjang** untuk melihat/mengubah item, **Bayar ▸** untuk langsung ke bagian pembayaran.
+- Tombol Mode Desktop/Tablet disembunyikan di HP (tidak diperlukan).
+- Cetak struk & label tetap lewat aplikasi kasir Android atau Bluetooth seperti di tablet. Label terpotong? Lihat panduan **Label Produk → Label terpotong / tidak pas di stiker**.
 MARKDOWN;
 }

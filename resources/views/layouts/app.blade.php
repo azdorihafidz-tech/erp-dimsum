@@ -665,7 +665,7 @@
         @endcanany
 
         <!-- STOK & GUDANG -->
-        @canany(['stok.view', 'stok.request', 'stok.transfer', 'master.bahan_baku.view', 'master.produk_jual.view', 'item.view', 'pemakaian_perlengkapan.view'])
+        @canany(['stok.view', 'stok.request', 'stok.transfer', 'master.bahan_baku.view', 'master.produk_jual.view', 'item.view', 'pemakaian_perlengkapan.view', 'produksi.view'])
         <div class="nav-section-title">Stok & Gudang</div>
         @can('stok.view')
         <a href="{{ route('stok.dashboard') }}"
@@ -691,6 +691,14 @@
            class="nav-link {{ request()->routeIs('stock-transfer.*') ? 'active' : '' }}">
             <i class="bi bi-truck"></i>
             <span>Transfer Stok</span>
+        </a>
+        @endcan
+        {{-- 4.49 Tahap B1 — Produksi bahan setengah jadi di gudang --}}
+        @can('produksi.view')
+        <a href="{{ route('produksi.index') }}"
+           class="nav-link {{ request()->routeIs('produksi.*') ? 'active' : '' }}">
+            <i class="bi bi-fire"></i>
+            <span>Produksi</span>
         </a>
         @endcan
         @can('master.bahan_baku.view')
