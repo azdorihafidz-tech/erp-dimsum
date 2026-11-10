@@ -69,6 +69,8 @@ class Order extends Model
         'diterima_at',
         'diterima_by',
         'alasan_tolak',
+        // 4.49 Tahap B3 — order koreksi retur (nilai minus) dibuat sistem
+        'retur_internal_id',
     ];
 
     // ===== Kunci Closing (DijagaClosing) =====
@@ -168,10 +170,32 @@ class Order extends Model
         return $this->belongsTo(User::class, 'diterima_by');
     }
 
+    /** 4.49 Tahap B3 — order koreksi retur (nilai minus), dibuat sistem: tidak bisa dibatalkan/diedit/dihapus. */
+    public function returInternal()
+    {
+        return $this->belongsTo(ReturInternal::class);
+    }
+
+    public function isKoreksiRetur(): bool
+    {
+        return $this->retur_internal_id !== null;
+    }
+
+    /**
+     * 4.49 — kolom kiriman (migration 2026_11_10_300001) sudah ada? Laporan memeriksa ini
+     * supaya tetap jalan di jeda antara program baru terpasang dan migration dijalankan.
+     */
+    public static function adaKolomKiriman(): bool
+    {
+        static $ada = null;
+
+        return $ada ??= \Illuminate\Support\Facades\Schema::hasColumn('orders', 'customer_type');
+    }
+
     /** Penjualan Gudang ke cabang sendiri lewat alur Kirim → Terima. */
     public function isKirimanCabang(): bool
     {
-        return $this->customer_type === 'internal' && $this->status_kirim !== null;
+        return $this->customer_type === 'internal' && $this->status_kirim !== null && $this->retur_internal_id === null;
     }
 
     public function items()

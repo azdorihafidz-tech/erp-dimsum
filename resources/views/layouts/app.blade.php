@@ -665,7 +665,7 @@
         @endcanany
 
         <!-- STOK & GUDANG -->
-        @canany(['stok.view', 'stok.request', 'stok.transfer', 'master.bahan_baku.view', 'master.produk_jual.view', 'item.view', 'pemakaian_perlengkapan.view', 'produksi.view', 'kiriman.view'])
+        @canany(['stok.view', 'stok.request', 'stok.transfer', 'master.bahan_baku.view', 'master.produk_jual.view', 'item.view', 'pemakaian_perlengkapan.view', 'produksi.view', 'kiriman.view', 'retur.view'])
         <div class="nav-section-title">Stok & Gudang</div>
         @can('stok.view')
         <a href="{{ route('stok.dashboard') }}"
@@ -709,6 +709,16 @@
             <i class="bi bi-truck-flatbed"></i>
             <span>Kiriman Cabang</span>
             @if($jumlahKirimanMenunggu > 0)<span class="badge bg-danger ms-auto">{{ $jumlahKirimanMenunggu }}</span>@endif
+        </a>
+        @endcan
+        {{-- 4.49 Tahap B3 — Retur cabang → Gudang (badge = retur menunggu diterima Gudang aktif) --}}
+        @can('retur.view')
+        @php $returMenunggu = \App\Services\ReturInternalService::jumlahMenunggu(); @endphp
+        <a href="{{ route('retur-cabang.index') }}"
+           class="nav-link {{ request()->routeIs('retur-cabang.*') ? 'active' : '' }}">
+            <i class="bi bi-arrow-return-left"></i>
+            <span>Retur Cabang</span>
+            @if($returMenunggu > 0)<span class="badge bg-danger ms-auto">{{ $returMenunggu }}</span>@endif
         </a>
         @endcan
         @can('master.bahan_baku.view')

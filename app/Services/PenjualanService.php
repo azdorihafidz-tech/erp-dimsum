@@ -165,9 +165,12 @@ class PenjualanService
             'tampil_di_antrian' => $tampilDiAntrian,
             'parent_order_id'   => $data['parent_order_id'] ?? null,
             'purchase_order_id' => $isKirim ? null : $this->poInternalValid($data['purchase_order_id'] ?? null, $cabangId),
-            'customer_type'     => $isKirim ? 'internal' : null,
-            'outlet_tujuan_id'  => $isKirim ? (int) $data['outlet_tujuan_id'] : null,
-        ]);
+        ] + ($isKirim ? [
+            // Kolom kiriman hanya ditulis untuk kiriman — penjualan biasa tetap jalan walau
+            // program baru sudah terpasang dan migration 4.49 belum dijalankan.
+            'customer_type'    => 'internal',
+            'outlet_tujuan_id' => (int) $data['outlet_tujuan_id'],
+        ] : []));
 
         foreach ($itemRows as $row) {
             OrderItem::create([
@@ -594,6 +597,9 @@ class PenjualanService
 
     public function batalkan(Order $order): void
     {
+        if ($order->isKoreksiRetur()) {
+            throw new \Exception('Order ini koreksi otomatis dari Retur cabang, jadi tidak bisa dibatalkan.');
+        }
         // 4.49 Tahap B2 — Kirim ke Cabang: belum diterima → batal = stok kembali ke gudang
         // dengan modal semula. Sudah diterima → stok sudah di cabang & uang sudah pindah: pakai Retur.
         if ($order->isKirimanCabang()) {

@@ -352,12 +352,15 @@ class ClosingService
             ->sum('order_items.hpp');
 
         // 4.49 Tahap B2 — kiriman Gudang → cabang sendiri (dieliminasi di Tutup Buku Keseluruhan)
-        $internal = $this->baseOrder($start, $end, $cabangId)->where('orders.customer_type', 'internal');
-        $internalOmzet = (float) (clone $internal)->sum('orders.total_bayar');
-        $internalHpp = (float) DB::table('order_items')
-            ->joinSub((clone $internal)->select('orders.id'), 'o', 'o.id', '=', 'order_items.order_id')
-            ->whereNull('order_items.deleted_at')
-            ->sum('order_items.hpp');
+        $internalOmzet = $internalHpp = 0.0;
+        if (\App\Models\Order::adaKolomKiriman()) {
+            $internal = $this->baseOrder($start, $end, $cabangId)->where('orders.customer_type', 'internal');
+            $internalOmzet = (float) (clone $internal)->sum('orders.total_bayar');
+            $internalHpp = (float) DB::table('order_items')
+                ->joinSub((clone $internal)->select('orders.id'), 'o', 'o.id', '=', 'order_items.order_id')
+                ->whereNull('order_items.deleted_at')
+                ->sum('order_items.hpp');
+        }
 
         $metodeLabel = [];
         foreach ($perMetode as $metode => $total) {

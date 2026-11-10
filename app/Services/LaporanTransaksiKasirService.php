@@ -116,6 +116,10 @@ class LaporanTransaksiKasirService
      */
     public static function tanpaInternal($q)
     {
+        if (! Order::adaKolomKiriman()) {
+            return $q;
+        }
+
         return $q->where(fn ($w) => $w->whereNull('orders.customer_type')->orWhere('orders.customer_type', '!=', 'internal'));
     }
 
@@ -126,7 +130,7 @@ class LaporanTransaksiKasirService
      */
     public static function internalTidakDihitung(?int $cabangId, ?Carbon $dari = null, ?Carbon $sampai = null): ?array
     {
-        if ($cabangId) {
+        if ($cabangId || ! Order::adaKolomKiriman()) {
             return null;
         }
         $r = Order::query()->penjualanSah()->where('orders.customer_type', 'internal')

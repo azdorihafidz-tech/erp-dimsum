@@ -30,6 +30,9 @@ class Porting449Seeder extends Seeder
         ['name' => 'produksi.resep.kelola', 'display_name' => 'Kelola Resep Produksi',                          'group' => 'stok'],
         ['name' => 'kiriman.view',          'display_name' => 'Lihat Kiriman Cabang (Gudang → cabang)',        'group' => 'stok'],
         ['name' => 'kiriman.terima',        'display_name' => 'Terima / Tolak Kiriman dari Gudang',             'group' => 'stok'],
+        ['name' => 'retur.view',            'display_name' => 'Lihat Retur Cabang',                             'group' => 'stok'],
+        ['name' => 'retur.create',          'display_name' => 'Buat / Batalkan Retur ke Gudang',                'group' => 'stok'],
+        ['name' => 'retur.terima',          'display_name' => 'Terima / Tolak Retur dari Cabang (Gudang)',      'group' => 'stok'],
     ];
 
     /**
@@ -38,10 +41,10 @@ class Porting449Seeder extends Seeder
      * di-spread ke RolePermissionSeeder utk instalasi baru. Owner selalu bisa (Gate::before).
      */
     public const ROLE_DEFAULTS = [
-        'admin_pusat'       => ['produksi.view', 'produksi.create', 'produksi.batalkan', 'produksi.resep.kelola', 'kiriman.view', 'kiriman.terima'],
-        'admin_gudang'      => ['produksi.view', 'produksi.create', 'produksi.batalkan', 'produksi.resep.kelola', 'kiriman.view'],
-        'manajer_cabang'    => ['kiriman.view', 'kiriman.terima'],
-        'kasir'             => ['kiriman.view', 'kiriman.terima'],
+        'admin_pusat'       => ['produksi.view', 'produksi.create', 'produksi.batalkan', 'produksi.resep.kelola', 'kiriman.view', 'kiriman.terima', 'retur.view', 'retur.create', 'retur.terima'],
+        'admin_gudang'      => ['produksi.view', 'produksi.create', 'produksi.batalkan', 'produksi.resep.kelola', 'kiriman.view', 'retur.view', 'retur.terima'],
+        'manajer_cabang'    => ['kiriman.view', 'kiriman.terima', 'retur.view', 'retur.create'],
+        'kasir'             => ['kiriman.view', 'kiriman.terima', 'retur.view', 'retur.create'],
         'operator_produksi' => ['produksi.view', 'produksi.create'],
     ];
 
@@ -52,6 +55,7 @@ class Porting449Seeder extends Seeder
         $this->posHp();
         $this->produksi();
         $this->kiriman();
+        $this->retur();
 
         if ($baru) {
             $this->command?->info('   Izin baru dibuat: ' . implode(', ', $baru));
@@ -263,6 +267,75 @@ Selama belum diterima: buka kiriman di tab **Barang Keluar** → isi alasan → 
 - **"belum punya Kas Tunai aktif"** → buat Kas Tunai di menu Kas untuk cabang yang disebut.
 - **"tidak memotong stok apa pun"** → Produk Jual itu belum punya komposisi.
 - **Menu Kiriman Cabang tidak ada?** Minta Owner mencentang **Lihat Kiriman Cabang** / **Terima / Tolak Kiriman dari Gudang** di Role & Hak Akses.
+MARKDOWN;
+
+    // ===================== Tahap B3 — Retur Cabang =====================
+
+    private function retur(): void
+    {
+        Panduan::updateOrCreate(['slug' => 'retur-cabang'], [
+            'judul'  => 'Retur Cabang (Cabang → Gudang)',
+            'konten' => self::PANDUAN_RETUR,
+            'modul'  => 'stok',
+            'urutan' => 47,
+            'aktif'  => true,
+        ]);
+
+        foreach ([
+            ['key' => 'retur_cabang.uang_kembali', 'title' => 'Uang dikembalikan?',
+                'content' => 'Ya = kas cabang mendapat uang kembali (kas yang dulu membayar kiriman), rugi ditanggung Gudang. Tidak = barang dikembalikan saja, rugi ditanggung cabang (barang masuk ke Gudang bernilai Rp0).'],
+            ['key' => 'retur_cabang.koreksi', 'title' => 'Koreksi penjualan',
+                'content' => 'Retur dengan uang kembali membuat 1 order koreksi bernilai minus di Gudang, supaya pendapatan & keuntungan Gudang ikut turun. Dibuat sistem — tidak bisa dibatalkan, diedit, atau dihapus.'],
+        ] as $i => $t) {
+            Tooltip::updateOrCreate(['key' => $t['key']], [
+                'title' => $t['title'], 'content' => $t['content'], 'modul' => 'stok', 'aktif' => true, 'urutan' => 100 + $i,
+            ]);
+        }
+    }
+
+    public const PANDUAN_RETUR = <<<'MARKDOWN'
+## Tentang
+Mengembalikan barang dari **kiriman Gudang yang sudah diterima** — misalnya barang **basi**, **rusak**, atau **kelebihan kirim**. Setiap retur memilih: **uang dikembalikan** atau **tidak**.
+
+| | Uang dikembalikan = **Ya** | Uang dikembalikan = **Tidak** |
+|---|---|---|
+| Kas cabang | bertambah senilai harga kiriman (ke kas yang dulu membayar) | tetap |
+| Kas tunai Gudang | berkurang | tetap |
+| Pendapatan & keuntungan Gudang | turun (ada order koreksi bernilai minus) | tetap |
+| Nilai stok yang masuk ke Gudang | modal asli Gudang | Rp0 |
+| Yang menanggung rugi | Gudang | cabang |
+
+## Cara Pakai
+
+### 1. Kirim retur (di cabang)
+1. **Kiriman Cabang → Barang Masuk → Diterima** → buka kirimannya → **Buat Retur**.
+2. Isi **Jumlah retur** per barang (maksimal yang diterima dan belum diretur).
+3. Pilih **Alasan** dan **Uang dikembalikan?**, isi catatan kalau perlu → **Kirim Retur**.
+4. Stok cabang langsung berkurang. Status: *Menunggu*.
+
+### 2. Terima retur (di Gudang)
+1. Menu **Stok & Gudang → Retur Cabang → Retur Masuk** (angka merah = menunggu) → **Cek & Terima**.
+2. Cek barangnya → **Terima Retur**. Stok masuk ke Gudang, dan kalau uang dikembalikan, kas tunai Gudang berkurang dan kas cabang bertambah.
+3. Barang **basi/rusak** lalu dibuang lewat **Stok Barang → Penyesuaian Stok** di Gudang. Barang yang masih bagus (kelebihan kirim) tetap di stok dan bisa dikirim lagi.
+
+### 3. Tolak / batalkan
+- Gudang bisa **Tolak Retur** (isi alasan) → barang kembali ke stok cabang.
+- Cabang bisa **Batalkan Retur** selama belum diterima → barang kembali ke stok cabang.
+
+## Laporan
+- Retur dengan uang kembali tercatat sebagai **order koreksi** bernilai minus di Gudang pada tanggal retur diterima (nama pelanggan "Retur RTR-…"). Laporan Transaksi, Produk, Kategori, dan Tutup Buku Gudang ikut turun.
+- Di **Semua Cabang** / Tutup Buku Keseluruhan, retur ikut tidak dihitung bersama kirimannya.
+- Uang retur tercatat sebagai pemasukan Penjualan **minus** di Gudang dan pengeluaran Pembelian Bahan **minus** di cabang, supaya laporan keuangan tetap benar.
+- Retur **tanpa** uang kembali: cabang kehilangan stok senilai modalnya (tercatat di kartu stok sebagai retur), sama seperti barang yang dibuang.
+
+## Peringatan
+- Order koreksi retur dibuat sistem — **tidak bisa dibatalkan, diedit, atau dihapus**.
+- Retur yang sudah diterima tidak bisa dibatalkan. Kalau salah, buat kiriman baru dari Gudang.
+- Uang kembali butuh **Kas Tunai aktif** di Gudang dan kas aktif di cabang.
+
+## Troubleshooting
+- **Tombol Buat Retur tidak ada?** Kiriman belum diterima, Anda bukan cabang penerimanya, atau belum punya hak **Buat / Batalkan Retur ke Gudang**.
+- **"maksimal …"** → jumlah retur melebihi barang yang diterima dikurangi retur sebelumnya.
 MARKDOWN;
 
     // ===================== Tahap D — Label Produk gambar =====================

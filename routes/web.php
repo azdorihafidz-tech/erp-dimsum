@@ -269,6 +269,17 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
         Route::post('/{order}/batalkan', 'batalkan')->name('batalkan');
     });
 
+    // ===== 4.49 Tahap B3 — RETUR CABANG → Gudang (porting erp-coffeeshop) =====
+    Route::prefix('retur-cabang')->name('retur-cabang.')->controller(\App\Http\Controllers\ReturInternalController::class)->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/buat/{order}', 'create')->name('create');
+        Route::post('/buat/{order}', 'store')->name('store');
+        Route::get('/{retur}', 'show')->name('show');
+        Route::post('/{retur}/terima', 'terima')->name('terima');
+        Route::post('/{retur}/tolak', 'tolak')->name('tolak');
+        Route::post('/{retur}/batalkan', 'batalkan')->name('batalkan');
+    });
+
     // ===== MANAJEMEN USER (Owner / Admin Pusat / Manajer Cabang) =====
     // 4.43: per aksi mengikuti centangan (dulu role:owner,admin_pusat,manajer_cabang)
     Route::resource('user', UserController::class)->only(['create', 'store'])->middleware('can:user.create');
