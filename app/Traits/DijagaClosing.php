@@ -38,6 +38,12 @@ trait DijagaClosing
         return ['updated_at'];
     }
 
+    /** true = tanggal/cabang LAMA tidak perlu dicek (data lama tidak dihitung laporan). */
+    protected function closingAbaikanTanggalLama(): bool
+    {
+        return false;
+    }
+
     protected function cekKunciClosing(bool $selaluCek): void
     {
         $kolomTanggal = $this->closingKolomTanggal();
@@ -55,7 +61,7 @@ trait DijagaClosing
 
         ClosingLock::pastikanTerbuka($this->cabang_id ? (int) $this->cabang_id : null, $this->{$kolomTanggal}, $this->closingKonteks());
 
-        if ($this->exists) {
+        if ($this->exists && ! $this->closingAbaikanTanggalLama()) {
             $cabangLama = $this->getOriginal('cabang_id');
             $tanggalLama = $this->getOriginal($kolomTanggal);
             if ($cabangLama != $this->cabang_id || (string) $tanggalLama !== (string) $this->{$kolomTanggal}) {

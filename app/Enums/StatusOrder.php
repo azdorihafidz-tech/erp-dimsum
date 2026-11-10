@@ -11,21 +11,22 @@ enum StatusOrder: string
 
     /**
      * Status yang BUKAN penjualan sah — tidak dihitung omzet/HPP/jumlah order
-     * di laporan & dashboard: bill tersimpan yang belum dibayar (pending) dan
-     * order dibatalkan. Sama dengan aturan Closing (4.37).
+     * di laporan & dashboard: bill tersimpan yang belum dibayar (pending),
+     * order dibatalkan, dan kiriman ke cabang yang belum diterima (proses,
+     * 4.49 Tahap B2). Sama dengan aturan Closing (4.37).
      *
      * @return string[]
      */
     public static function bukanPenjualan(): array
     {
-        return [self::Pending->value, self::Dibatalkan->value];
+        return [self::Pending->value, self::Proses->value, self::Dibatalkan->value];
     }
 
     public function label(): string
     {
         return match($this) {
             StatusOrder::Pending => 'Menunggu',
-            StatusOrder::Proses => 'Diproses',
+            StatusOrder::Proses => 'Dikirim (menunggu diterima)', // 4.49 — hanya dipakai Kirim ke Cabang
             StatusOrder::Selesai => 'Selesai',
             StatusOrder::Dibatalkan => 'Dibatalkan',
         };

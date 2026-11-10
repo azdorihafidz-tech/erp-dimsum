@@ -41,7 +41,8 @@ class LaporanBarangKasirService
             ->whereNull('orders.deleted_at')
             ->whereNotIn('orders.status', StatusOrder::bukanPenjualan())
             ->whereBetween('orders.tanggal_order', [$dari->toDateString(), $sampai->toDateString()])
-            ->when($cabangId, fn ($q) => $q->where('orders.cabang_id', $cabangId));
+            ->when($cabangId, fn ($q) => $q->where('orders.cabang_id', $cabangId))
+            ->when(! $cabangId, fn ($q) => LaporanTransaksiKasirService::tanpaInternal($q)); // 4.49
     }
 
     /** Kolom angka yang sama untuk semua pengelompokan. */
@@ -144,6 +145,7 @@ class LaporanBarangKasirService
             ->whereNotIn('status', StatusOrder::bukanPenjualan())
             ->whereBetween('tanggal_order', [$dari->toDateString(), $sampai->toDateString()])
             ->when($cabangId, fn ($q) => $q->where('cabang_id', $cabangId))
+            ->when(! $cabangId, fn ($q) => LaporanTransaksiKasirService::tanpaInternal($q)) // 4.49
             ->sum(DB::raw('COALESCE(service_charge,0) + COALESCE(take_away_fee,0)'));
     }
 

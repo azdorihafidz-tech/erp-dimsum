@@ -62,6 +62,13 @@ class Order extends Model
         'alasan_pembatalan_detail',
         // Tahap C 4.38 — nota POS gudang yang memproses PO cabang
         'purchase_order_id',
+        // 4.49 Tahap B2 — Kirim ke Cabang (porting erp-coffeeshop)
+        'customer_type',
+        'outlet_tujuan_id',
+        'status_kirim',
+        'diterima_at',
+        'diterima_by',
+        'alasan_tolak',
     ];
 
     // ===== Kunci Closing (DijagaClosing) =====
@@ -83,6 +90,20 @@ class Order extends Model
             'cabang_id', 'tanggal_order', 'status', 'total_harga', 'diskon', 'service_charge',
             'take_away_fee', 'total_bayar', 'tipe_pembayaran', 'kas_id', 'tipe_transaksi',
         ];
+    }
+
+    /**
+     * 4.49 — order yang SEBELUMNYA tidak dihitung laporan (kiriman menunggu
+     * diterima, bill tersimpan, dibatalkan) tidak mengubah angka hari lamanya,
+     * jadi tanggal lama tidak perlu dicek kuncinya saat tanggal dipindah
+     * (kiriman diterima di tanggal Terima). Tanggal baru tetap dicek.
+     */
+    protected function closingAbaikanTanggalLama(): bool
+    {
+        $lama = $this->getOriginal('status');
+        $lama = $lama instanceof StatusOrder ? $lama->value : (string) $lama;
+
+        return in_array($lama, StatusOrder::bukanPenjualan(), true);
     }
 
     protected function casts(): array
@@ -108,6 +129,7 @@ class Order extends Model
             'waktu_selesai_kerja' => 'datetime',
             'waktu_disimpan'      => 'datetime',
             'waktu_diambil'       => 'datetime',
+            'diterima_at'         => 'datetime',
         ];
     }
 
@@ -125,6 +147,31 @@ class Order extends Model
     public function cabang()
     {
         return $this->belongsTo(Cabang::class);
+    }
+
+    // ===== 4.49 Tahap B2 — Kirim ke Cabang =====
+
+    /** Cabang tujuan kiriman. */
+    public function outletTujuan()
+    {
+        return $this->belongsTo(Cabang::class, 'outlet_tujuan_id');
+    }
+
+    /** Rincian barang yang keluar dari stok gudang / masuk ke cabang tujuan. */
+    public function kirimanItems()
+    {
+        return $this->hasMany(OrderKirimanItem::class);
+    }
+
+    public function diterimaOleh()
+    {
+        return $this->belongsTo(User::class, 'diterima_by');
+    }
+
+    /** Penjualan Gudang ke cabang sendiri lewat alur Kirim → Terima. */
+    public function isKirimanCabang(): bool
+    {
+        return $this->customer_type === 'internal' && $this->status_kirim !== null;
     }
 
     public function items()

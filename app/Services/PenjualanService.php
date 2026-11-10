@@ -23,6 +23,12 @@ use Illuminate\Support\Facades\DB;
 
 class PenjualanService
 {
+    /**
+     * 4.49 Tahap B2 — rincian stok yang dipotong oleh potongStokUntukItem()
+     * terakhir: [[item_id, qty, hpp], ...] — dipakai Kirim ke Cabang (order_kiriman_items).
+     */
+    private array $rincianPotong = [];
+
     public function __construct(private StokService $stokService) {}
 
     /**
@@ -84,9 +90,18 @@ class PenjualanService
     private function simpanBillInternal(array $data, int $cabangId, StatusOrder $status): Order
     {
         $cabang = Cabang::findOrFail($cabangId);
+        // 4.49 Tahap B2 — Kirim ke Cabang: penjualan Gudang ke cabang sendiri. Bukan
+        // transaksi pelanggan → tanpa meja, antrian, service charge, take away fee.
+        $isKirim = ($data['customer_type'] ?? null) === 'internal';
+        if ($isKirim) {
+            $this->validasiKirimCabang($cabang, $data);
+            $data['tipe_transaksi'] = TipeTransaksi::Takeaway->value;
+            $data['tampil_di_antrian'] = false;
+            $data['nomor_meja'] = null;
+        }
         $tipeTransaksi = TipeTransaksi::from($data['tipe_transaksi']);
 
-        if (! $cabang->tipeTransaksiAktif($tipeTransaksi)) {
+        if (! $isKirim && ! $cabang->tipeTransaksiAktif($tipeTransaksi)) {
             throw new \Exception("Tipe transaksi \"{$tipeTransaksi->label()}\" tidak aktif untuk outlet ini.");
         }
 
@@ -99,8 +114,8 @@ class PenjualanService
         $diskon = (float) ($data['diskon'] ?? 0);
         $subtotalSetelahDiskon = max(0, $totalHarga - $diskon);
 
-        $serviceCharge = round($subtotalSetelahDiskon * ((float) $cabang->service_charge_persen / 100), 2);
-        $takeAwayFee = $tipeTransaksi === TipeTransaksi::Takeaway ? (float) $cabang->take_away_fee : 0.0;
+        $serviceCharge = $isKirim ? 0.0 : round($subtotalSetelahDiskon * ((float) $cabang->service_charge_persen / 100), 2);
+        $takeAwayFee = (! $isKirim && $tipeTransaksi === TipeTransaksi::Takeaway) ? (float) $cabang->take_away_fee : 0.0;
         $totalBayar = $subtotalSetelahDiskon + $serviceCharge + $takeAwayFee;
 
         // Validasi stok SEMUA item dulu sebelum buat record apapun (Approach
@@ -149,7 +164,9 @@ class PenjualanService
             'status_produksi'   => $statusProduksi,
             'tampil_di_antrian' => $tampilDiAntrian,
             'parent_order_id'   => $data['parent_order_id'] ?? null,
-            'purchase_order_id' => $this->poInternalValid($data['purchase_order_id'] ?? null, $cabangId),
+            'purchase_order_id' => $isKirim ? null : $this->poInternalValid($data['purchase_order_id'] ?? null, $cabangId),
+            'customer_type'     => $isKirim ? 'internal' : null,
+            'outlet_tujuan_id'  => $isKirim ? (int) $data['outlet_tujuan_id'] : null,
         ]);
 
         foreach ($itemRows as $row) {
@@ -225,6 +242,15 @@ class PenjualanService
         ])->all();
         $this->cekStokSemuaItem($itemRowsUntukCek, $cabangId);
 
+        $isKirim = $order->customer_type === 'internal';
+        if ($isKirim) {
+            // Cek ulang aturan kirim tepat sebelum stok keluar
+            $this->validasiKirimCabang(Cabang::findOrFail($cabangId), [
+                'outlet_tujuan_id' => $order->outlet_tujuan_id,
+                'items' => $items->map(fn ($oi) => ['item_id' => $oi->item_id, 'nama_item' => $oi->nama_item])->all(),
+            ]);
+        }
+
         foreach ($items as $orderItem) {
             if (empty($orderItem->item_id)) continue;
 
@@ -233,6 +259,35 @@ class PenjualanService
 
             $hpp = $this->potongStokUntukItem($masterItem, (float) $orderItem->qty, $cabangId, $order);
             $orderItem->update(['hpp' => $hpp]);
+
+            if ($isKirim) {
+                if (empty($this->rincianPotong)) {
+                    throw new \Exception("'{$masterItem->nama_item}' tidak memotong stok apa pun (belum punya komposisi) — Produk Jual yang dikirim ke cabang wajib punya komposisi barang.");
+                }
+                foreach ($this->rincianPotong as $r) {
+                    $order->kirimanItems()->create([
+                        'order_item_id' => $orderItem->id,
+                        'item_id'       => $r['item_id'],
+                        'qty_kirim'     => $r['qty'],
+                        'hpp_kirim'     => round($r['hpp'], 2),
+                    ]);
+                }
+            }
+        }
+
+        if ($isKirim) {
+            // 4.49 Tahap B2 — stok sudah keluar dari gudang. Uang, pendapatan, dan stok masuk di
+            // cabang baru terjadi saat cabang menekan Terima (terimaKiriman). Status Proses =
+            // tidak dihitung di laporan mana pun (StatusOrder::bukanPenjualan).
+            $order->update([
+                'jumlah_bayar'    => 0,
+                'kembalian'       => 0,
+                'tipe_pembayaran' => TipePembayaran::Tunai,
+                'status'          => StatusOrder::Proses,
+                'status_kirim'    => 'menunggu',
+            ]);
+
+            return $order->fresh(['items', 'payments']);
         }
 
         $totalPayments = array_sum(array_map(fn ($p) => (float) $p['jumlah'], $payments));
@@ -406,6 +461,8 @@ class PenjualanService
      */
     private function potongStokUntukItem(Item $item, float $qty, int $cabangId, Order $order): float
     {
+        $this->rincianPotong = [];
+
         if ($item->resep) {
             // Sama seperti cekResepCukup(): akumulasi per item_id dulu
             // (expand baris linked ke bahan mentahnya) supaya bahan yang
@@ -422,7 +479,7 @@ class PenjualanService
             foreach ($kebutuhan as $itemId => $butuh) {
                 if ($butuh <= 0) continue;
 
-                $totalHpp += $this->stokService->keluar(
+                $hpp = $this->stokService->keluar(
                     $itemId,
                     $cabangId,
                     $butuh,
@@ -430,6 +487,8 @@ class PenjualanService
                     'order',
                     $order->id
                 );
+                $totalHpp += $hpp;
+                $this->rincianPotong[] = ['item_id' => (int) $itemId, 'qty' => round($butuh, 3), 'hpp' => $hpp];
             }
 
             return $totalHpp;
@@ -437,7 +496,7 @@ class PenjualanService
 
         // Tahap 2.5 D'mentai — 'produk_jadi' -> 'produk_jual' (1:1 rename).
         if (in_array($item->tipe, ['bahan_baku', 'kemasan', 'produk_jual'], true)) {
-            return $this->stokService->keluar(
+            $hpp = $this->stokService->keluar(
                 $item->id,
                 $cabangId,
                 $qty,
@@ -445,6 +504,9 @@ class PenjualanService
                 'order',
                 $order->id
             );
+            $this->rincianPotong[] = ['item_id' => $item->id, 'qty' => round($qty, 3), 'hpp' => $hpp];
+
+            return $hpp;
         }
 
         return 0.0;
@@ -532,6 +594,19 @@ class PenjualanService
 
     public function batalkan(Order $order): void
     {
+        // 4.49 Tahap B2 — Kirim ke Cabang: belum diterima → batal = stok kembali ke gudang
+        // dengan modal semula. Sudah diterima → stok sudah di cabang & uang sudah pindah: pakai Retur.
+        if ($order->isKirimanCabang()) {
+            if ($order->status === StatusOrder::Proses) {
+                $this->batalkanKiriman($order, 'dibatalkan', null);
+
+                return;
+            }
+            if ($order->status === StatusOrder::Selesai) {
+                throw new \Exception('Kiriman ini sudah diterima cabang tujuan, jadi tidak bisa dibatalkan. Gunakan Retur dari cabang tujuan.');
+            }
+        }
+
         DB::transaction(function () use ($order) {
             if ($order->status === StatusOrder::Selesai) {
                 // Gunakan StockMovement sebagai source of truth:
@@ -624,6 +699,9 @@ class PenjualanService
         if ($order->status !== StatusOrder::Dibatalkan) {
             throw new \Exception('Hanya order dengan status Dibatalkan yang bisa dikembalikan.');
         }
+        if ($order->customer_type === 'internal') {
+            throw new \Exception('Kiriman ke cabang yang sudah dibatalkan/ditolak tidak bisa dikembalikan. Buat kiriman baru dari POS Gudang.');
+        }
 
         DB::transaction(function () use ($order) {
             // LANGKAH 1: Pre-validasi stok sebelum ubah apapun
@@ -678,6 +756,238 @@ class PenjualanService
 
             // LANGKAH 4: Update status order
             $order->update(['status' => StatusOrder::Selesai]);
+        });
+    }
+
+    // =========================================================================
+    // 4.49 Tahap B2 — KIRIM KE CABANG (porting erp-coffeeshop 40bd55e)
+    // Gudang Pusat menjual Produk Jual ke cabang sendiri: stok keluar saat Kirim,
+    // cabang menekan Terima → stok masuk cabang + uang pindah + pendapatan gudang.
+    // Dimsum: barang masuk ke barang MILIK cabang tujuan (padanan Kode Item, 4.39).
+    // =========================================================================
+
+    /** Aturan kirim: penjual Gudang Pusat, tujuan cabang aktif lain, barang dari master, kas tunai gudang ada. */
+    private function validasiKirimCabang(Cabang $penjual, array $data): void
+    {
+        $tipePenjual = $penjual->tipe?->value ?? (string) $penjual->tipe;
+        if ($tipePenjual !== 'gudang_pusat') {
+            throw new \Exception('Kirim ke Cabang hanya bisa dari cabang bertipe Gudang Pusat.');
+        }
+        if (! empty($data['purchase_order_id'])) {
+            throw new \Exception('Keranjang ini berasal dari Pesanan PO cabang — proses sebagai nota biasa (cabang menerima lewat PO), bukan Kirim ke Cabang.');
+        }
+
+        $tujuan = ! empty($data['outlet_tujuan_id']) ? Cabang::find((int) $data['outlet_tujuan_id']) : null;
+        if (! $tujuan) {
+            throw new \Exception('Pilih cabang tujuan kiriman.');
+        }
+        if ((int) $tujuan->id === (int) $penjual->id) {
+            throw new \Exception('Cabang tujuan tidak boleh sama dengan cabang pengirim.');
+        }
+        if (! $tujuan->is_active || ($tujuan->tipe?->value ?? (string) $tujuan->tipe) !== 'cabang') {
+            throw new \Exception("Cabang tujuan '{$tujuan->nama_cabang}' tidak aktif atau bukan cabang penjualan.");
+        }
+
+        foreach ($data['items'] ?? [] as $row) {
+            if (empty($row['item_id'])) {
+                throw new \Exception("Barang '" . ($row['nama_item'] ?? '?') . "' bukan dari master Produk Jual — kiriman ke cabang harus memakai Produk Jual yang terdaftar.");
+            }
+        }
+
+        $adaKas = Kas::where('cabang_id', $penjual->id)->where('default_untuk', 'tunai')->where('is_active', true)->exists();
+        if (! $adaKas) {
+            throw new \Exception("'{$penjual->nama_cabang}' belum punya Kas Tunai aktif untuk mencatat pendapatan kiriman. Buat dulu di menu Kas.");
+        }
+    }
+
+    /** Kas aktif cabang tujuan yang boleh dipakai membayar kiriman (bawaan: Kas Tunai). */
+    public static function kasPembayarKiriman(int $cabangTujuanId)
+    {
+        return Kas::where('cabang_id', $cabangTujuanId)->where('is_active', true)
+            ->orderByRaw("default_untuk = 'tunai' DESC")->orderBy('nama_kas')->get();
+    }
+
+    /**
+     * Cabang tujuan menerima kiriman. $qtyDiterima = [order_item_id => qty yang benar-benar
+     * sampai]; kosong = semua sampai. Kekurangan kembali ke stok gudang dengan modal semula,
+     * baris order & total disesuaikan dengan yang diterima. $kasId = kas cabang yang membayar
+     * (null = Kas Tunai cabang).
+     */
+    public function terimaKiriman(Order $order, array $qtyDiterima, int $userId, ?int $kasId = null): Order
+    {
+        return DB::transaction(function () use ($order, $qtyDiterima, $userId, $kasId) {
+            $order = Order::with(['items', 'kirimanItems.item', 'cabang', 'outletTujuan'])->lockForUpdate()->findOrFail($order->id);
+
+            if (! $order->isKirimanCabang() || $order->status !== StatusOrder::Proses || $order->status_kirim !== 'menunggu') {
+                throw new \Exception('Kiriman ini sudah diproses sebelumnya (diterima, ditolak, atau dibatalkan).');
+            }
+
+            $diterima = [];
+            foreach ($order->items as $oi) {
+                $qty = (float) $oi->qty;
+                $isi = $qtyDiterima[$oi->id] ?? null;
+                $d = ($isi === null || $isi === '') ? $qty : round((float) $isi, 3);
+                if ($d < 0 || $d > $qty + 0.0005) {
+                    throw new \Exception("Jumlah diterima '{$oi->nama_item}' harus antara 0 dan " . rtrim(rtrim(number_format($qty, 3, ',', '.'), '0'), ',') . '.');
+                }
+                $diterima[$oi->id] = min($d, $qty);
+            }
+            if (array_sum($diterima) <= 0) {
+                throw new \Exception('Semua jumlah diterima 0. Kalau barang tidak datang sama sekali, gunakan tombol Tolak.');
+            }
+
+            $kasTujuan = self::kasPembayarKiriman((int) $order->outlet_tujuan_id)
+                ->first(fn ($k) => $kasId ? (int) $k->id === $kasId : $k->default_untuk === 'tunai');
+            if (! $kasTujuan) {
+                throw new \Exception($kasId
+                    ? 'Kas yang dipilih bukan kas aktif cabang tujuan.'
+                    : 'Cabang tujuan belum punya Kas Tunai aktif. Buat dulu di menu Kas, atau pilih kas lain.');
+            }
+
+            $padanan = app(PadananBarangService::class);
+            $totalHargaLama = (float) $order->total_harga;
+            $faktorDiskon = $totalHargaLama > 0 ? max(0, $totalHargaLama - (float) $order->diskon) / $totalHargaLama : 1.0;
+            $penjual = $order->cabang;
+            $nilaiTotal = 0.0;
+            $totalHargaBaru = 0.0;
+
+            foreach ($order->items as $oi) {
+                $qty = (float) $oi->qty;
+                $d = $diterima[$oi->id];
+                $f = $qty > 0 ? $d / $qty : 0.0;
+                $nilaiItem = round((float) $oi->harga_satuan * $d * $faktorDiskon, 2);
+                $rows = $order->kirimanItems->where('order_item_id', $oi->id)->values();
+
+                // Nilai dibagi ke tiap bahan menurut porsi modal gudang (fallback porsi qty)
+                $bobot = $rows->map(fn ($r) => (float) $r->hpp_kirim)->all();
+                if (array_sum($bobot) <= 0) {
+                    $bobot = $rows->map(fn ($r) => (float) $r->qty_kirim)->all();
+                }
+                $totalBobot = array_sum($bobot);
+                $teralokasi = 0.0;
+
+                foreach ($rows as $i => $r) {
+                    $qtyKirim = (float) $r->qty_kirim;
+                    $qtyTerima = round($qtyKirim * $f, 3);
+                    $kembali = round($qtyKirim - $qtyTerima, 3);
+                    $nilai = $i === $rows->count() - 1
+                        ? round($nilaiItem - $teralokasi, 2)
+                        : ($totalBobot > 0 ? round($nilaiItem * $bobot[$i] / $totalBobot, 2) : 0.0);
+                    $teralokasi += $nilai;
+
+                    $itemTujuan = null;
+                    if ($qtyTerima > 0) {
+                        $itemTujuan = $padanan->untukCabang($r->item, (int) $order->outlet_tujuan_id);
+                        $this->stokService->masuk(
+                            $itemTujuan->id, $order->outlet_tujuan_id, $qtyTerima,
+                            "Terima kiriman {$order->nomor_order} dari {$penjual->nama_cabang}",
+                            'kiriman_cabang', $order->id,
+                            round($nilai / $qtyTerima, 2)
+                        );
+                    }
+                    if ($kembali > 0) {
+                        $this->stokService->masuk(
+                            $r->item_id, $order->cabang_id, $kembali,
+                            "Kiriman {$order->nomor_order} kurang — kembali ke stok",
+                            'kiriman_kurang', $order->id, $r->hpp_per_unit
+                        );
+                    }
+                    $r->update([
+                        'item_tujuan_id' => $itemTujuan?->id,
+                        'qty_terima'     => $qtyTerima,
+                        'nilai_terima'   => $qtyTerima > 0 ? $nilai : 0,
+                    ]);
+                }
+
+                if (abs($d - $qty) > 0.0005) {
+                    $oi->update([
+                        'qty'         => $d,
+                        'total_harga' => round((float) $oi->harga_satuan * $d, 2),
+                        'hpp'         => round((float) $rows->sum(fn ($r) => (float) $r->hpp_kirim) * $f, 2),
+                    ]);
+                }
+                $nilaiTotal += $nilaiItem;
+                $totalHargaBaru += round((float) $oi->harga_satuan * $d, 2);
+            }
+
+            $nilaiTotal = round($nilaiTotal, 2);
+            $order->update([
+                'total_harga'   => $totalHargaBaru,
+                'diskon'        => max(0, round($totalHargaBaru - $nilaiTotal, 2)),
+                'total_bayar'   => $nilaiTotal,
+                'tanggal_order' => today(), // pendapatan diakui di tanggal Terima
+            ]);
+
+            $kasPenjualId = null;
+            if ($nilaiTotal > 0) {
+                // Pendapatan gudang: masuk Kas Tunai gudang (pola pembayaran POS biasa)
+                [$kasPenjualId] = $this->prosesPembayaran($order->fresh(), [['metode' => 'tunai', 'jumlah' => $nilaiTotal]], $order->cabang_id);
+
+                $kasTujuan->decrement('saldo_sekarang', $nilaiTotal);
+                TransaksiKeuangan::create([
+                    'cabang_id'         => $order->outlet_tujuan_id,
+                    'kas_id'            => $kasTujuan->id,
+                    'nomor_transaksi'   => 'TRX-KRM-' . $order->nomor_order,
+                    'tanggal_transaksi' => today(),
+                    'tipe'              => TipeTransaksiKeuangan::Pengeluaran,
+                    'kategori'          => KategoriTransaksi::PembelianBahan,
+                    'keterangan'        => "Pembelian dari {$penjual->nama_cabang} — kiriman {$order->nomor_order}",
+                    'jumlah'            => $nilaiTotal,
+                    'referensi_type'    => 'order_internal',
+                    'referensi_id'      => $order->id,
+                    'created_by'        => $userId,
+                ]);
+            }
+
+            $order->update([
+                'status'          => StatusOrder::Selesai,
+                'status_kirim'    => 'diterima',
+                'diterima_at'     => now(),
+                'diterima_by'     => $userId,
+                'jumlah_bayar'    => $nilaiTotal,
+                'kembalian'       => 0,
+                'kas_id'          => $kasPenjualId,
+                'tipe_pembayaran' => TipePembayaran::Tunai,
+            ]);
+
+            return $order->fresh(['items', 'kirimanItems.item', 'kirimanItems.itemTujuan', 'payments']);
+        });
+    }
+
+    /** Cabang tujuan menolak kiriman: semua barang kembali ke stok gudang, tidak ada uang berpindah. */
+    public function tolakKiriman(Order $order, string $alasan, int $userId): Order
+    {
+        return $this->batalkanKiriman($order, 'ditolak', $alasan, $userId);
+    }
+
+    private function batalkanKiriman(Order $order, string $statusKirim, ?string $alasan, ?int $userId = null): Order
+    {
+        return DB::transaction(function () use ($order, $statusKirim, $alasan, $userId) {
+            $order = Order::with('kirimanItems')->lockForUpdate()->findOrFail($order->id);
+
+            if ($order->status !== StatusOrder::Proses || $order->status_kirim !== 'menunggu') {
+                throw new \Exception('Kiriman ini sudah diproses sebelumnya (diterima, ditolak, atau dibatalkan).');
+            }
+
+            $label = $statusKirim === 'ditolak' ? 'ditolak cabang tujuan' : 'dibatalkan pengirim';
+            foreach ($order->kirimanItems as $r) {
+                if ((float) $r->qty_kirim <= 0) continue;
+                $this->stokService->masuk(
+                    $r->item_id, $order->cabang_id, (float) $r->qty_kirim,
+                    "Kiriman {$order->nomor_order} {$label} — kembali ke stok",
+                    'kiriman_batal', $order->id, $r->hpp_per_unit
+                );
+            }
+
+            $order->update([
+                'status'       => StatusOrder::Dibatalkan,
+                'status_kirim' => $statusKirim,
+                'alasan_tolak' => $alasan,
+                'diterima_at'  => $statusKirim === 'ditolak' ? now() : null,
+                'diterima_by'  => $statusKirim === 'ditolak' ? $userId : null,
+            ]);
+
+            return $order->fresh();
         });
     }
 

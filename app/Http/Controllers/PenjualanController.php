@@ -145,9 +145,14 @@ class PenjualanController extends Controller
             ->orderBy('tanggal_po')
             ->get();
 
+        // 4.49 Tahap B2 — Kirim ke Cabang: hanya di POS Gudang Pusat, tujuan = cabang penjualan aktif lain
+        $outletList = $cabangAktif->tipe?->value === 'gudang_pusat'
+            ? Cabang::where('tipe', 'cabang')->where('is_active', true)->where('id', '!=', $cabangId)->orderBy('nama_cabang')->get()
+            : collect();
+
         return view('penjualan.pos', compact(
             'produkJadi', 'itemTambahan', 'categories', 'pelanggans', 'cabangId',
-            'cabangAktif', 'kasList', 'tipeTransaksiAktif', 'billTersimpan', 'poMasuk', 'tipeOtomatis', 'tampilPilihanTipe'
+            'cabangAktif', 'kasList', 'tipeTransaksiAktif', 'billTersimpan', 'poMasuk', 'tipeOtomatis', 'tampilPilihanTipe', 'outletList'
         ));
     }
 
@@ -288,7 +293,9 @@ class PenjualanController extends Controller
         // checkbox conditional di pos.blade.php. Di-echo balik supaya JS bisa
         // teruskan ke openStrukModal() -> query string struk-modal.
         $tampilHargaStruk = $request->boolean('tampil_harga_struk');
-        $pesan     = 'Order berhasil diproses! No: ' . $order->nomor_order;
+        $pesan     = $order->status === StatusOrder::Proses // 4.49 — Kirim ke Cabang
+            ? 'Kiriman ' . $order->nomor_order . ' tercatat — menunggu diterima ' . ($order->outletTujuan?->nama_cabang ?? 'cabang tujuan') . '.'
+            : 'Order berhasil diproses! No: ' . $order->nomor_order;
 
         // Ajax (POS in-place) — tidak redirect supaya user gesture tetap
         // hidup untuk auto-print Bluetooth di halaman yang sama.
@@ -324,6 +331,10 @@ class PenjualanController extends Controller
         $cabangId = session('active_cabang_id') ?? $authUser->defaultCabangId();
         if ($tolak = $this->tolakTanpaCabang($cabangId)) {
             return $tolak;
+        }
+        // 4.49 — Kirim ke Cabang langsung lewat tombol Kirim (bill tidak menyimpan cabang tujuan)
+        if ($request->input('customer_type') === 'internal') {
+            return response()->json(['success' => false, 'message' => 'Kiriman ke cabang tidak bisa disimpan sebagai bill. Gunakan tombol Kirim ke Cabang.'], 422);
         }
         // 4.41 — pilihan tipe disembunyikan / hanya 1 tipe aktif → pakai tipe otomatis cabang
         if (! $request->filled('tipe_transaksi') && ($tipeOtomatis = Cabang::find($cabangId)?->tipeTransaksiOtomatis())) {
@@ -599,6 +610,9 @@ class PenjualanController extends Controller
     {
         abort_unless(auth()->user()->can('order.edit'), 403);
 
+        if ($order->customer_type === 'internal') { // 4.49 — nilainya sudah tercatat di kas cabang tujuan
+            return redirect()->route('penjualan.show', $order)->with('error', 'Kiriman/retur antar cabang tidak bisa diedit. Gunakan Tolak/Batalkan atau Retur.');
+        }
         $isOwner = auth()->user()->role === \App\Enums\RoleUser::Owner;
         if (!$isOwner && in_array($order->status, [StatusOrder::Selesai, StatusOrder::Dibatalkan])) {
             return redirect()->route('penjualan.show', $order)
@@ -615,6 +629,9 @@ class PenjualanController extends Controller
     {
         abort_unless(auth()->user()->can('order.edit'), 403);
 
+        if ($order->customer_type === 'internal') { // 4.49
+            return back()->with('error', 'Kiriman/retur antar cabang tidak bisa diedit. Gunakan Tolak/Batalkan atau Retur.');
+        }
         $isOwner = auth()->user()->role === \App\Enums\RoleUser::Owner;
         if (!$isOwner && in_array($order->status, [StatusOrder::Selesai, StatusOrder::Dibatalkan])) {
             return back()->with('error', "Order berstatus '{$order->status->label()}' tidak bisa diedit.");

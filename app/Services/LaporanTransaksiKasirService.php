@@ -106,7 +106,34 @@ class LaporanTransaksiKasirService
         return Order::query()
             ->penjualanSah()
             ->leftJoinSub($hpp, 'oi_hpp', 'oi_hpp.order_id', '=', 'orders.id')
-            ->when($cabangId, fn ($q) => $q->where('orders.cabang_id', $cabangId));
+            ->when($cabangId, fn ($q) => $q->where('orders.cabang_id', $cabangId))
+            ->when(! $cabangId, fn ($q) => self::tanpaInternal($q));
+    }
+
+    /**
+     * 4.49 Tahap B2 — mode Semua Cabang: kiriman Gudang → cabang sendiri tidak dihitung
+     * (barang yang sama dijual lagi oleh cabang → omzet dobel). Per cabang tetap dihitung.
+     */
+    public static function tanpaInternal($q)
+    {
+        return $q->where(fn ($w) => $w->whereNull('orders.customer_type')->orWhere('orders.customer_type', '!=', 'internal'));
+    }
+
+    /**
+     * Kiriman antar cabang yang tidak dihitung di mode Semua Cabang (keterangan di halaman).
+     *
+     * @return array{transaksi:int,pendapatan:float}|null
+     */
+    public static function internalTidakDihitung(?int $cabangId, ?Carbon $dari = null, ?Carbon $sampai = null): ?array
+    {
+        if ($cabangId) {
+            return null;
+        }
+        $r = Order::query()->penjualanSah()->where('orders.customer_type', 'internal')
+            ->when($dari && $sampai, fn ($q) => $q->whereBetween('orders.tanggal_order', [$dari->toDateString(), $sampai->toDateString()]))
+            ->toBase()->selectRaw('COUNT(*) as n, COALESCE(SUM(orders.total_bayar),0) as total')->first();
+
+        return (int) $r->n > 0 ? ['transaksi' => (int) $r->n, 'pendapatan' => (float) $r->total] : null;
     }
 
     /**

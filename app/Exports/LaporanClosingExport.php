@@ -73,6 +73,9 @@ class LaporanClosingExport implements WithMultipleSheets
         $rows[] = ['LABA RUGI', 'Nilai']; $head[] = count($rows);
         $rows[] = ['Omzet bersih', $lr['omzet']];
         $rows[] = ['HPP', -$lr['hpp']];
+        if ((float) ($lr['eliminasi_omzet'] ?? 0) > 0) {
+            $rows[] = ['  (kiriman Gudang → cabang tidak dihitung: omzet ' . number_format((float) $lr['eliminasi_omzet'], 0, ',', '.') . ', HPP ' . number_format((float) $lr['eliminasi_hpp'], 0, ',', '.') . ')'];
+        }
         $rows[] = ['Laba kotor', $lr['laba_kotor']];
         foreach ($lr['pendapatan_lain'] as $r) {
             $rows[] = ['  + ' . $r['label'], $r['total']];

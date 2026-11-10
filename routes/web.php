@@ -260,6 +260,15 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
         Route::post('/{produksi}/batalkan', 'batalkan')->name('batalkan');
     });
 
+    // ===== 4.49 Tahap B2 — KIRIMAN CABANG (Gudang Pusat → cabang, Terima/Tolak/Batalkan) =====
+    Route::prefix('kiriman')->name('kiriman.')->controller(\App\Http\Controllers\KirimanCabangController::class)->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/{order}', 'show')->name('show');
+        Route::post('/{order}/terima', 'terima')->name('terima');
+        Route::post('/{order}/tolak', 'tolak')->name('tolak');
+        Route::post('/{order}/batalkan', 'batalkan')->name('batalkan');
+    });
+
     // ===== MANAJEMEN USER (Owner / Admin Pusat / Manajer Cabang) =====
     // 4.43: per aksi mengikuti centangan (dulu role:owner,admin_pusat,manajer_cabang)
     Route::resource('user', UserController::class)->only(['create', 'store'])->middleware('can:user.create');

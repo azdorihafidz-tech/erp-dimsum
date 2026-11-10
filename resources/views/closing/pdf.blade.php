@@ -18,6 +18,9 @@
             <td>Omzet bersih</td><td class="num">{{ $rp($lr['omzet']) }}</td></tr>
         <tr><td>Omzet kotor</td><td class="num">{{ $rp($pj['omzet_kotor']) }}</td>
             <td>HPP</td><td class="num">− {{ $rp($lr['hpp']) }}</td></tr>
+        @if(((float) ($lr['eliminasi_omzet'] ?? 0)) > 0)
+        <tr><td colspan="2"></td><td colspan="2" style="font-size:8pt;color:#666">Kiriman Gudang → cabang tidak dihitung (omzet {{ $rp($lr['eliminasi_omzet']) }}, HPP {{ $rp($lr['eliminasi_hpp']) }})</td></tr>
+        @endif
         <tr><td>Diskon</td><td class="num">− {{ $rp($pj['diskon']) }}</td>
             <td><strong>Laba kotor</strong></td><td class="num"><strong>{{ $rp($lr['laba_kotor']) }}</strong></td></tr>
         <tr><td>Service charge + take away fee</td><td class="num">{{ $rp($pj['service_charge'] + $pj['take_away_fee']) }}</td>

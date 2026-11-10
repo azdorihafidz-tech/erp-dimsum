@@ -665,7 +665,7 @@
         @endcanany
 
         <!-- STOK & GUDANG -->
-        @canany(['stok.view', 'stok.request', 'stok.transfer', 'master.bahan_baku.view', 'master.produk_jual.view', 'item.view', 'pemakaian_perlengkapan.view', 'produksi.view'])
+        @canany(['stok.view', 'stok.request', 'stok.transfer', 'master.bahan_baku.view', 'master.produk_jual.view', 'item.view', 'pemakaian_perlengkapan.view', 'produksi.view', 'kiriman.view'])
         <div class="nav-section-title">Stok & Gudang</div>
         @can('stok.view')
         <a href="{{ route('stok.dashboard') }}"
@@ -699,6 +699,16 @@
            class="nav-link {{ request()->routeIs('produksi.*') ? 'active' : '' }}">
             <i class="bi bi-fire"></i>
             <span>Produksi</span>
+        </a>
+        @endcan
+        {{-- 4.49 Tahap B2 — Kiriman Gudang → cabang (badge = menunggu diterima cabang aktif) --}}
+        @can('kiriman.view')
+        @php $jumlahKirimanMenunggu = \App\Http\Controllers\KirimanCabangController::jumlahMenunggu(); @endphp
+        <a href="{{ route('kiriman.index') }}"
+           class="nav-link {{ request()->routeIs('kiriman.*') ? 'active' : '' }}">
+            <i class="bi bi-truck-flatbed"></i>
+            <span>Kiriman Cabang</span>
+            @if($jumlahKirimanMenunggu > 0)<span class="badge bg-danger ms-auto">{{ $jumlahKirimanMenunggu }}</span>@endif
         </a>
         @endcan
         @can('master.bahan_baku.view')

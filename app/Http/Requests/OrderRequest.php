@@ -48,6 +48,9 @@ class OrderRequest extends FormRequest
             'parent_order_id'    => 'nullable|exists:orders,id',
             // Tahap C 4.38 — nota gudang yang memproses PO cabang (supplier internal)
             'purchase_order_id'  => 'nullable|exists:purchase_orders,id',
+            // 4.49 Tahap B2 — Kirim ke Cabang (hanya POS Gudang Pusat, divalidasi lagi di PenjualanService)
+            'customer_type'      => 'nullable|in:retail,internal',
+            'outlet_tujuan_id'   => 'nullable|required_if:customer_type,internal|exists:cabangs,id',
             'items'              => 'required|array|min:1',
             // Tahap 3 D'mentai — POS baru cuma jual produk jadi (dari
             // katalog atau custom item bebas), tidak ada lagi baris jasa

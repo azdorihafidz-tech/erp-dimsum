@@ -193,7 +193,7 @@ class ClosingService
 
         $trxAgg = $this->agregatTransaksi($start, $end, $cabangId);
         $penjualan = $this->hitungPenjualan($start, $end, $cabangId);
-        $labaRugi = $this->hitungLabaRugi($penjualan, $trxAgg);
+        $labaRugi = $this->hitungLabaRugi($penjualan, $trxAgg, $cabangId === null);
         $arusKas = $this->hitungArusKas($trxAgg);
         $mutasi = $this->hitungMutasi($start, $end, $cabangId, $trxAgg);
         $saldoKas = $this->hitungSaldoKas($end, $cabangId, $trxAgg);
@@ -301,7 +301,7 @@ class ClosingService
         return DB::table('orders')
             ->whereNull('orders.deleted_at')
             ->whereBetween('orders.tanggal_order', [$start->toDateString(), $end->toDateString()])
-            ->whereNotIn('orders.status', [StatusOrder::Pending->value, StatusOrder::Dibatalkan->value])
+            ->whereNotIn('orders.status', StatusOrder::bukanPenjualan())
             ->when($cabangId, fn ($q) => $q->where('orders.cabang_id', $cabangId));
     }
 
@@ -351,6 +351,14 @@ class ClosingService
             ->whereNull('order_items.deleted_at')
             ->sum('order_items.hpp');
 
+        // 4.49 Tahap B2 — kiriman Gudang → cabang sendiri (dieliminasi di Tutup Buku Keseluruhan)
+        $internal = $this->baseOrder($start, $end, $cabangId)->where('orders.customer_type', 'internal');
+        $internalOmzet = (float) (clone $internal)->sum('orders.total_bayar');
+        $internalHpp = (float) DB::table('order_items')
+            ->joinSub((clone $internal)->select('orders.id'), 'o', 'o.id', '=', 'order_items.order_id')
+            ->whereNull('order_items.deleted_at')
+            ->sum('order_items.hpp');
+
         $metodeLabel = [];
         foreach ($perMetode as $metode => $total) {
             $metodeLabel[] = [
@@ -370,6 +378,7 @@ class ClosingService
             'hpp'            => $hpp,
             'per_metode'     => $metodeLabel,
             'per_tipe'       => $perTipe,
+            'internal'       => ['omzet' => $internalOmzet, 'hpp' => $internalHpp],
         ];
     }
 
@@ -377,7 +386,7 @@ class ClosingService
     // Section: Laba Rugi
     // ---------------------------------------------------------------------
 
-    private function hitungLabaRugi(array $penjualan, Collection $trxAgg): array
+    private function hitungLabaRugi(array $penjualan, Collection $trxAgg, bool $konsolidasi = false): array
     {
         $pendapatanLain = [];
         $beban = [];
@@ -395,8 +404,12 @@ class ClosingService
         arsort($pendapatanLain);
         arsort($beban);
 
-        $omzet = $penjualan['omzet_bersih'];
-        $hpp = $penjualan['hpp'];
+        // 4.49 Tahap B2 — Keseluruhan: kiriman Gudang → cabang dikeluarkan (omzet & HPP-nya)
+        // supaya tidak terhitung dobel dengan penjualan cabang (aturan sama dengan coffeeshop).
+        $eliminasiOmzet = $konsolidasi ? (float) ($penjualan['internal']['omzet'] ?? 0) : 0.0;
+        $eliminasiHpp = $konsolidasi ? (float) ($penjualan['internal']['hpp'] ?? 0) : 0.0;
+        $omzet = $penjualan['omzet_bersih'] - $eliminasiOmzet;
+        $hpp = $penjualan['hpp'] - $eliminasiHpp;
         $labaKotor = $omzet - $hpp;
         $totalPendapatanLain = array_sum($pendapatanLain);
         $totalBeban = array_sum($beban);
@@ -405,6 +418,8 @@ class ClosingService
         return [
             'omzet'                 => $omzet,
             'hpp'                   => $hpp,
+            'eliminasi_omzet'       => $eliminasiOmzet,
+            'eliminasi_hpp'         => $eliminasiHpp,
             'laba_kotor'            => $labaKotor,
             'margin_kotor_persen'   => $omzet > 0 ? round($labaKotor / $omzet * 100, 1) : null,
             'pendapatan_lain'       => $this->toRows($pendapatanLain),
@@ -716,7 +731,7 @@ class ClosingService
             $hariBelumSetor = DB::table('orders')
                 ->whereNull('orders.deleted_at')
                 ->whereBetween('orders.tanggal_order', [$start->toDateString(), $end->toDateString()])
-                ->whereNotIn('orders.status', [StatusOrder::Pending->value, StatusOrder::Dibatalkan->value])
+                ->whereNotIn('orders.status', StatusOrder::bukanPenjualan())
                 ->when($cabangId, fn ($q) => $q->where('orders.cabang_id', $cabangId))
                 ->join('cabangs', 'cabangs.id', '=', 'orders.cabang_id')
                 ->where('cabangs.tipe', '!=', 'gudang_pusat')
@@ -809,7 +824,7 @@ class ClosingService
             ->whereNull('orders.deleted_at')
             ->whereIn('orders.cabang_id', $cabangIds)
             ->whereBetween('orders.tanggal_order', [$start->toDateString(), $end->toDateString()])
-            ->whereNotIn('orders.status', [StatusOrder::Pending->value, StatusOrder::Dibatalkan->value])
+            ->whereNotIn('orders.status', StatusOrder::bukanPenjualan())
             ->selectRaw('orders.cabang_id, cabangs.nama_cabang, orders.tanggal_order')
             ->distinct()
             ->orderBy('orders.tanggal_order')

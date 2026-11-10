@@ -283,6 +283,32 @@ body.pos-tablet-mode .pos-bayar-kaki { padding: 0 10px 7px; }
         {{-- Kiri: Form Order --}}
         <div class="col-12 col-lg-7" id="posKolomKiri">
 
+            {{-- 4.49 Tahap B2 — Kirim ke Cabang: hanya di POS Gudang Pusat --}}
+            @if($outletList->isNotEmpty())
+            <div class="card mb-3 border-info" id="cardJenisPembeli">
+                <div class="card-body py-2">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-12 col-sm-6">
+                            <label class="form-label small mb-1">Jenis Pembeli <x-tooltip key="pos.customer_type" /></label>
+                            <select name="customer_type" id="selectCustomerType" class="form-select form-select-sm">
+                                <option value="retail" selected>Penjualan biasa</option>
+                                <option value="internal">Kirim ke Cabang (menunggu diterima)</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-sm-6 d-none" id="wrapOutletTujuan">
+                            <label class="form-label small mb-1">Cabang Tujuan <x-tooltip key="pos.outlet_tujuan" /></label>
+                            <select name="outlet_tujuan_id" id="selectOutletTujuan" class="form-select form-select-sm">
+                                <option value="">-- Pilih Cabang --</option>
+                                @foreach($outletList as $outlet)
+                                <option value="{{ $outlet->id }}">{{ $outlet->nama_cabang }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            @endif
+
             {{-- ===== Tahap 3 D'mentai — Tipe Transaksi + Grid Produk ===== --}}
             {{-- 4.41 — pilihan tipe bisa disembunyikan per cabang (Edit Cabang → Config POS);
                  saat disembunyikan transaksi memakai tipe bawaan cabang --}}
@@ -460,6 +486,11 @@ body.pos-tablet-mode .pos-bayar-kaki { padding: 0 10px 7px; }
                         <div id="totalBayarDisplay">Rp 0</div>
                     </div>
 
+                    {{-- 4.49 Tahap B2 — Kirim ke Cabang: tidak ada pembayaran di gudang, uang dipotong dari kas cabang saat Terima --}}
+                    <div id="infoKirimCabang" class="alert alert-info small d-none">
+                        <i class="bi bi-truck me-1"></i><strong>Kirim ke Cabang.</strong> Stok keluar dari gudang sekarang. Cabang tujuan mengecek barang lalu menekan <strong>Terima</strong> di menu <em>Kiriman Cabang</em>: stok masuk ke cabang, kas cabang terpotong, dan pendapatan tercatat di gudang.
+                    </div>
+                    <div id="wrapPembayaran">
                     {{-- Tipe Pembayaran --}}
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Tipe Pembayaran</label>
@@ -590,6 +621,7 @@ body.pos-tablet-mode .pos-bayar-kaki { padding: 0 10px 7px; }
                             <span id="kembalianDisplay" class="fs-5 fw-bold text-success">Rp 0</span>
                         </div>
                     </div>
+                    </div>{{-- /wrapPembayaran --}}
 
                     {{-- Tampil di Antrian Produksi — default centang. Uncheck utk order
                          tambahan yang dikerjakan barengan order asli (tidak perlu nomor
@@ -1765,6 +1797,13 @@ document.getElementById('formPos').addEventListener('submit', async function(e) 
     const namaEl = document.getElementById('namaPelangganInput');
     const telpEl = document.getElementById('teleponPelangganInput');
 
+    // 4.49 Tahap B2 — Kirim ke Cabang (Gudang → cabang sendiri): tanpa pembayaran —
+    // kas cabang tujuan terpotong saat cabang menekan Terima. Alur bayar biasa di bawah tidak tersentuh.
+    if (document.getElementById('selectCustomerType')?.value === 'internal') {
+        await kirimKeCabang(e.target);
+        return;
+    }
+
     // 1. Tipe transaksi wajib dipilih
     const tipeTransaksi = document.getElementById('tipeTransaksiInput').value;
     if (!tipeTransaksi) {
@@ -1920,6 +1959,83 @@ document.getElementById('formPos').addEventListener('submit', async function(e) 
         submitBtn.innerHTML = originalHtml;
     }
 });
+
+// ══ 4.49 Tahap B2 — Kirim ke Cabang (POS Gudang Pusat) ══
+async function kirimKeCabang(formEl) {
+    if (!document.querySelectorAll('.pos-item-row').length) {
+        await window.showAlert('warning', 'Item Kosong', 'Harap tambahkan minimal 1 item!');
+        return;
+    }
+    const tujuanEl = document.getElementById('selectOutletTujuan');
+    if (!tujuanEl?.value) {
+        await window.showAlert('error', 'Cabang Tujuan Belum Dipilih', 'Pilih cabang tujuan kiriman dulu.');
+        tujuanEl?.focus();
+        return;
+    }
+    const totalKirim = parseInt(document.getElementById('totalBayarDisplay').textContent.replace(/[^0-9]/g, '')) || 0;
+    const namaTujuan = tujuanEl.options[tujuanEl.selectedIndex].text;
+    const ok = await window.showConfirm(
+        'Kirim ke ' + namaTujuan + '?',
+        `<div style="text-align:left">`
+            + `<div>Nilai kiriman: <strong>Rp ${totalKirim.toLocaleString('id-ID')}</strong></div>`
+            + `<div class="small text-muted mt-2">Stok keluar dari gudang sekarang. Uang dipotong dari kas ${escHtml(namaTujuan)} saat cabang menekan Terima.</div>`
+        + `</div>`,
+        { icon: 'question', confirmText: 'Ya, Kirim', cancelText: 'Cek Kembali' }
+    );
+    if (!ok.isConfirmed) return;
+
+    const btn = document.getElementById('btnProses');
+    const htmlAsli = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Mengirim...';
+    try {
+        const fd = new FormData(formEl);
+        fd.set('tipe_transaksi', 'takeaway');
+        fd.set('tipe_pembayaran', 'tunai');
+        fd.set('jumlah_bayar', String(totalKirim));
+        fd.delete('purchase_order_id');
+        fd.append('payments[0][metode]', 'tunai');
+        fd.append('payments[0][jumlah]', String(Math.max(totalKirim, 1)));
+        const resp = await fetch(formEl.action, {
+            method: 'POST', body: fd,
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.message || 'Gagal mengirim ke cabang.');
+        showToast('success', data.message || 'Kiriman tercatat.');
+        if (data.auto_print) {
+            openStrukModal(data.order_id, data.copies, data.tampil_harga_struk);
+        } else {
+            resetPosForm();
+        }
+    } catch (err) {
+        await window.showAlert('error', 'Gagal Kirim ke Cabang', err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = htmlAsli;
+    }
+}
+
+(function () {
+    const sel = document.getElementById('selectCustomerType');
+    if (!sel) return; // hanya ada di POS Gudang Pusat
+    sel.addEventListener('change', function () {
+        const kirim = this.value === 'internal';
+        document.getElementById('wrapOutletTujuan')?.classList.toggle('d-none', !kirim);
+        if (!kirim) document.getElementById('selectOutletTujuan').value = '';
+        // Tanpa pembayaran & tanpa Save Bill (uang pindah saat cabang menekan Terima)
+        document.getElementById('wrapPembayaran')?.classList.toggle('d-none', kirim);
+        document.getElementById('infoKirimCabang')?.classList.toggle('d-none', !kirim);
+        document.getElementById('btnSaveBill')?.classList.toggle('d-none', kirim);
+        document.getElementById('tampilAntrianCheck')?.closest('.form-check')?.classList.toggle('d-none', kirim);
+        const btn = document.getElementById('btnProses');
+        if (btn) btn.innerHTML = kirim
+            ? '<i class="bi bi-truck me-2"></i>KIRIM KE CABANG'
+            : '<i class="bi bi-check-circle-fill me-2"></i>PROSES ORDER';
+        const barBayar = document.getElementById('posBarBayar');
+        if (barBayar) barBayar.textContent = kirim ? 'Kirim ▸' : 'Bayar ▸';
+    });
+})();
 
 // Reset seluruh state POS untuk transaksi berikutnya
 function resetPosForm() {

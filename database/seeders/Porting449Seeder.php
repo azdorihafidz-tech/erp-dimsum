@@ -28,6 +28,8 @@ class Porting449Seeder extends Seeder
         ['name' => 'produksi.create',       'display_name' => 'Catat Produksi',                                 'group' => 'stok'],
         ['name' => 'produksi.batalkan',     'display_name' => 'Batalkan Produksi',                              'group' => 'stok'],
         ['name' => 'produksi.resep.kelola', 'display_name' => 'Kelola Resep Produksi',                          'group' => 'stok'],
+        ['name' => 'kiriman.view',          'display_name' => 'Lihat Kiriman Cabang (Gudang → cabang)',        'group' => 'stok'],
+        ['name' => 'kiriman.terima',        'display_name' => 'Terima / Tolak Kiriman dari Gudang',             'group' => 'stok'],
     ];
 
     /**
@@ -36,10 +38,10 @@ class Porting449Seeder extends Seeder
      * di-spread ke RolePermissionSeeder utk instalasi baru. Owner selalu bisa (Gate::before).
      */
     public const ROLE_DEFAULTS = [
-        'admin_pusat'       => ['produksi.view', 'produksi.create', 'produksi.batalkan', 'produksi.resep.kelola'],
-        'admin_gudang'      => ['produksi.view', 'produksi.create', 'produksi.batalkan', 'produksi.resep.kelola'],
-        'manajer_cabang'    => [],
-        'kasir'             => [],
+        'admin_pusat'       => ['produksi.view', 'produksi.create', 'produksi.batalkan', 'produksi.resep.kelola', 'kiriman.view', 'kiriman.terima'],
+        'admin_gudang'      => ['produksi.view', 'produksi.create', 'produksi.batalkan', 'produksi.resep.kelola', 'kiriman.view'],
+        'manajer_cabang'    => ['kiriman.view', 'kiriman.terima'],
+        'kasir'             => ['kiriman.view', 'kiriman.terima'],
         'operator_produksi' => ['produksi.view', 'produksi.create'],
     ];
 
@@ -49,6 +51,7 @@ class Porting449Seeder extends Seeder
         $this->labelGambar();
         $this->posHp();
         $this->produksi();
+        $this->kiriman();
 
         if ($baru) {
             $this->command?->info('   Izin baru dibuat: ' . implode(', ', $baru));
@@ -164,6 +167,102 @@ Buka detail produksi → isi alasan → **Batalkan Produksi**. Stok hasil ditari
 - **Barang tidak muncul di pilihan resep?** Pastikan barang itu milik gudang (pilih gudang di pojok kanan atas lalu cek di Bahan Baku & Kemasan) dan tipenya Bahan Baku/Kemasan/Tambahan Gratis.
 - **"Stok bahan di gudang tidak cukup"?** Pesan menyebut semua bahan yang kurang — tambah stok lewat Pembelian atau Penyesuaian Stok dulu.
 - **Perkiraan biaya "harga kosong"?** Bahan belum punya stok berharga, PO, maupun Harga Standar — isi Harga Standar di Bahan Baku & Kemasan.
+MARKDOWN;
+
+    // ===================== Tahap B2 — Kiriman Cabang =====================
+
+    private function kiriman(): void
+    {
+        Panduan::updateOrCreate(['slug' => 'kiriman-cabang'], [
+            'judul'  => 'Kiriman Cabang (Gudang → Cabang)',
+            'konten' => self::PANDUAN_KIRIMAN,
+            'modul'  => 'stok',
+            'urutan' => 46,
+            'aktif'  => true,
+        ]);
+
+        $p = Panduan::where('slug', 'pos')->first();
+        if ($p && ! str_contains((string) $p->konten, '<!-- KIRIM-CABANG-449 -->')) {
+            $p->update(['konten' => rtrim((string) $p->konten) . "\n\n" . self::BAGIAN_POS_KIRIM]);
+        }
+
+        foreach ([
+            ['key' => 'pos.customer_type', 'modul' => 'pos', 'title' => 'Jenis Pembeli',
+                'content' => 'Penjualan biasa = pelanggan bayar di sini. Kirim ke Cabang = Gudang mengirim barang ke cabang sendiri; tanpa pembayaran di sini, uang dipotong dari kas cabang saat cabang menekan Terima.'],
+            ['key' => 'pos.outlet_tujuan', 'modul' => 'pos', 'title' => 'Cabang Tujuan',
+                'content' => 'Cabang yang akan menerima kiriman. Barang masuk ke stok cabang itu setelah cabang menekan Terima di menu Kiriman Cabang.'],
+            ['key' => 'kiriman.qty_diterima', 'modul' => 'stok', 'title' => 'Jumlah sampai',
+                'content' => 'Isi jumlah yang benar-benar datang. Kalau kurang dari yang dikirim, sisanya kembali ke stok Gudang dan total yang dibayar ikut turun.'],
+            ['key' => 'kiriman.kas', 'modul' => 'stok', 'title' => 'Bayar dari kas',
+                'content' => 'Kas cabang yang membayar kiriman ini (bawaan Kas Tunai). Saldo kas boleh menjadi minus — ada peringatan kalau saldo tidak cukup.'],
+            ['key' => 'kiriman.tolak', 'modul' => 'stok', 'title' => 'Tolak kiriman',
+                'content' => 'Barang tidak jadi diterima (salah kirim, rusak semua). Semua barang kembali ke stok Gudang, tidak ada uang yang berpindah.'],
+        ] as $i => $t) {
+            Tooltip::updateOrCreate(['key' => $t['key']], [
+                'title' => $t['title'], 'content' => $t['content'], 'modul' => $t['modul'], 'aktif' => true, 'urutan' => 90 + $i,
+            ]);
+        }
+    }
+
+    public const BAGIAN_POS_KIRIM = <<<'MARKDOWN'
+<!-- KIRIM-CABANG-449 -->
+## Kirim ke Cabang (khusus POS Gudang Pusat)
+Di POS dengan cabang aktif = **Gudang Pusat** ada pilihan **Jenis Pembeli → Kirim ke Cabang** + **Cabang Tujuan**. Bagian pembayaran dan Save Bill disembunyikan, tombolnya menjadi **KIRIM KE CABANG**: stok Gudang langsung berkurang, lalu cabang menekan **Terima** di menu **Kiriman Cabang**. Lihat panduan **Kiriman Cabang**.
+MARKDOWN;
+
+    public const PANDUAN_KIRIMAN = <<<'MARKDOWN'
+## Tentang
+Gudang Pusat **menjual** barang ke cabang sendiri, dengan harga yang boleh dinaikkan (gudang ambil untung) atau sama dengan modal (gudang hanya distribusi). Cabang tujuan mengecek barang lalu menekan **Terima**.
+
+| Saat | Yang terjadi |
+|---|---|
+| Gudang klik **Kirim ke Cabang** di POS | Stok Gudang berkurang. Status: *Menunggu diterima*. Belum ada uang & belum dihitung di laporan. |
+| Cabang klik **Terima** | Stok masuk ke barang milik cabang (modal = harga kiriman), kas cabang berkurang, kas tunai & pendapatan Gudang bertambah (tanggal Terima). |
+| Cabang klik **Tolak** / Gudang **Batalkan** | Semua barang kembali ke stok Gudang dengan modal semula. Tidak ada uang yang berpindah. |
+
+Ini cara **tambahan** — Transfer Stok dan PO ke Gudang tetap bisa dipakai seperti biasa.
+
+## Persiapan (sekali per barang)
+1. Di **Produk Jual milik Gudang**, buat produk untuk barang yang mau dikirim, mis. "Isian Ayam (kirim ke cabang)", dengan harga kirimnya.
+2. Isi **komposisinya** dengan barang yang akan masuk ke stok cabang, mis. Isian Ayam 1 kg. Yang masuk ke cabang = bahan di komposisi × jumlah kiriman. Produk tanpa komposisi tidak bisa dikirim.
+3. Gudang wajib punya **Kas Tunai** aktif (pendapatan kiriman), cabang tujuan minimal 1 kas aktif.
+
+## Barang di cabang (Kode Item)
+Data barang terpisah per cabang. Saat Terima, barang masuk ke barang milik cabang yang **Kode Item-nya sama** dengan barang Gudang. Kalau cabang belum punya, barangnya **dibuat otomatis** — halaman Terima menampilkan daftar "barang baru yang akan dibuat". Kalau ternyata cabang sudah punya barang yang sama dengan kode lain, samakan Kode Item-nya dulu sebelum Terima supaya stoknya tidak terpisah.
+
+## Cara Pakai
+
+### Mengirim (di Gudang)
+1. Pilih cabang **Gudang Pusat** di pojok kanan atas, buka **POS**.
+2. Pilih **Jenis Pembeli → Kirim ke Cabang**, lalu **Cabang Tujuan**.
+3. Masukkan barang seperti biasa, klik **KIRIM KE CABANG**.
+
+### Menerima (di cabang)
+1. Menu **Stok & Gudang → Kiriman Cabang** → tab **Barang Masuk** (angka merah = kiriman yang menunggu).
+2. Klik **Cek & Terima**, cocokkan barang yang datang.
+3. Kalau ada yang kurang, ubah **Jumlah sampai** (mis. 48 dari 50). Sisanya kembali ke stok Gudang dan total yang dibayar ikut turun.
+4. Pilih **Bayar dari kas** (bawaan Kas Tunai) lalu klik **Terima**.
+
+Barang tidak jadi diterima (salah kirim, rusak semua)? Isi alasan lalu klik **Tolak**.
+
+### Membatalkan (di Gudang)
+Selama belum diterima: buka kiriman di tab **Barang Keluar** → isi alasan → **Batalkan Kiriman**.
+
+## Laporan
+- Penjualan ke cabang dihitung sebagai pendapatan **Gudang** sejak diterima. Kiriman yang belum diterima tidak dihitung di laporan mana pun.
+- Di **Semua Cabang** pada Laporan Transaksi/Produk/Kategori dan di **Tutup Buku Keseluruhan**, kiriman ke cabang sendiri tidak dihitung supaya tidak dobel (cabang juga menjual hasilnya ke pelanggan). Laporan lain tetap menghitungnya.
+- Di cabang, pembayaran kiriman tercatat sebagai pengeluaran **Pembelian Bahan** (bukan beban di Laba Rugi — modalnya masuk ke HPP saat barang terjual).
+
+## Peringatan
+- Kiriman yang **sudah diterima tidak bisa dibatalkan atau diedit**. Barang basi, rusak, atau kelebihan → gunakan **Retur** dari cabang tujuan.
+- Kiriman **tidak bisa disimpan sebagai Save Bill** — langsung klik Kirim.
+- Keranjang yang diisi dari **Pesanan PO dari Cabang** tidak bisa dikirim lewat Kirim ke Cabang (cabang menerimanya lewat PO).
+
+## Troubleshooting
+- **Pilihan Kirim ke Cabang tidak ada di POS?** Cabang aktif harus bertipe Gudang Pusat.
+- **"belum punya Kas Tunai aktif"** → buat Kas Tunai di menu Kas untuk cabang yang disebut.
+- **"tidak memotong stok apa pun"** → Produk Jual itu belum punya komposisi.
+- **Menu Kiriman Cabang tidak ada?** Minta Owner mencentang **Lihat Kiriman Cabang** / **Terima / Tolak Kiriman dari Gudang** di Role & Hak Akses.
 MARKDOWN;
 
     // ===================== Tahap D — Label Produk gambar =====================

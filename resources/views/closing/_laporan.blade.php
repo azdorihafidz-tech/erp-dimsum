@@ -100,6 +100,9 @@
                 <table class="table table-sm mb-0">
                     <tr><td>Omzet bersih</td><td class="text-end">{{ $rp($lr['omzet']) }}</td></tr>
                     <tr><td>HPP (bahan terpakai)</td><td class="text-end text-danger">− {{ $rp($lr['hpp']) }}</td></tr>
+                    @if(((float) ($lr['eliminasi_omzet'] ?? 0)) > 0)
+                    <tr class="small text-muted"><td colspan="2"><i class="bi bi-info-circle me-1"></i>Kiriman Gudang → cabang tidak dihitung di Keseluruhan (omzet {{ $rp($lr['eliminasi_omzet']) }}, HPP {{ $rp($lr['eliminasi_hpp']) }}) supaya tidak dobel dengan penjualan cabang.</td></tr>
+                    @endif
                     <tr class="fw-bold table-light">
                         <td>Laba kotor @if($lr['margin_kotor_persen'] !== null)<span class="text-muted fw-normal">({{ $lr['margin_kotor_persen'] }}%)</span>@endif</td>
                         <td class="text-end">{{ $rp($lr['laba_kotor']) }}</td>
