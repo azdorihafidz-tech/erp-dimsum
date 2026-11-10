@@ -56,6 +56,9 @@
         @if($l['catatan'])
         <div class="catatan">{{ $l['catatan'] }}</div>
         @endif
+        @if(!empty($l['catatan_order']))
+        <div class="catatan">{{ $l['catatan_order'] }}</div>
+        @endif
         @if($l['pelanggan'])
         <div class="pelanggan">a.n. {{ $l['pelanggan'] }}</div>
         @endif

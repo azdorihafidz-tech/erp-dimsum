@@ -66,6 +66,7 @@ class GoLiveSeeder extends Seeder
             LaporanPenjualanKasirSeeder::class, // 4.46 — izin + panduan Laporan di menu Penjualan
             PosUbahHargaSeeder::class,          // 4.47 — izin Ubah Harga Jual di POS + panduan POS
             WarnaAplikasiSeeder::class,         // 4.48 — panduan & tooltip Warna Aplikasi (setelah IdentitasUsahaSeeder)
+            Porting449Seeder::class,           // 4.49 — porting coffeeshop: label gambar, POS HP, produksi, kiriman, retur (setelah LabelProdukSeeder)
         ]);
 
         $gudang = Cabang::updateOrCreate(

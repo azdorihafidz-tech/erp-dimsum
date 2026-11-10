@@ -357,6 +357,23 @@
                             </div>
                             <x-tooltip key="cabang.label_cup_ukuran" placement="top" />
                         </div>
+                        {{-- 4.49 Tahap D — geser posisi label per cabang --}}
+                        <div class="d-flex flex-wrap gap-2 align-items-end mt-2">
+                            <div>
+                                <label for="label_cup_geser_x" class="form-label small fw-medium mb-1">Geser kiri/kanan (mm)</label>
+                                <input type="number" step="0.5" min="-10" max="10" id="label_cup_geser_x" name="label_cup_geser_x"
+                                    class="form-control form-control-sm @error('label_cup_geser_x') is-invalid @enderror" style="max-width:110px"
+                                    value="{{ old('label_cup_geser_x', $cabang->label_cup_geser_x ?? 0) }}">
+                            </div>
+                            <div>
+                                <label for="label_cup_geser_y" class="form-label small fw-medium mb-1">Geser atas/bawah (mm)</label>
+                                <input type="number" step="0.5" min="-10" max="10" id="label_cup_geser_y" name="label_cup_geser_y"
+                                    class="form-control form-control-sm @error('label_cup_geser_y') is-invalid @enderror" style="max-width:110px"
+                                    value="{{ old('label_cup_geser_y', $cabang->label_cup_geser_y ?? 0) }}">
+                            </div>
+                            <x-tooltip key="cabang.label_cup_geser" placement="top" />
+                        </div>
+                        <div class="form-text">Isi kalau tulisan label tidak di tengah stiker: <strong>minus = geser ke kiri</strong> (mis. −3,5 kalau kiri terlalu lebar dan kanan terpotong), plus = ke kanan. Berlaku untuk semua tablet/HP cabang ini.</div>
                         <div class="form-text mt-1">1 stiker = 1 qty item (1 box / pack). Label dicetak dari jendela struk setelah bayar, atau dari Detail Order. Saat aktif, POS menampilkan kolom catatan per item yang ikut tercetak di label.</div>
                     </div>
 

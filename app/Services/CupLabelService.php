@@ -54,7 +54,9 @@ class CupLabelService
             'pelanggan' => $order->nama_pelanggan ?: $order->pelanggan?->nama_pelanggan,
             'tipe'      => $tipe,
             'jam'       => ($order->created_at ?? now())->format('H:i'),
+            'tanggal'   => ($order->created_at ?? now())->format('d/m/Y'), // 4.49 Tahap D
             'exp'       => $exp,
+            'catatan_order' => $order->catatan,
         ]);
     }
 
@@ -95,7 +97,10 @@ class CupLabelService
                     'catatan'   => $r['catatan'] ? trim($r['catatan']) : null,
                     'pelanggan' => $info['pelanggan'] ? trim($info['pelanggan']) : null,
                     'exp'       => $info['exp'],
-                    'info'      => $info['tipe'] . ' · ' . $info['jam'],
+                    // 4.49 Tahap D — catatan pesanan (kolom Catatan di POS) ikut di setiap stiker
+                    'catatan_order' => trim((string) ($info['catatan_order'] ?? '')) ?: null,
+                    // tanggal di sebelah jam
+                    'info'      => $info['tipe'] . ' · ' . $info['jam'] . ' ' . ($info['tanggal'] ?? ''),
                 ];
             }
         }
@@ -105,6 +110,11 @@ class CupLabelService
             'ukuran' => [
                 'lebar'  => (int) ($cabang?->label_cup_lebar_mm ?: 40),
                 'tinggi' => (int) ($cabang?->label_cup_tinggi_mm ?: 30),
+            ],
+            // 4.49 Tahap D — geser posisi per cabang (mm); perangkat bisa menambah sendiri
+            'geser' => [
+                'x' => (float) ($cabang?->label_cup_geser_x ?? 0),
+                'y' => (float) ($cabang?->label_cup_geser_y ?? 0),
             ],
             'labels' => $aktif ? $labels : [],
         ];

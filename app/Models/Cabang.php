@@ -20,6 +20,7 @@ class Cabang extends Model
         'antrian_produksi_aktif', 'running_text_aktif', 'footer_struk',
         'izinkan_sembunyi_harga_struk',
         'label_cup_aktif', 'label_cup_kategori', 'label_cup_lebar_mm', 'label_cup_tinggi_mm',
+        'label_cup_geser_x', 'label_cup_geser_y',
     ];
 
     protected $fillable = [
@@ -57,6 +58,8 @@ class Cabang extends Model
         'label_cup_kategori',
         'label_cup_lebar_mm',
         'label_cup_tinggi_mm',
+        'label_cup_geser_x', // 4.49 Tahap D — geser posisi label (mm)
+        'label_cup_geser_y',
     ];
 
     protected function casts(): array
@@ -83,6 +86,8 @@ class Cabang extends Model
             'label_cup_kategori'     => 'array',
             'label_cup_lebar_mm'     => 'integer',
             'label_cup_tinggi_mm'    => 'integer',
+            'label_cup_geser_x'      => 'float',
+            'label_cup_geser_y'      => 'float',
         ];
     }
 

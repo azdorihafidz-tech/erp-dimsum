@@ -85,7 +85,7 @@ Buka **Riwayat Penjualan → Detail Order** → tombol **Cetak Label**.
 
 ## Printer
 - Printer label disimpan **terpisah** dari printer struk, jadi satu tablet bisa memakai printer struk dan printer label sekaligus.
-- Di Chrome/PC pilih bahasa printer: **ESC/POS** (mis. Blueprint ECO80BT) atau **TSPL** (printer label khusus). Kalau hasil cetak berupa huruf acak, ganti pilihannya.
+- Di Chrome/PC pilih bahasa printer: **TSPL** (printer label, mis. Blueprint ECO80BT — disarankan) atau **ESC/POS** (printer struk). Kalau hasil cetak berupa huruf acak, ganti pilihannya.
 - Di aplikasi kasir, bahasa printer label diatur di **Pengaturan Printer Aplikasi**.
 
 ## Catatan Penting
