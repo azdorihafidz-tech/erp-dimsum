@@ -145,8 +145,9 @@ class PenjualanController extends Controller
             ->orderBy('tanggal_po')
             ->get();
 
-        // 4.49 Tahap B2 — Kirim ke Cabang: hanya di POS Gudang Pusat, tujuan = cabang penjualan aktif lain
-        $outletList = $cabangAktif->tipe?->value === 'gudang_pusat'
+        // 4.49 Tahap B2 — Kirim ke Cabang: hanya di POS Gudang Pusat yang saklarnya dinyalakan
+        // (Cabang → Edit → Config POS, bawaan mati), tujuan = cabang penjualan aktif lain
+        $outletList = ($cabangAktif->tipe?->value === 'gudang_pusat' && $cabangAktif->kirim_cabang_aktif)
             ? Cabang::where('tipe', 'cabang')->where('is_active', true)->where('id', '!=', $cabangId)->orderBy('nama_cabang')->get()
             : collect();
 

@@ -46,6 +46,7 @@ class CabangRequest extends FormRequest
             'tipe_transaksi_default'  => ['sometimes', 'in:dine_in,takeaway,frozen'],
             'wajib_bukti_transfer'    => ['sometimes', 'boolean'],
             'wajib_bukti_qris'        => ['sometimes', 'boolean'],
+            'kirim_cabang_aktif'      => ['sometimes', 'boolean'], // 4.49
             // 4.44 Poin 2 — Label Produk (stiker) per cabang
             'label_cup_aktif'         => ['sometimes', 'boolean'],
             'label_cup_kategori'      => ['sometimes', 'array'],

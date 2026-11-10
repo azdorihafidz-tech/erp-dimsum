@@ -43,7 +43,7 @@ class KirimanCabangTest extends TestCase
     {
         parent::setUp();
         $u = substr(uniqid(), -6);
-        $this->gudang = Cabang::create(['nama_cabang' => "Gudang Uji {$u}", 'kode_cabang' => 'GK' . rand(10000, 99999), 'tipe' => 'gudang_pusat', 'is_active' => true, 'antrian_produksi_aktif' => true]);
+        $this->gudang = Cabang::create(['nama_cabang' => "Gudang Uji {$u}", 'kode_cabang' => 'GK' . rand(10000, 99999), 'tipe' => 'gudang_pusat', 'is_active' => true, 'kirim_cabang_aktif' => true, 'antrian_produksi_aktif' => true]);
         $this->outlet = Cabang::create(['nama_cabang' => "Outlet Uji {$u}", 'kode_cabang' => 'OK' . rand(10000, 99999), 'tipe' => 'cabang', 'is_active' => true]);
         $kas = fn ($c, $jenis, $saldo) => Kas::create(['cabang_id' => $c->id, 'default_untuk' => $jenis, 'nama_kas' => "Kas {$jenis} {$c->nama_cabang}",
             'tipe_kas' => $jenis === 'tunai' ? 'tunai' : 'bank', 'saldo_awal' => $saldo, 'saldo_sekarang' => $saldo, 'is_active' => true]);
@@ -249,6 +249,32 @@ class KirimanCabangTest extends TestCase
             ->assertSee('id="selectCustomerType"', false)->assertSee($this->outlet->nama_cabang)->assertSee('function kirimKeCabang', false);
         $this->actingAs($owner)->withSession(['active_cabang_id' => $this->outlet->id])->get(route('penjualan.pos'))->assertOk()
             ->assertDontSee('id="selectCustomerType"', false);
+    }
+
+    /** Permintaan Owner: saklar per Gudang di Cabang → Edit, bawaan MATI. */
+    public function test_saklar_kirim_ke_cabang_bawaan_mati(): void
+    {
+        $baru = Cabang::create(['nama_cabang' => 'Gudang Baru Uji', 'kode_cabang' => 'GB' . rand(10000, 99999), 'tipe' => 'gudang_pusat', 'is_active' => true]);
+        $this->assertFalse($baru->fresh()->kirim_cabang_aktif);
+        $this->assertTrue(Cabang::where('tipe', 'gudang_pusat')->whereKeyNot($this->gudang->id)->get()->every(fn ($c) => ! $c->kirim_cabang_aktif));
+
+        // Saklar mati → POS gudang tanpa pilihan Kirim, server menolak kiriman
+        $this->gudang->update(['kirim_cabang_aktif' => false]);
+        $owner = $this->buatUser('owner');
+        $this->actingAs($owner)->withSession(['active_cabang_id' => $this->gudang->id])->get(route('penjualan.pos'))->assertOk()
+            ->assertDontSee('id="selectCustomerType"', false);
+        $this->kirim(1)->assertStatus(422)->assertJsonPath('message', fn ($m) => str_contains($m, 'belum dinyalakan'));
+        $this->assertSame(0, Order::where('cabang_id', $this->gudang->id)->where('customer_type', 'internal')->count());
+
+        // Saklar hanya tampil di form Gudang Pusat, dan bisa dinyalakan
+        $this->actingAs($owner)->get(route('cabang.edit', $this->outlet))->assertOk()->assertDontSee('name="kirim_cabang_aktif"', false);
+        $this->actingAs($owner)->get(route('cabang.edit', $this->gudang))->assertOk()->assertSee('name="kirim_cabang_aktif"', false);
+        $this->actingAs($owner)->put(route('cabang.update', $this->gudang), [
+            'nama_cabang' => $this->gudang->nama_cabang, 'kode_cabang' => $this->gudang->kode_cabang,
+            'tipe' => 'gudang_pusat', 'is_active' => 1, 'kirim_cabang_aktif' => 1,
+        ])->assertSessionHasNoErrors();
+        $this->assertTrue($this->gudang->fresh()->kirim_cabang_aktif);
+        $this->kirim(1)->assertOk();
     }
 
     public function test_terima_tetap_bisa_walau_tanggal_kirim_sudah_closing(): void

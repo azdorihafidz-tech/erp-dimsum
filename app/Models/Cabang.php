@@ -53,6 +53,7 @@ class Cabang extends Model
         // Tahap B 4.38 — wajib bukti bayar non-tunai per cabang
         'wajib_bukti_transfer',
         'wajib_bukti_qris',
+        'kirim_cabang_aktif', // 4.49 — saklar Kirim ke Cabang di POS Gudang (bawaan mati)
         // 4.44 Poin 2 — Label Produk (stiker) per cabang, nama kolom = coffeeshop "label cup"
         'label_cup_aktif',
         'label_cup_kategori',
@@ -78,6 +79,7 @@ class Cabang extends Model
             'frozen_aktif'           => 'boolean',
             'wajib_bukti_transfer'   => 'boolean',
             'wajib_bukti_qris'       => 'boolean',
+            'kirim_cabang_aktif'     => 'boolean',
             'nomor_meja_aktif'       => 'boolean',
             'pilih_tipe_transaksi'   => 'boolean',
             'take_away_fee'          => 'decimal:2',

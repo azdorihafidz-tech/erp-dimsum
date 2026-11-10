@@ -5,9 +5,9 @@
  * Deploy 4.49 (porting erp-coffeeshop: Label Produk gambar, POS HP, Produksi,
  * Kirim ke Cabang, Retur Cabang) di hosting tanpa terminal. Jalankan sekali di
  * SETIAP instalasi (D'mentai live & demo). Script ini:
- *  1. migrate → 4 migration baru (hanya kolom/tabel baru; data lama tidak diubah):
+ *  1. migrate → 5 migration baru (hanya kolom/tabel baru; data lama tidak diubah):
  *     cabangs.label_cup_geser_x/_y, tabel produksi, kolom kiriman di orders +
- *     order_kiriman_items, tabel retur
+ *     order_kiriman_items, tabel retur, cabangs.kirim_cabang_aktif (bawaan MATI)
  *  2. Porting449Seeder → 9 izin baru (produksi/kiriman/retur), dicentang untuk
  *     role bawaan HANYA saat izin pertama kali dibuat (centangan Owner tidak
  *     ditimpa), + panduan & tooltip (idempotent)
@@ -75,8 +75,10 @@ try {
         echo "- {$role}: " . $izin->pluck('name')->implode(', ') . "\n";
     }
     echo "(Owner selalu bisa semua. Role buatan sendiri tidak dicentang otomatis — atur di Role & Hak Akses.)\n\n";
-    $gudang = DB::table('cabangs')->where('tipe', 'gudang_pusat')->where('is_active', true)->pluck('nama_cabang');
-    echo 'Gudang Pusat aktif: ' . ($gudang->isEmpty() ? '(belum ada — Produksi & Kirim ke Cabang butuh cabang tipe Gudang Pusat)' : $gudang->implode(', ')) . "\n\n";
+    $gudang = DB::table('cabangs')->where('tipe', 'gudang_pusat')->where('is_active', true)->get(['nama_cabang', 'kirim_cabang_aktif']);
+    echo 'Gudang Pusat aktif: ' . ($gudang->isEmpty() ? '(belum ada — Produksi & Kirim ke Cabang butuh cabang tipe Gudang Pusat)'
+        : $gudang->map(fn ($g) => $g->nama_cabang . ' (Kirim ke Cabang di POS: ' . ($g->kirim_cabang_aktif ? 'NYALA' : 'mati') . ')')->implode(', ')) . "\n";
+    echo "Kirim ke Cabang bawaannya MATI — nyalakan di Cabang → Edit (Gudang Pusat) → Config POS kalau mau dipakai.\n\n";
 } catch (\Throwable $e) {
     echo 'Tidak bisa membaca centangan: ' . $e->getMessage() . "\n\n";
 }

@@ -205,6 +205,9 @@ class CabangController extends Controller
             $data['label_cup_kategori'] = array_values($request->input('label_cup_kategori', []));
         }
         // 4.49 Tahap D — geser label: kosong = 0; kolom belum ada (migration belum jalan) = abaikan
+        if (! \Illuminate\Support\Facades\Schema::hasColumn('cabangs', 'kirim_cabang_aktif')) {
+            unset($data['kirim_cabang_aktif']);
+        }
         foreach (['label_cup_geser_x', 'label_cup_geser_y'] as $k) {
             if (! \Illuminate\Support\Facades\Schema::hasColumn('cabangs', $k)) {
                 unset($data[$k]);

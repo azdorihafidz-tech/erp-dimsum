@@ -779,6 +779,9 @@ class PenjualanService
         if ($tipePenjual !== 'gudang_pusat') {
             throw new \Exception('Kirim ke Cabang hanya bisa dari cabang bertipe Gudang Pusat.');
         }
+        if (! $penjual->kirim_cabang_aktif) {
+            throw new \Exception("Kirim ke Cabang belum dinyalakan untuk '{$penjual->nama_cabang}'. Nyalakan di Cabang → Edit → Config POS.");
+        }
         if (! empty($data['purchase_order_id'])) {
             throw new \Exception('Keranjang ini berasal dari Pesanan PO cabang — proses sebagai nota biasa (cabang menerima lewat PO), bukan Kirim ke Cabang.');
         }

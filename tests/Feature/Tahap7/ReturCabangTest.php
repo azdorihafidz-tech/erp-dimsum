@@ -45,7 +45,7 @@ class ReturCabangTest extends TestCase
     {
         parent::setUp();
         $u = substr(uniqid(), -6);
-        $this->gudang = Cabang::create(['nama_cabang' => "Gudang Retur {$u}", 'kode_cabang' => 'GR' . rand(10000, 99999), 'tipe' => 'gudang_pusat', 'is_active' => true]);
+        $this->gudang = Cabang::create(['nama_cabang' => "Gudang Retur {$u}", 'kode_cabang' => 'GR' . rand(10000, 99999), 'tipe' => 'gudang_pusat', 'is_active' => true, 'kirim_cabang_aktif' => true]);
         $this->outlet = Cabang::create(['nama_cabang' => "Outlet Retur {$u}", 'kode_cabang' => 'OR' . rand(10000, 99999), 'tipe' => 'cabang', 'is_active' => true,
             'wajib_bukti_transfer' => false, 'wajib_bukti_qris' => false]);
         $kas = fn ($c, $jenis, $saldo) => Kas::create(['cabang_id' => $c->id, 'default_untuk' => $jenis, 'nama_kas' => "Kas {$jenis} {$c->nama_cabang}",

@@ -191,6 +191,8 @@ MARKDOWN;
         }
 
         foreach ([
+            ['key' => 'cabang.kirim_cabang_aktif', 'modul' => 'cabang', 'title' => 'Kirim ke Cabang di POS',
+                'content' => 'Nyalakan supaya POS gudang ini punya pilihan Jenis Pembeli → Kirim ke Cabang (barang dikirim ke cabang, cabang menekan Terima). Bawaan mati: POS gudang seperti biasa.'],
             ['key' => 'pos.customer_type', 'modul' => 'pos', 'title' => 'Jenis Pembeli',
                 'content' => 'Penjualan biasa = pelanggan bayar di sini. Kirim ke Cabang = Gudang mengirim barang ke cabang sendiri; tanpa pembayaran di sini, uang dipotong dari kas cabang saat cabang menekan Terima.'],
             ['key' => 'pos.outlet_tujuan', 'modul' => 'pos', 'title' => 'Cabang Tujuan',
@@ -211,7 +213,7 @@ MARKDOWN;
     public const BAGIAN_POS_KIRIM = <<<'MARKDOWN'
 <!-- KIRIM-CABANG-449 -->
 ## Kirim ke Cabang (khusus POS Gudang Pusat)
-Di POS dengan cabang aktif = **Gudang Pusat** ada pilihan **Jenis Pembeli → Kirim ke Cabang** + **Cabang Tujuan**. Bagian pembayaran dan Save Bill disembunyikan, tombolnya menjadi **KIRIM KE CABANG**: stok Gudang langsung berkurang, lalu cabang menekan **Terima** di menu **Kiriman Cabang**. Lihat panduan **Kiriman Cabang**.
+Di POS dengan cabang aktif = **Gudang Pusat** (setelah saklar **Aktifkan Kirim ke Cabang di POS** dinyalakan di Cabang → Edit) ada pilihan **Jenis Pembeli → Kirim ke Cabang** + **Cabang Tujuan**. Bagian pembayaran dan Save Bill disembunyikan, tombolnya menjadi **KIRIM KE CABANG**: stok Gudang langsung berkurang, lalu cabang menekan **Terima** di menu **Kiriman Cabang**. Lihat panduan **Kiriman Cabang**.
 MARKDOWN;
 
     public const PANDUAN_KIRIMAN = <<<'MARKDOWN'
@@ -227,6 +229,7 @@ Gudang Pusat **menjual** barang ke cabang sendiri, dengan harga yang boleh dinai
 Ini cara **tambahan** — Transfer Stok dan PO ke Gudang tetap bisa dipakai seperti biasa.
 
 ## Persiapan (sekali per barang)
+0. **Nyalakan fiturnya** (sekali): **Cabang → Edit** Gudang Pusat → kotak Config POS → **Aktifkan Kirim ke Cabang di POS** → Simpan. Bawaannya mati — selama mati, POS gudang tampil seperti biasa tanpa pilihan Jenis Pembeli.
 1. Di **Produk Jual milik Gudang**, buat produk untuk barang yang mau dikirim, mis. "Isian Ayam (kirim ke cabang)", dengan harga kirimnya.
 2. Isi **komposisinya** dengan barang yang akan masuk ke stok cabang, mis. Isian Ayam 1 kg. Yang masuk ke cabang = bahan di komposisi × jumlah kiriman. Produk tanpa komposisi tidak bisa dikirim.
 3. Gudang wajib punya **Kas Tunai** aktif (pendapatan kiriman), cabang tujuan minimal 1 kas aktif.
@@ -263,7 +266,7 @@ Selama belum diterima: buka kiriman di tab **Barang Keluar** → isi alasan → 
 - Keranjang yang diisi dari **Pesanan PO dari Cabang** tidak bisa dikirim lewat Kirim ke Cabang (cabang menerimanya lewat PO).
 
 ## Troubleshooting
-- **Pilihan Kirim ke Cabang tidak ada di POS?** Cabang aktif harus bertipe Gudang Pusat.
+- **Pilihan Kirim ke Cabang tidak ada di POS?** Cabang aktif harus bertipe Gudang Pusat **dan** saklar **Aktifkan Kirim ke Cabang di POS** di Cabang → Edit sudah dinyalakan.
 - **"belum punya Kas Tunai aktif"** → buat Kas Tunai di menu Kas untuk cabang yang disebut.
 - **"tidak memotong stok apa pun"** → Produk Jual itu belum punya komposisi.
 - **Menu Kiriman Cabang tidak ada?** Minta Owner mencentang **Lihat Kiriman Cabang** / **Terima / Tolak Kiriman dari Gudang** di Role & Hak Akses.

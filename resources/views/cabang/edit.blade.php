@@ -456,6 +456,15 @@
                                 </div>
                             </div>
                         </div>
+                        {{-- 4.49 — Kirim ke Cabang dari POS (hanya Gudang Pusat), bawaan mati --}}
+                        @if(($cabang->tipe?->value ?? $cabang->tipe) === 'gudang_pusat')
+                        <div class="form-check form-switch mt-2">
+                            <input type="hidden" name="kirim_cabang_aktif" value="0">
+                            <input class="form-check-input" type="checkbox" role="switch" id="kirimCabangAktif" name="kirim_cabang_aktif" value="1" {{ old('kirim_cabang_aktif', $cabang->kirim_cabang_aktif ?? false) ? 'checked' : '' }}>
+                            <label class="form-check-label small" for="kirimCabangAktif">Aktifkan <strong>Kirim ke Cabang</strong> di POS <x-tooltip key="cabang.kirim_cabang_aktif" /></label>
+                        </div>
+                        <div class="form-text">Kalau dinyalakan, POS gudang ini punya pilihan Jenis Pembeli → Kirim ke Cabang. Mati = POS seperti biasa.</div>
+                        @endif
                     </div>
 
                     <div class="mb-0">
