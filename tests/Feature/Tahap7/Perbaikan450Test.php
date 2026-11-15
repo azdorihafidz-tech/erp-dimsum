@@ -332,4 +332,51 @@ class Perbaikan450Test extends TestCase
         }
         $this->actingAs($this->buatUser('owner'))->get(route('dashboard.pusat'))->assertOk();
     }
+
+    // ---------------- Karyawan ↔ akun login (ditemukan saat Kamus Tahap 2) ----------------
+
+    private function karyawanDenganUser(\App\Models\User $user, Cabang $cabang): \App\Models\Karyawan
+    {
+        return \App\Models\Karyawan::create([
+            'cabang_id' => $cabang->id, 'user_id' => $user->id, 'nik' => 'NIK450' . rand(10000, 99999), 'nama_lengkap' => 'Karyawan T450', 'jenis_kelamin' => 'L',
+            'jabatan' => 'Staf', 'tipe_karyawan' => 'tetap', 'tanggal_masuk' => today(), 'gaji_pokok' => 1000000, 'status' => 'aktif',
+        ]);
+    }
+
+    private function dataKaryawan(\App\Models\Karyawan $k, array $extra = []): array
+    {
+        return array_merge([
+            'cabang_id' => $k->cabang_id, 'nik' => $k->nik, 'nama_lengkap' => $k->nama_lengkap, 'jenis_kelamin' => 'L', 'jabatan' => 'Staf',
+            'tipe_karyawan' => 'tetap', 'tanggal_masuk' => today()->toDateString(), 'gaji_pokok' => 1000000, 'status' => 'aktif',
+        ], $extra);
+    }
+
+    public function test_edit_karyawan_milik_owner_tidak_menurunkan_role_owner(): void
+    {
+        $cabang = $this->cabang();
+        $ownerAkun = $this->buatUser('owner');
+        $k = $this->karyawanDenganUser($ownerAkun, $cabang);
+        $admin = $this->buatUser('admin_pusat');
+
+        // form tidak menampilkan pilihan role untuk akun Owner
+        $this->actingAs($admin)->get(route('karyawan.edit', $k))->assertOk()->assertDontSee('name="user_role"', false)->assertSee('Ini akun Owner');
+
+        // simpan biasa (tanpa field akun) → role Owner tetap
+        $this->actingAs($admin)->put(route('karyawan.update', $k), $this->dataKaryawan($k, ['jabatan' => 'Pemilik']))->assertRedirect(route('karyawan.show', $k));
+        $this->assertSame('owner', $ownerAkun->fresh()->role->value);
+
+        // memaksa kirim role lain → ditolak, role tetap Owner
+        $this->actingAs($admin)->put(route('karyawan.update', $k), $this->dataKaryawan($k, ['user_role' => 'kasir']))->assertSessionHas('error');
+        $this->assertSame('owner', $ownerAkun->fresh()->role->value);
+    }
+
+    public function test_ubah_role_akun_karyawan_butuh_izin_edit_user(): void
+    {
+        $cabang = $this->cabang();
+        $kasirAkun = $this->buatUser('kasir', $cabang->id);
+        $k = $this->karyawanDenganUser($kasirAkun, $cabang);
+        $owner = $this->buatUser('owner');
+        $this->actingAs($owner)->put(route('karyawan.update', $k), $this->dataKaryawan($k, ['user_role' => 'manajer_cabang']))->assertRedirect();
+        $this->assertSame('manajer_cabang', $kasirAkun->fresh()->role->value);
+    }
 }

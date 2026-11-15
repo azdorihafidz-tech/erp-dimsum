@@ -30,10 +30,6 @@ class KamusMenuTest extends TestCase
      * tulis penjelasannya di database/seeders/kamus/*.php (CLAUDE.md 3.6 poin 6).
      */
     private const BELUM = [
-        'karyawan.index', 'dashboard.absensi', 'face-attendance.scan', 'absensi.index', 'absensi-saya.index',
-        'face-attendance.today', 'absensi.rekap', 'laporan.absensi', 'face-registration.index', 'shift.index',
-        'hari-libur.index', 'penggajian.index', 'cuti.index', 'evaluasi.periods', 'evaluasi.my-reviews',
-        'aset.index',
         'laporan.penjualan', 'laporan.stok', 'laporan.keuangan.laba-rugi', 'laporan.hr.absensi', 'laporan.hr.penggajian',
         'laporan.hr.evaluasi', 'laporan.aset', 'laporan.bep', 'laporan.bep-otomatis.index', 'laporan.setoran',
         'laporan.kategori', 'laporan.audit-bukti', 'laporan.saldo-kas', 'laporan.setoran-harian.index',
