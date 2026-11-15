@@ -311,6 +311,7 @@ Menghitung gaji karyawan per bulan dan mencetak slip.
 - Uang lembur = jam lembur × tarif (Pengaturan, atau gaji ÷ 173 × 1,5).
 - Potongan absensi = jumlah Alpha × potongan alpa per hari.
 - **Potongan telat** = total menit telat × potongan telat per menit.
+- **Potongan Ganti Rugi Stok** = cicilan ganti rugi barang hilang dari Stok Opname (menu Ganti Rugi Stok), otomatis, maksimal sebesar gaji bersih; slip draft dihitung ulang tidak membuat potongan dobel. Saat slip **Dibayar** potongan ini juga dicatat sebagai Beban Gaji + Pemulihan Kerugian Stok (tanpa kas); Batal Bayar ikut membatalkannya.
 - BPJS dari % di data karyawan; PPh21 dihitung otomatis; tunjangan/bonus/kasbon/potongan lain diisi saat generate.
 
 ## Alur
@@ -420,6 +421,40 @@ Penyusutan juga dijalankan otomatis tiap **tanggal 1** kalau server menjalankan 
 
 ## Menu yang mirip & bedanya
 - **Bahan Baku & Kemasan / Perlengkapan** — barang habis pakai (stok). Aset = barang modal (disusutkan).
+MD,
+    ],
+    [
+        'slug' => 'ganti-rugi-stok', 'judul' => 'Ganti Rugi Stok (Karyawan)', 'kelompok' => 'SDM & Karyawan', 'urutan' => 125,
+        'letak' => 'SDM & Karyawan → Ganti Rugi Stok (dibebankan dari halaman Stok Opname)',
+        'ringkasan' => 'Nilai barang hilang dari Stok Opname dibebankan ke karyawan: tunai (kas masuk) atau potong gaji dicicil 1–12 bulan otomatis di slip.',
+        'izin' => ['stok_opname.ganti_rugi'],
+        'route_names' => ['ganti-rugi.*'],
+        'terkait' => ['stok-opname', 'penggajian', 'laporan-kerugian-stok'],
+        'kata_kunci' => 'ganti rugi karyawan barang hilang potong gaji cicilan dibebankan karyawan denda kehilangan stok tagihan karyawan',
+        'konten' => <<<'MD'
+## Fungsi
+Membebankan nilai barang **Hilang** (dari Stok Opname yang disetujui) ke satu atau beberapa karyawan, lalu memantau pembayarannya.
+
+## Supaya menu ini muncul & bisa dipakai
+- Centangan **Kelola Ganti Rugi Karyawan** (bawaan: Admin Pusat + Owner) dan akses ke lokasi opname.
+- Ganti rugi **dibuat dari halaman Stok Opname** yang sudah **disetujui** dan punya penyebab **Hilang** (kotak "Ganti rugi karyawan" di bawah daftar barang). Menu ini untuk memantau & membatalkan.
+- Karyawan yang bisa dipilih: karyawan **aktif** di lokasi itu. Untuk tunai, lokasi harus punya **Kas** aktif.
+
+## Apa yang terjadi kalau tombol diklik
+| Tombol | Kas | Keuangan | Slip gaji |
+|---|---|---|---|
+| Bebankan — tunai | Kas lokasi **bertambah** | Pemulihan Kerugian Stok | — |
+| Bebankan — potong gaji | — | Belum ada (menunggu slip dibayar) | Baris **Potongan Ganti Rugi Stok** mulai slip bulan depan |
+| Slip gaji **Dibayar** | Kas berkurang sebesar gaji bersih saja | Beban Gaji (bagian potongan) + Pemulihan Kerugian Stok, tanpa kas | Potongan "sudah dibayar" |
+| Slip **Batal Bayar** | Kembali | Kedua baris dibatalkan | Potongan kembali "di slip" |
+| Batal (ganti rugi) | — | — | Potongan di slip draft dihapus |
+
+## Wajib
+- Nilai selain harga pokok barang hilang (mis. dibagi ke beberapa orang) wajib diberi alasan.
+
+## Jangan
+- Jangan mengisi potongan ganti rugi manual di kolom Kasbon/Potongan Lain — akan dobel dengan potongan otomatis.
+- Ganti rugi yang sudah ada pembayarannya tidak bisa dibatalkan.
 MD,
     ],
 ];

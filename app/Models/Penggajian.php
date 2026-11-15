@@ -19,7 +19,7 @@ class Penggajian extends Model
         'tunjangan_transport', 'tunjangan_kehadiran',
         'uang_lembur', 'bonus', 'insentif', 'thr', 'komisi',
         'potongan_absensi',
-        'potongan_telat', 'potongan_lain', // 4.51: potongan_telat
+        'potongan_telat', 'potongan_lain', 'potongan_ganti_rugi', // 4.51: potongan_telat; Stok Opname: potongan_ganti_rugi
         'bpjs_kesehatan', 'bpjs_ketenagakerjaan', 'pph21', 'kasbon',
         'total_gaji', 'status', 'tanggal_bayar',
         'tarif_lembur_per_jam_override', 'potongan_alpa_per_hari_override',
@@ -42,6 +42,7 @@ class Penggajian extends Model
         'potongan_absensi',
         'potongan_telat', // 4.51
         'potongan_lain',
+        'potongan_ganti_rugi', // Stok Opname — cicilan ganti rugi barang hilang
         'bpjs_kesehatan',
         'bpjs_ketenagakerjaan',
         'pph21',
@@ -87,6 +88,7 @@ class Penggajian extends Model
             'pph21'                => 'decimal:2',
             'kasbon'               => 'decimal:2',
             'potongan_lain'        => 'decimal:2',
+            'potongan_ganti_rugi'  => 'decimal:2',
             'total_gaji'                     => 'decimal:2',
             'tarif_lembur_per_jam_override'  => 'decimal:2',
             'potongan_alpa_per_hari_override' => 'decimal:2',

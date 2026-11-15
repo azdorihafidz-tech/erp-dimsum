@@ -453,6 +453,7 @@ class PenggajianController extends Controller
             return back()->with('error', 'Hanya slip gaji berstatus draft yang bisa dihapus.');
         }
 
+        app(\App\Services\GantiRugiService::class)->slipDihapus($penggajian);
         $penggajian->delete();
 
         return redirect()->route('penggajian.index')

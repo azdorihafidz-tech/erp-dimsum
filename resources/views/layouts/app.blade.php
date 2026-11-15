@@ -884,7 +884,7 @@
         @endcanany
 
         <!-- HR / SDM -->
-        @canany(['karyawan.view', 'absensi.view', 'absensi.manage', 'scan_absensi', 'dashboard_absensi', 'laporan_absensi', 'registrasi_wajah', 'kelola_shift', 'kelola_hari_libur', 'penggajian.view', 'cuti.view', 'evaluasi.view', 'evaluasi.fill'])
+        @canany(['karyawan.view', 'absensi.view', 'absensi.manage', 'scan_absensi', 'dashboard_absensi', 'laporan_absensi', 'registrasi_wajah', 'kelola_shift', 'kelola_hari_libur', 'penggajian.view', 'cuti.view', 'evaluasi.view', 'evaluasi.fill', 'stok_opname.ganti_rugi'])
         <div class="nav-section-title">SDM & Karyawan</div>
         @can('karyawan.view')
         <a href="{{ route('karyawan.index') }}"
@@ -962,6 +962,13 @@
            class="nav-link {{ request()->routeIs('penggajian.*') ? 'active' : '' }}">
             <i class="bi bi-cash-stack"></i>
             <span>Penggajian</span>
+        </a>
+        @endcan
+        @can('stok_opname.ganti_rugi')
+        <a href="{{ route('ganti-rugi.index') }}"
+           class="nav-link {{ request()->routeIs('ganti-rugi.*') ? 'active' : '' }}">
+            <i class="bi bi-person-exclamation"></i>
+            <span>Ganti Rugi Stok</span>
         </a>
         @endcan
         @can('cuti.view')

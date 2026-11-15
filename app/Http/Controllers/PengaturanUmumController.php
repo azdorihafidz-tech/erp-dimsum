@@ -68,6 +68,25 @@ class PengaturanUmumController extends Controller
             }
         }
 
+        // Stok Opname — hitung buta, batas foto barang hilang, pengingat akhir bulan
+        $opnameLama = null;
+        if ($request->has('opname_form') && \Illuminate\Support\Facades\Schema::hasColumn('pengaturan_umums', 'opname_hitung_buta')) {
+            $o = $request->validate([
+                'opname_batas_foto_hilang' => ['required', 'numeric', 'min:0', 'max:999999999'],
+                'opname_pengingat_hari'    => ['required', 'integer', 'min:1', 'max:10'],
+                'opname_pengingat_jam'     => ['required', 'date_format:H:i'],
+            ], [
+                'opname_pengingat_hari.min' => 'Pengingat paling cepat H-1.', 'opname_pengingat_hari.max' => 'Pengingat paling lama H-10.',
+                'opname_pengingat_jam.date_format' => 'Jam pengingat tidak valid (contoh 08:00).',
+            ]);
+            $opnameLama = $setting->only(['opname_hitung_buta', 'opname_batas_foto_hilang', 'opname_pengingat_aktif', 'opname_pengingat_hari', 'opname_pengingat_jam']);
+            $setting->opname_hitung_buta       = $request->boolean('opname_hitung_buta');
+            $setting->opname_batas_foto_hilang = (float) $o['opname_batas_foto_hilang'];
+            $setting->opname_pengingat_aktif   = $request->boolean('opname_pengingat_aktif');
+            $setting->opname_pengingat_hari    = (int) $o['opname_pengingat_hari'];
+            $setting->opname_pengingat_jam     = $o['opname_pengingat_jam'];
+        }
+
         if ($request->hasFile('logo') && $request->file('logo')->isValid()) {
             try {
                 $baru = $branding->simpanLogo($request->file('logo'));
@@ -90,6 +109,15 @@ class PengaturanUmumController extends Controller
         activity()
             ->performedOn($setting)
             ->log('Update pengaturan umum perusahaan');
+
+        if ($opnameLama !== null) {
+            $opnameBaru = $setting->only(array_keys($opnameLama));
+            if ($opnameBaru != $opnameLama) {
+                activity('Pengaturan')->performedOn($setting)->causedBy(auth()->user())
+                    ->withProperties(['old' => $opnameLama, 'attributes' => $opnameBaru])
+                    ->log('Ubah pengaturan Stok Opname');
+            }
+        }
 
         return redirect()
             ->route('pengaturan.umum')

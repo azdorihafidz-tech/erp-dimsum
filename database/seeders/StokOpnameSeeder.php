@@ -93,6 +93,16 @@ class StokOpnameSeeder extends Seeder
             'urutan' => 45,
             'aktif'  => true,
         ]);
+        Panduan::updateOrCreate(['slug' => 'ganti-rugi-stok'], [
+            'judul'  => 'Ganti Rugi Stok (Karyawan)',
+            'konten' => self::PANDUAN_GANTI_RUGI,
+            'modul'  => 'hr',
+            'urutan' => 47,
+            'aktif'  => true,
+        ]);
+        // Bagian tambahan di panduan yang sudah ada (penanda supaya tidak dobel)
+        $this->tambahBagian('penggajian', '<!-- STOK-OPNAME-452 -->', "## Potongan Ganti Rugi Stok\nKaryawan yang dibebani ganti rugi barang hilang lewat **Stok Opname** dengan cara **potong gaji** otomatis mendapat baris **Potongan Ganti Rugi Stok** di slip bulan berikutnya: dicicil sesuai jumlah bulan yang dipilih, tidak pernah melebihi gaji bersih (kekurangannya digeser ke bulan berikutnya), dan tidak dobel kalau slip draft dihitung ulang. Saat slip **Dibayar**, potongan dicatat sebagai Beban Gaji (gaji kotor) sekaligus Pemulihan Kerugian Stok — kas tetap hanya berkurang sebesar gaji bersih. **Batal Bayar** ikut membatalkannya. Sisa tagihan terlihat di menu SDM → Ganti Rugi Stok.");
+        $this->tambahBagian('pengaturan-umum', '<!-- STOK-OPNAME-452 -->', "## Stok Opname\nKartu **Stok Opname** di halaman ini mengatur: **hitung buta** untuk opname baru (penghitung tidak melihat stok sistem), **batas nilai barang hilang yang wajib foto** (bawaan Rp 200.000 per barang; 0 = semua wajib foto), dan **pengingat** lokasi yang belum opname bulan ini (nyala/mati, mulai H-1…H-10 sebelum akhir bulan, jam). Setiap perubahan tercatat di log aktivitas.");
         Panduan::updateOrCreate(['slug' => 'laporan-kerugian-stok'], [
             'judul'  => 'Laporan Kerugian Stok',
             'konten' => self::PANDUAN_LAPORAN,
@@ -100,6 +110,15 @@ class StokOpnameSeeder extends Seeder
             'urutan' => 46,
             'aktif'  => true,
         ]);
+    }
+
+    private function tambahBagian(string $slug, string $penanda, string $isi): void
+    {
+        $panduan = Panduan::where('slug', $slug)->first();
+        if (! $panduan || str_contains((string) $panduan->konten, $penanda)) {
+            return;
+        }
+        $panduan->update(['konten' => rtrim((string) $panduan->konten) . "\n\n{$penanda}\n{$isi}\n"]);
     }
 
     private function tooltip(): void
@@ -113,6 +132,8 @@ class StokOpnameSeeder extends Seeder
             ['laporan_kerugian_stok.kotor', 'Kerugian kotor', 'Jumlah nilai barang yang kurang dari semua Stok Opname yang DISETUJUI di periode ini (harga pokok FIFO). Tidak mengurangi kas.'],
             ['laporan_kerugian_stok.bersih', 'Kerugian bersih', 'Kerugian kotor dikurangi uang yang diterima kembali (ganti rugi karyawan, uang pemasok), barang yang kembali (diganti pemasok / dipakai lagi), dan kelebihan stok.'],
             ['stok_rusak.tindakan', 'Tindak lanjut stok rusak', 'Diganti barang / Dipakai lagi: barang kembali ke stok jual, kerugian dibatalkan. Dibayar uang / Dipotong tagihan: uang masuk kas sebagai Pemulihan Kerugian Stok. Dimusnahkan: foto wajib + Berita Acara Pemusnahan.'],
+            ['ganti_rugi.cara', 'Ganti rugi karyawan', 'Bebankan nilai barang hilang ke karyawan. Tunai: kas lokasi bertambah sekarang. Potong gaji: dicicil 1–12 bulan mulai slip bulan depan, tidak melebihi gaji bersih. Nilai bawaan = harga pokok; nilai lain wajib alasan.'],
+            ['pengaturan_umum.stok_opname', 'Pengaturan Stok Opname', 'Hitung buta untuk opname baru, batas nilai barang hilang yang wajib foto, dan pengingat lokasi yang belum opname di akhir bulan.'],
             ['stok_opname.penyebab', 'Penyebab selisih', 'Barang yang kurang wajib dirinci penyebabnya (boleh dipecah, mis. 2 rusak + 1 hilang). Rusak/Basi/Freezer mati masuk Stok Rusak; semua kerugian dicatat sebagai beban tanpa mengurangi kas.'],
         ] as $i => [$key, $title, $content]) {
             Tooltip::updateOrCreate(['key' => $key], ['title' => $title, 'content' => $content, 'modul' => 'stok', 'aktif' => true, 'urutan' => 120 + $i]);
@@ -208,6 +229,26 @@ Barang yang di Stok Opname dicatat **Rusak**, **Basi/Kedaluwarsa**, atau **Freez
 - **Dipotong tagihan**: bayar PO tetap penuh di sistem. Karena potongan dicatat sebagai uang masuk ke kas yang sama, saldo kas bersihnya sama dengan uang yang benar-benar keluar.
 - Kalau hari ini sudah Closing Harian / Tutup Buku, tindakan yang mencatat keuangan ditolak — buka kunci atau lakukan besok.
 - Semua tindakan tercatat di riwayat baris itu dan di Laporan → Kerugian Stok.
+MARKDOWN;
+
+    public const PANDUAN_GANTI_RUGI = <<<'MARKDOWN'
+## Tujuan
+Membebankan nilai barang **Hilang** dari Stok Opname kepada karyawan, dibayar tunai atau dipotong dari gaji (bisa dicicil).
+
+## Langkah-langkah
+1. Buka **Stok Opname** yang sudah **disetujui** dan punya barang Hilang. Di bagian bawah ada kotak **Ganti rugi karyawan**.
+2. Pilih **karyawan**, isi **nilai** (bawaan = harga pokok barang hilang yang belum dibebankan), pilih **cara**:
+   - **Tunai** — pilih kas lokasi; uang langsung masuk kas.
+   - **Potong gaji** — pilih dicicil 1–12 bulan; potongan masuk slip mulai bulan depan.
+3. Klik **Bebankan**. Untuk membagi ke beberapa orang, ulangi dengan nilai masing-masing (nilai lain dari bawaan wajib diberi alasan, mis. "dibagi 2 orang").
+4. Pantau di **SDM → Ganti Rugi Stok**: nilai, sudah diterima, sisa, dan potongan per slip.
+
+## Catatan Penting
+- **Tunai**: kas bertambah dan tercatat sebagai **Pemulihan Kerugian Stok** (mengurangi rugi bersih).
+- **Potong gaji**: potongan tidak pernah melebihi gaji bersih; kekurangannya otomatis digeser ke bulan berikutnya. Slip draft yang dihitung ulang tidak membuat potongan dobel.
+- Saat slip **Dibayar**, potongan dicatat sebagai **Beban Gaji** (sehingga beban gaji = gaji kotor) dan **Pemulihan Kerugian Stok**; kas tetap hanya berkurang sebesar gaji bersih. **Batal Bayar** slip ikut membatalkannya.
+- **Batal** ganti rugi hanya bisa kalau belum ada pembayaran sama sekali (tunai langsung dianggap lunas). Potongan yang sudah masuk slip yang disetujui harus dibatalkan dulu dari slipnya.
+- Izin bawaan hanya Admin Pusat (dan Owner).
 MARKDOWN;
 
     public const PANDUAN_LAPORAN = <<<'MARKDOWN'

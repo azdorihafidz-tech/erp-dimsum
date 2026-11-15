@@ -154,10 +154,31 @@ class StokOpnameController extends Controller
             'bolehBatal'   => $user->hasPermission('stok_opname.batal') && StokOpnameService::bolehAksesLokasi($user, $o->cabang_id),
             'perkiraan'    => $perkiraan,
             'bolehUnduh'   => $this->service->bolehUnduhBeritaAcara($user, $o),
+            'gantiRugi'    => $this->dataGantiRugi($o),
             'masalah'      => $o->status === StokOpname::MENGHITUNG && $lihatSistem ? $this->service->masalahPengajuan($o) : [],
             'penyebabKurang' => PenyebabSelisihStok::untukKurang(),
             'batasFoto'    => StokOpnameService::batasFotoHilang(),
         ]);
+    }
+
+    /** Ganti rugi karyawan untuk barang Hilang (hanya opname disetujui). */
+    private function dataGantiRugi(StokOpname $o): ?array
+    {
+        if ($o->status !== StokOpname::DISETUJUI || ! \App\Services\GantiRugiService::siap()) {
+            return null;
+        }
+        $svc = app(\App\Services\GantiRugiService::class);
+        $r = $svc->ringkasOpname($o);
+        if ($r['hilang'] <= 0) {
+            return null;
+        }
+
+        return $r + [
+            'daftar'   => \App\Models\GantiRugi::with(['karyawan', 'kas'])->where('stok_opname_id', $o->id)->orderBy('id')->get(),
+            'kelola'   => $svc->bolehKelola(auth()->user(), $o->cabang_id),
+            'karyawan' => \App\Services\GantiRugiService::karyawanUntuk($o->cabang_id),
+            'kas'      => \App\Models\Kas::where('cabang_id', $o->cabang_id)->where('is_active', true)->orderBy('nama_kas')->get(['id', 'nama_kas']),
+        ];
     }
 
     private function jsonBaris(StokOpname $o, $row)

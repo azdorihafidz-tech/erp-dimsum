@@ -140,6 +140,7 @@ Pengaturan yang berlaku untuk **seluruh usaha**.
 | Logo | Sidebar, login, struk, PDF, ikon aplikasi (PWA) |
 | **Warna aplikasi** (3 warna / tema siap pakai) | Sidebar, tombol utama, latar, grafik, PDF & Excel. Warna latar harus terang |
 | **Tanggal mulai periode** (1–28) | Periode Tutup Buku Bulanan (Closing) |
+| **Stok Opname**: hitung buta, batas nilai barang hilang wajib foto, pengingat (nyala/mati, H-1…H-10, jam) | Opname **baru** (hitung buta), aturan foto saat rincian, notifikasi pengingat akhir bulan ke kepala lokasi + Owner. Perubahan tercatat di log aktivitas |
 
 ## Jangan
 - Jangan mengubah tanggal mulai periode setelah ada Tutup Buku — periode berikutnya jadi tidak sejajar dengan yang sudah dikunci.

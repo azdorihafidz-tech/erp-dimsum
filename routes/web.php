@@ -261,6 +261,11 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
         Route::post('/{stokOpname}/batal', 'batal')->name('batal');
         Route::get('/{stokOpname}/berita-acara', 'beritaAcara')->name('berita-acara');
     });
+    Route::prefix('ganti-rugi')->name('ganti-rugi.')->controller(\App\Http\Controllers\GantiRugiController::class)->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('/opname/{stokOpname}', 'store')->name('store');
+        Route::post('/{gantiRugi}/batal', 'batal')->name('batal');
+    });
 
     // Stok Rusak (Stok Opname Tahap C)
     Route::get('/stok-rusak', [\App\Http\Controllers\StokRusakController::class, 'index'])->name('stok-rusak.index');

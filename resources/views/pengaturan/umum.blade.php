@@ -127,6 +127,46 @@
                 </div>
             </div>
 
+            @if(\Illuminate\Support\Facades\Schema::hasColumn('pengaturan_umums', 'opname_hitung_buta'))
+            <div class="card mb-3" id="pengaturan-stok-opname">
+                <div class="card-header py-3 px-4">
+                    <i class="bi bi-clipboard-check me-2 text-primary"></i>
+                    <span class="fw-semibold">Stok Opname</span>
+                    <x-tooltip key="pengaturan_umum.stok_opname" placement="top" />
+                </div>
+                <div class="card-body p-4">
+                    <input type="hidden" name="opname_form" value="1">
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" name="opname_hitung_buta" value="1" id="opname_hitung_buta" @checked(old('opname_hitung_buta', $setting->opname_hitung_buta ?? true))>
+                        <label class="form-check-label" for="opname_hitung_buta"><strong>Hitung buta</strong> untuk opname baru — penghitung tidak melihat stok sistem</label>
+                    </div>
+                    <div class="mb-3" style="max-width:320px">
+                        <label class="form-label fw-medium" for="opname_batas_foto_hilang">Batas nilai barang hilang yang wajib foto (Rp per barang)</label>
+                        <input type="number" min="0" step="1000" class="form-control @error('opname_batas_foto_hilang') is-invalid @enderror" id="opname_batas_foto_hilang" name="opname_batas_foto_hilang" value="{{ old('opname_batas_foto_hilang', (int) ($setting->opname_batas_foto_hilang ?? 200000)) }}">
+                        <div class="form-text">0 = semua barang hilang wajib foto. Rusak/Basi/Freezer mati selalu wajib foto.</div>
+                        @error('opname_batas_foto_hilang')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    </div>
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" name="opname_pengingat_aktif" value="1" id="opname_pengingat_aktif" @checked(old('opname_pengingat_aktif', $setting->opname_pengingat_aktif ?? true))>
+                        <label class="form-check-label" for="opname_pengingat_aktif"><strong>Pengingat</strong> lokasi yang belum opname bulan ini</label>
+                    </div>
+                    <div class="d-flex flex-wrap gap-3">
+                        <div>
+                            <label class="form-label small mb-0" for="opname_pengingat_hari">Mulai H-berapa sebelum akhir bulan</label>
+                            <select class="form-select @error('opname_pengingat_hari') is-invalid @enderror" name="opname_pengingat_hari" id="opname_pengingat_hari" style="max-width:160px">
+                                @for($h = 1; $h <= 10; $h++)<option value="{{ $h }}" @selected((int) old('opname_pengingat_hari', $setting->opname_pengingat_hari ?? 3) === $h)>H-{{ $h }}</option>@endfor
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label small mb-0" for="opname_pengingat_jam">Jam</label>
+                            <input type="time" class="form-control @error('opname_pengingat_jam') is-invalid @enderror" name="opname_pengingat_jam" id="opname_pengingat_jam" value="{{ old('opname_pengingat_jam', $setting->opname_pengingat_jam ?? '08:00') }}" style="max-width:140px">
+                        </div>
+                    </div>
+                    <div class="form-text">Notifikasi dikirim ke kepala lokasi + Owner, satu kali per orang per hari, selama masa pengingat. Perubahan pengaturan ini tercatat di log aktivitas.</div>
+                </div>
+            </div>
+            @endif
+
             <div class="card">
                 <div class="card-header py-3 px-4">
                     <i class="bi bi-image me-2 text-primary"></i>

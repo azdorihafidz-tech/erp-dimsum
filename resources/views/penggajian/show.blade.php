@@ -145,6 +145,7 @@
                                 'PPh21'                    => $penggajian->pph21,
                                 'Kasbon'                   => $penggajian->kasbon,
                                 'Potongan Lain'            => $penggajian->potongan_lain,
+                                'Potongan Ganti Rugi Stok' => $penggajian->potongan_ganti_rugi,
                             ];
                             $totalPotongan = array_sum(array_map('floatval', $potonganItems));
                         @endphp
@@ -272,6 +273,12 @@
                     <tr>
                         <td class="px-3 py-2 text-muted">Pot. Telat ({{ (int) $penggajian->menit_telat_total }} menit)</td>
                         <td class="px-3 py-2 text-end text-danger">- Rp {{ number_format($penggajian->potongan_telat, 0, ',', '.') }}</td>
+                    </tr>
+                    @endif
+                    @if((float)$penggajian->potongan_ganti_rugi > 0)
+                    <tr>
+                        <td class="px-3 py-2 text-muted">Pot. Ganti Rugi Stok</td>
+                        <td class="px-3 py-2 text-end text-danger">- Rp {{ number_format($penggajian->potongan_ganti_rugi, 0, ',', '.') }}</td>
                     </tr>
                     @endif
                     <tr class="table-primary">

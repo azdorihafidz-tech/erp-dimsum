@@ -208,6 +208,39 @@
 </div>
 </div>
 
+@if($gantiRugi)
+<div class="card mt-3" id="ganti-rugi">
+    <div class="card-header py-2 fw-semibold"><i class="bi bi-person-exclamation me-1"></i>Ganti rugi karyawan (barang hilang) <x-tooltip key="ganti_rugi.cara" /></div>
+    <div class="card-body py-2 small">
+        Nilai barang hilang <strong>{{ $Rp($gantiRugi['hilang']) }}</strong> · dibebankan {{ $Rp($gantiRugi['dibebankan']) }} · belum dibebankan <strong>{{ $Rp($gantiRugi['sisa']) }}</strong>
+        @foreach($gantiRugi['daftar'] as $g)
+        <div class="mt-1"><i class="bi bi-dot"></i>{{ $g->karyawan?->nama_lengkap }} — {{ $Rp($g->nilai) }} · {{ $g->labelCara() }} · <span class="badge bg-{{ ['berjalan' => 'warning', 'lunas' => 'success', 'batal' => 'secondary'][$g->status] ?? 'light' }}">{{ ucfirst($g->status) }}</span> · sisa {{ $Rp($g->sisa()) }}</div>
+        @endforeach
+    </div>
+    @if($gantiRugi['kelola'] && $gantiRugi['sisa'] > 0)
+    <form method="POST" action="{{ route('ganti-rugi.store', $o) }}" class="card-body border-top py-2" id="formGantiRugi">
+        @csrf
+        <div class="row g-2 align-items-end">
+            <div class="col-12 col-md-3"><label class="form-label small mb-0">Karyawan</label>
+                <select name="karyawan_id" class="form-select form-select-sm" required><option value="">— pilih —</option>@foreach($gantiRugi['karyawan'] as $k)<option value="{{ $k->id }}">{{ $k->nama_lengkap }}</option>@endforeach</select></div>
+            <div class="col-6 col-md-2"><label class="form-label small mb-0">Nilai (Rp)</label>
+                <input type="number" min="1" step="1" name="nilai" class="form-control form-control-sm" value="{{ (int) round($gantiRugi['sisa']) }}" required></div>
+            <div class="col-6 col-md-2"><label class="form-label small mb-0">Cara</label>
+                <select name="cara" class="form-select form-select-sm" id="grCara"><option value="potong_gaji">Potong gaji</option><option value="tunai">Tunai</option></select></div>
+            <div class="col-6 col-md-2 gr-cicil"><label class="form-label small mb-0">Dicicil</label>
+                <select name="jumlah_cicilan" class="form-select form-select-sm">@for($c = 1; $c <= 12; $c++)<option value="{{ $c }}">{{ $c }} bulan</option>@endfor</select></div>
+            <div class="col-6 col-md-2 gr-tunai" style="display:none"><label class="form-label small mb-0">Masuk ke kas</label>
+                <select name="kas_id" class="form-select form-select-sm">@foreach($gantiRugi['kas'] as $k)<option value="{{ $k->id }}">{{ $k->nama_kas }}</option>@endforeach</select></div>
+            <div class="col-12 col-md-3"><label class="form-label small mb-0">Alasan (wajib kalau nilai diubah)</label>
+                <input type="text" name="alasan_nilai" class="form-control form-control-sm" maxlength="255" placeholder="mis. dibagi 2 orang"></div>
+            <div class="col-12 col-md-auto"><button class="btn btn-sm btn-warning">Bebankan</button></div>
+        </div>
+        <div class="form-text">Potong gaji mulai slip bulan depan, tidak melebihi gaji bersih. Tunai: kas lokasi bertambah sekarang.</div>
+    </form>
+    @endif
+</div>
+@endif
+
 {{-- ===== Modal (semua di luar form lain — CLAUDE.md 4.14) ===== --}}
 @if($editable && $bolehPeriksa)
 <div class="modal fade" id="modalRincian" tabindex="-1">
@@ -366,6 +399,16 @@
         document.querySelectorAll('#saringan [data-saring]').forEach(x => x.classList.remove('active'));
         btn.classList.add('active'); saring = btn.dataset.saring; terapkan();
     }));
+
+    // Ganti rugi: tampilkan isian sesuai cara
+    const grCara = document.getElementById('grCara');
+    if (grCara) {
+        const ubah = () => {
+            document.querySelectorAll('.gr-cicil').forEach(e => e.style.display = grCara.value === 'potong_gaji' ? '' : 'none');
+            document.querySelectorAll('.gr-tunai').forEach(e => e.style.display = grCara.value === 'tunai' ? '' : 'none');
+        };
+        grCara.addEventListener('change', ubah); ubah();
+    }
 
     // Rincian penyebab
     const modalR = document.getElementById('modalRincian');

@@ -157,7 +157,7 @@ class PenggajianService
             $totalPotongan    = $potonganAbsensi + $potonganTelat + $bpjsKesehatan + $bpjsTk + $pph21 + $kasbon + $potonganLain;
             $totalGaji        = max(0, $totalPenambahan - $totalPotongan);
 
-            return Penggajian::updateOrCreate(
+            $slip = Penggajian::updateOrCreate(
                 ['karyawan_id' => $karyawan->id, 'periode' => $periode],
                 [
                     'cabang_id'            => $karyawan->cabang_id,
@@ -192,6 +192,9 @@ class PenggajianService
                     'status'                         => 'draft',
                 ]
             );
+
+            // Stok Opname — cicilan ganti rugi karyawan (maks. gaji bersih; dihitung ulang, tidak dobel)
+            return app(GantiRugiService::class)->terapkanKeSlip($slip, $totalGaji)->fresh();
         });
     }
 
@@ -278,6 +281,7 @@ class PenggajianService
                 'kas_id'                => $kas->id,
                 'transaksi_keuangan_id' => $trx?->id,
             ]);
+            app(GantiRugiService::class)->slipDibayar($penggajian, $tanggal, $userId);
 
             return $penggajian;
         });
@@ -291,6 +295,7 @@ class PenggajianService
         }
 
         return DB::transaction(function () use ($penggajian) {
+            app(GantiRugiService::class)->slipBatalBayar($penggajian);
             if ($penggajian->transaksi_keuangan_id) {
                 $trx = \App\Models\TransaksiKeuangan::find($penggajian->transaksi_keuangan_id);
                 if ($trx) {
