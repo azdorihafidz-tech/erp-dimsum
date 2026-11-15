@@ -24,6 +24,7 @@ class Item extends Model
         'kode_item',
         'nama_item',
         'item_category_id',
+        'jenis_olahan_id', // 4.50 — Jenis Menu (opsional, Produk Jual)
         'tipe',
         'satuan',
         'harga_jual',
@@ -108,6 +109,12 @@ class Item extends Model
         return $cabangId
             ? $query->where(fn ($q) => $q->where($this->getTable() . '.cabang_id', $cabangId)->orWhereNull($this->getTable() . '.cabang_id'))
             : $query;
+    }
+
+    /** 4.50 — Jenis Menu (dipakai Laporan Laba Rugi "Per Jenis Menu") */
+    public function jenisOlahan()
+    {
+        return $this->belongsTo(JenisOlahan::class, 'jenis_olahan_id');
     }
 
     public function category()
@@ -225,6 +232,24 @@ class Item extends Model
      * dipertahankan sama seperti nilai lama 'lainnya': selalu sellable
      * tanpa cek stok, sesuai perilaku sebelum restructure ini).
      */
+    /**
+     * 4.50 — Item tanpa komposisi yang dijual di POS: apakah stoknya sendiri dipotong
+     * (dan dicek "Habis")? Satu aturan untuk POS, pengecekan saat Bayar, & potong stok.
+     * - Bahan Baku, Kemasan, Produk Jual, Produk Tambahan → ya.
+     * - Tambahan Gratis (sumpit, saus sachet) → ikut centang "Lacak Stok".
+     * Item ber-komposisi selalu memotong bahan komposisinya (dicek terpisah).
+     */
+    public function dipotongStokSendiri(): bool
+    {
+        $tipe = $this->tipe instanceof \BackedEnum ? $this->tipe->value : (string) $this->tipe;
+
+        return match ($tipe) {
+            'bahan_baku', 'kemasan', 'produk_jual', 'produk_tambahan' => true,
+            'tambahan_gratis' => (bool) $this->track_stok,
+            default => false,
+        };
+    }
+
     public function bisaDijualDiCabang(int $cabangId): bool
     {
         // 4.40 — rumus sama dgn POS & pengecekan saat Bayar (termasuk bahan di dalam Bumbu Pusat)

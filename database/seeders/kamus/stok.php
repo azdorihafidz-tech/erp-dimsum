@@ -320,9 +320,9 @@ Mendaftarkan barang yang dibeli dan disimpan stoknya. Barang di sini dipakai di 
 | Isian | Akibat |
 |---|---|
 | Tipe: Bahan Baku / Kemasan | Bisa dibeli, distok, dipakai di komposisi |
-| Tipe: **Tambahan Gratis** | Juga tampil di POS bagian "Item Tambahan" (harga Rp0). ⚠️ Stoknya **tidak berkurang** saat dipilih di POS — kurangi lewat Pemakaian Perlengkapan atau Penyesuaian Stok |
+| Tipe: **Tambahan Gratis** | Juga tampil di POS bagian "Item Tambahan" (harga Rp0). Kalau **Lacak Stok** dicentang: stok cabang dipotong saat dibayar | Tipe: **Tambahan Gratis** | Juga tampil di POS bagian "Item Tambahan" (harga Rp0). ⚠️ Stoknya **tidak berkurang** saat dipilih di POS — kurangi lewat Pemakaian Perlengkapan atau Penyesuaian Stok | bertanda "Habis" kalau kosong. Tidak dicentang: stoknya tidak dihitung |
 | Jenis: Bahan Baku / **Perlengkapan** | Perlengkapan (gas, sabun, ATK) bisa dicatat di menu Pemakaian Perlengkapan |
-| Lacak Stok | Kalau tidak dicentang, barang tidak bisa dipilih di Pemakaian Perlengkapan |
+| Lacak Stok | Tidak dicentang: barang tidak bisa dipilih di Pemakaian Perlengkapan, dan (Tambahan Gratis) tidak dipotong di POS |
 | **Satuan** | Satuan stok & satuan harga — harga selalu per satuan ini |
 | **Unit Beli** + isi (mis. pack = 100 pcs) | Di PO & Penyesuaian bisa isi per pack, otomatis diubah ke satuan |
 | **Harga Standar** | Diisi manual. Dipakai saat stok habis & belum pernah PO, saat Penyesuaian stok naik, dan harga awal di form PO. **PO tidak menimpanya** (kecuali masih kosong) |
@@ -334,13 +334,13 @@ Edit barang menampilkan **FIFO Batch** (batch mana yang dipakai berikutnya) dan 
 | Tombol | Akibat |
 |---|---|
 | Simpan | Barang siap dipakai; stoknya 0 sampai ada PO/Penyesuaian/Transfer |
-| **Hapus** | Barang + stoknya + baris PO & order yang memakainya disembunyikan (Data Terhapus, bisa dipulihkan) |
+| **Hapus** | Hanya untuk barang yang **belum dipakai**: ditolak kalau masih ada stok, dipakai di komposisi produk / Bumbu Pusat / Resep Produksi, atau ada di PO yang belum selesai (pesan menyebut alasannya). Barang masuk Data Terhapus (bisa dipulihkan); riwayat order | **Hapus** | Barang + stoknya + baris PO & order yang memakainya disembunyikan (Data Terhapus, bisa dipulihkan) | PO lama tetap utuh |
 
 ## Wajib
 - Satuan harga = satuan stok. Contoh: stok dalam gram → harga per gram. Kalau stok kg tapi harga per gram, HPP jadi 1.000× lipat.
 
 ## Jangan
-- **Jangan hapus barang yang sudah pernah dipakai** (ada di PO/komposisi/stok) — nonaktifkan saja (hilangkan centang Aktif). Komposisi produk yang memakainya bisa rusak.
+- Barang yang sudah tidak dipakai lagi cukup **dinonaktifkan** (hilangkan centang Aktif) — riwayatnya tetap aman.
 - Jangan membuat barang jadi (mis. minuman kaleng) sebagai Produk Jual saja — buat di sini sebagai Bahan Baku, lalu buat Produk Jual dengan komposisi 1 barang itu.
 
 ## Menu yang mirip & bedanya
@@ -370,10 +370,11 @@ Mendaftarkan produk yang dijual di POS. Produk jual **tidak punya stok sendiri**
 | Isian | Akibat |
 |---|---|
 | Tipe: **Produk Jual** | Tampil di grid utama POS |
-| Tipe: **Produk Tambahan** | Tampil di bagian "Item Tambahan" (berbayar). Tanpa komposisi stoknya tidak dipotong |
+| Tipe: **Produk Tambahan** | Tampil di bagian "Item Tambahan" (berbayar). Sama seperti Produk Jual: komposisinya dipotong saat terjual; tanpa komposisi memakai stoknya sendiri |
 | Harga Jual | Harga di POS. Kasir hanya bisa mengubahnya kalau punya centangan Ubah Harga |
 | Status Aktif | Tidak aktif = hilang dari POS |
 | Kategori | Chip filter di POS & Laporan Kategori. Kategori tampil di POS kalau punya ≥1 produk aktif |
+| Jenis Menu (opsional) | Kelompok untuk Laporan Laba Rugi "Per Jenis Menu" (daftarnya di Penjualan → Jenis Menu). Namanya ikut tersimpan di order saat dijual |
 | **Komposisi** | Bahan + takaran per 1 produk. Menentukan stok yang dipotong, tanda "Habis", dan HPP |
 | Import dari Bumbu Pusat | Menautkan Bumbu Pusat (ubah bumbu → semua produk ikut) |
 | **Varian** (Ukuran/Level/Rasa) | Kombinasi varian bisa punya harga sendiri. Komposisi & stok tetap mengikuti produk induk |
@@ -386,13 +387,13 @@ Kolom **Harga Bahan** & **Total HPP** di komposisi = perkiraan dari harga FIFO b
 |---|---|
 | **Ambil dari Cabang Lain** | Menyalin produk (beserta foto, varian, komposisi, Bumbu Pusat) ke cabang lain. Bahan dicocokkan per Kode + Nama; yang belum ada dibuat (stok 0). Tanpa sinkron setelahnya |
 | **Buat juga di cabang** (form Tambah) | Setelah simpan, produk langsung disalin ke cabang yang dicentang lewat layar pemeriksaan yang sama |
-| Hapus | Produk disembunyikan (Data Terhapus). ⚠️ Baris order produk ini ikut tersembunyi (Laporan Produk tidak menghitungnya lagi) dan **file fotonya dihapus permanen** |
+| Hapus | Produk masuk Data Terhapus (bisa dipulihkan lengkap dengan foto). Riwayat order tetap utuh. Ditolak kalau produk masih ada di PO yang belum selesai |
 
 ## Wajib
 - Setiap produk jual **harus punya komposisi**. Tanpa komposisi, produk selalu "Habis" di POS.
 
 ## Jangan
-- Jangan hapus produk yang sudah pernah terjual — **nonaktifkan** saja.
+- Produk yang berhenti dijual cukup **dinonaktifkan** (hilang dari POS, bisa diaktifkan lagi kapan saja).
 - Jangan menaruh barang yang dibeli jadi langsung sebagai Produk Jual tanpa bahan (lihat Kamus Bahan Baku).
 
 ## Menu yang mirip & bedanya

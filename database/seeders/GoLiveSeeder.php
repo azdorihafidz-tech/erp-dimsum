@@ -67,6 +67,7 @@ class GoLiveSeeder extends Seeder
             PosUbahHargaSeeder::class,          // 4.47 — izin Ubah Harga Jual di POS + panduan POS
             WarnaAplikasiSeeder::class,         // 4.48 — panduan & tooltip Warna Aplikasi (setelah IdentitasUsahaSeeder)
             Porting449Seeder::class,           // 4.49 — porting coffeeshop: label gambar, POS HP, produksi, kiriman, retur (setelah LabelProdukSeeder)
+            Perbaikan450Seeder::class,        // 4.50 — panduan & tooltip perbaikan temuan audit Kamus Menu
             KamusMenuSeeder::class,           // 4.50 — Kamus Menu (isi dari database/seeders/kamus/*.php)
         ]);
 

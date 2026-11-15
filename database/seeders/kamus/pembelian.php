@@ -48,7 +48,7 @@ Kalau supplier = Supplier Internal Gudang Pusat, PO ini muncul di **POS Gudang**
 
 ## Jangan
 - PO tidak bisa diedit. Kalau salah sebelum dikirim, **Batalkan** lalu buat ulang. PO yang sudah Diterima tidak bisa dibatalkan — koreksi stoknya lewat Penyesuaian Stok.
-- Jangan mengubah jumlah transaksi pembayaran PO di Kas & Transaksi — total PO ikut tertimpa angka itu.
+- Transaksi pembayaran PO tidak bisa diedit/dihapus dari Kas & Transaksi (ditolak) — pakai **Batal Bayar** di detail PO, lalu catat ulang.
 
 ## Menu yang mirip & bedanya
 - **Permintaan Stok / Transfer** — memindahkan bahan antar lokasi sendiri tanpa harga beli.

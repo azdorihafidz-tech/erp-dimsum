@@ -22,8 +22,9 @@ Tempat kasir mencatat penjualan ke pelanggan. Begitu **PROSES ORDER** diklik, st
 ## Supaya menu ini muncul & bisa dipakai
 - Pilih **cabang** di pojok kanan atas. Kalau sedang "Semua Cabang", POS meminta memilih cabang dulu (Gudang Pusat juga bisa dipilih).
 - Cabang wajib punya **kas aktif dengan "Default untuk" Tunai, Transfer, dan QRIS** (Keuangan → Kas & Transaksi → Kelola Kas). Kalau salah satu tidak ada, saat Bayar muncul pesan *"Cabang belum punya Kas default untuk pembayaran …"*.
-- **Produk tampil** kalau dibuat di **Produk Jual** milik cabang ini dan statusnya Aktif. Produk Jual tampil di grid utama; Produk Tambahan dan Tambahan Gratis tampil di bagian "Item Tambahan".
-- **Produk tidak bertanda "Habis"** kalau stok semua bahan di komposisinya cukup di cabang ini (termasuk bahan di dalam Bumbu Pusat). Produk Jual **tanpa komposisi** memakai stoknya sendiri — produk jual tidak pernah dibeli, jadi biasanya selalu Habis. Karena itu setiap produk jual harus punya komposisi.
+- **Produk tampil** kalau dibuat di **Produk Jual** milik cabang ini dan statusnya Aktif. Produk Jual tampil di grid utama; Produk Tambahan dan Tambahan Gratis (dari Bahan Baku & Kemasan) tampil di bagian "Item Tambahan".
+- **Produk tidak bertanda "Habis"** kalau stok semua bahan di komposisinya cukup di cabang ini (termasuk bahan di dalam Bumbu Pusat). Produk Jual & Produk Tambahan **tanpa komposisi** memakai stoknya sendiri — produk jual tidak pernah dibeli, jadi biasanya selalu Habis. Karena itu setiap produk jual harus punya komposisi.
+- **Tambahan Gratis** (sumpit, saus sachet): kalau **Lacak Stok** dicentang, stoknya dipotong saat dibayar dan bertanda "Habis" kalau stok cabang kosong; kalau tidak dicentang, tidak dihitung stoknya.
 - **Chip kategori** di atas grid hanya muncul untuk kategori yang punya minimal 1 produk aktif.
 
 ### Pengaturan per cabang yang mengubah POS
@@ -60,7 +61,7 @@ Klik produk + varian yang sama dua kali → jumlahnya bertambah di baris yang sa
 ## Apa yang terjadi kalau tombol diklik
 | Tombol | Stok | Kas | Laporan |
 |---|---|---|---|
-| **PROSES ORDER** | Bahan komposisi dipotong (FIFO, batch tertua dulu). Modal (HPP) tercatat permanen di order | Kas "default" metode bayar bertambah sebesar **nilai order** (kembalian tidak ikut) | Masuk semua laporan penjualan, Laba Rugi, Setoran Kasir (bagian tunai) |
+| **PROSES ORDER** | Bahan komposisi dipotong (FIFO, batch tertua dulu); produk tanpa komposisi & Tambahan Gratis ber-Lacak Stok memotong stoknya sendiri. Modal (HPP) tercatat permanen di order | Kas "default" metode bayar bertambah sebesar **nilai order** (kembalian tidak ikut) | Masuk semua laporan penjualan, Laba Rugi, Setoran Kasir (bagian tunai) |
 | **Save Bill** | Belum dipotong | Belum | Belum dihitung (status Pending) |
 | Bayar bill tersimpan | Dipotong saat dibayar | Bertambah | Masuk laporan |
 | Batalkan bill tersimpan | — | — | Bill berstatus Dibatalkan |
@@ -110,7 +111,7 @@ Melihat order yang sudah dibuat di cabang aktif, lalu memperbaikinya kalau ada y
 | **Batalkan** | Wajib pilih alasan. Selain Owner, hanya order **yang dibuat hari ini** | Bahan yang dulu terpotong **kembali** | Uang order **dikeluarkan** dari kas | Order keluar dari semua laporan |
 | **Kembalikan** | Order berstatus Dibatalkan | Dipotong lagi (dicek cukup dulu) | Tercatat lagi | Masuk laporan lagi |
 | **Tandai Pengganti** | Order lama sudah Dibatalkan, di cabang sama, belum punya pengganti | — | — | Hanya menautkan order baru sebagai pengganti order lama |
-| **Edit** | Selain Owner, hanya order Pending | — | ⚠️ Lihat "Jangan" | Nama/telepon pelanggan, metode bayar, diskon, catatan |
+| **Edit** | Selain Owner, hanya order Pending. Order Selesai/Dibatalkan: hanya nama/telepon & catatan — **diskon & metode bayar dikunci** | — | Tidak berubah | Pending: diskon (service charge ikut menyesuaikan) & metode bayar bisa diubah |
 | **Hapus** | Hanya order **Pending atau Dibatalkan** | Tidak berubah | Tidak berubah | Order disembunyikan (masuk Data Terhapus) |
 | Cetak ulang struk / label | — | — | — | — |
 
@@ -120,7 +121,7 @@ Kiriman ke cabang yang **belum diterima** bisa dibatalkan (stok kembali ke gudan
 - Order yang sudah dibayar harus **Batalkan dulu**, baru boleh dihapus. Tombol Hapus pada order Selesai ditolak.
 
 ## Jangan
-- **Jangan Edit diskon atau metode bayar pada order yang sudah dibayar.** Total order dan transaksi keuangannya ikut berubah, tetapi **saldo kas dan rincian pembayaran (yang dipakai Setoran Kasir) tidak ikut berubah** — angka jadi tidak cocok. Lebih aman: Batalkan, lalu buat order baru dan Tandai Pengganti.
+- Diskon/metode bayar salah pada order yang sudah dibayar: jangan dicari cara mengubahnya — **Batalkan**, buat order baru yang benar, lalu **Tandai Pengganti**. Uangnya sudah tercatat di kas & Setoran Kasir, jadi aplikasi sengaja menguncinya.
 - Tanggal yang sudah **Closing/Tutup Buku** terkunci: order di tanggal itu tidak bisa dibatalkan/diedit sampai Owner membuka kuncinya.
 
 ## Menu yang mirip & bedanya
@@ -231,8 +232,9 @@ MD,
 Menyimpan data pelanggan tetap supaya bisa dipilih di POS. Riwayat belanja dan progres Program Loyalty dihitung dari order yang memakai pelanggan ini.
 
 ## Supaya menu ini muncul & bisa dipakai
-- Centangan **Lihat Pelanggan**; tombol Tambah/Edit/Hapus perlu centangan **Tambah/Edit/Hapus Pelanggan**.
+- Centangan **Lihat Pelanggan**; tombol Tambah/Edit perlu centangan **Tambah/Edit Pelanggan**.
 - Data pelanggan **sama untuk semua cabang** (pelanggan dari cabang mana pun bisa dipilih di POS cabang lain).
+- Hanya pelanggan **Aktif** yang muncul di pilihan pelanggan POS.
 
 ## Detail pelanggan
 - **Total Pembelian** = jumlah order **Selesai** sebelum hari ini (order hari ini dan order dibatalkan tidak dihitung).
@@ -242,10 +244,12 @@ Menyimpan data pelanggan tetap supaya bisa dipilih di POS. Riwayat belanja dan p
 | Tombol | Akibat |
 |---|---|
 | Tambah / Edit | Hanya data pelanggan. Order lama tidak berubah |
-| **Hapus** | ⚠️ Pelanggan **dan semua order miliknya** ikut disembunyikan (masuk Data Terhapus). Stok dan kas order itu **tidak** dikembalikan, tapi order hilang dari laporan penjualan |
+| Saklar **Aktif** dimatikan (Edit) | Tidak muncul lagi di pilihan POS. Riwayat belanja, laporan, progres loyalty tetap |
+
+Menu ini tidak punya tombol Hapus — pakai saklar Aktif. Kalaupun data pelanggan dihapus, order-nya tetap tercatat dan tetap dihitung di laporan.
 
 ## Jangan
-- **Jangan hapus pelanggan yang sudah pernah belanja** — omzet ordernya ikut hilang dari laporan, padahal uangnya tetap ada di kas. Belum ada tombol Nonaktifkan; kalau pelanggan sudah tidak dipakai, biarkan saja.
+- Pelanggan yang sudah tidak dipakai cukup **dinonaktifkan**, jangan dibuat data baru yang dobel.
 
 ## Menu yang mirip & bedanya
 - **Program Loyalty** — memakai data order pelanggan untuk menghitung hadiah.
@@ -256,21 +260,22 @@ MD,
     [
         'slug' => 'jenis-menu', 'judul' => 'Jenis Menu', 'kelompok' => 'Penjualan', 'urutan' => 70,
         'letak' => 'Penjualan → Jenis Menu',
-        'ringkasan' => 'Daftar pengelompokan untuk Master Bumbu Pusat. Tidak dipakai di POS.',
+        'ringkasan' => 'Daftar kelompok menu (mis. Dimsum, Gyoza) untuk Produk Jual & Bumbu Pusat. Dipakai Laporan Laba Rugi "Per Jenis Menu".',
         'izin' => ['jenis-olahan.view'],
         'route_names' => ['master.jenis-olahan.*'],
-        'terkait' => ['master-bumbu-pusat'],
-        'kata_kunci' => 'jenis menu jenis olahan kelompok bumbu',
+        'terkait' => ['produk-jual', 'master-bumbu-pusat'],
+        'kata_kunci' => 'jenis menu jenis olahan kelompok menu dimsum gyoza laba rugi per jenis',
         'konten' => <<<'MD'
 ## Fungsi
-Nama-nama kelompok yang dipilih saat membuat **Master Bumbu Pusat**, supaya bumbu mudah dikelompokkan.
+Nama-nama kelompok menu. Dipilih di form **Produk Jual** (kolom Jenis Menu) dan **Master Bumbu Pusat**, lalu dipakai **Laporan Laba Rugi → Per Jenis Menu** untuk melihat untung per kelompok.
 
 ## Supaya menu ini muncul & bisa dipakai
 - Centangan **Lihat Master Jenis Menu**; tambah/ubah perlu **Kelola Master Jenis Menu**.
+- Supaya laporan terisi, setiap Produk Jual perlu dipilih Jenis Menu-nya (Produk Jual → Edit → Jenis Menu).
 
 ## Akibat ke data lain
 - **Tidak** mengubah stok, kas, harga, atau tampilan POS.
-- Laporan Laba Rugi punya pilihan "Per Jenis Menu", tetapi order POS tidak menyimpan jenis menu — jadi pilihan itu selalu berisi "-". Untuk melihat per produk/kategori pakai Laporan Produk/Kategori.
+- Order baru menyimpan nama Jenis Menu produk saat dijual. Order lama memakai Jenis Menu produknya yang sekarang. Produk tanpa Jenis Menu masuk "-".
 
 ## Menu yang mirip & bedanya
 - **Kategori produk** (dipilih di form Produk Jual) — inilah yang tampil sebagai chip filter di POS dan dipakai Laporan Kategori. Jenis Menu bukan kategori produk.
@@ -343,7 +348,7 @@ Memberi hadiah ke pelanggan yang belanja terus. Ada 2 jenis program:
 - **Tidak** mengubah stok atau kas secara otomatis. Kalau hadiah berupa barang/uang, catat sendiri (Penyesuaian Stok / Kas & Transaksi).
 
 ## Jangan
-- Jangan hapus pelanggan yang ikut program — ordernya ikut terhapus dan progresnya hilang.
+- Jangan membuat data pelanggan dobel untuk orang yang sama — progresnya terpecah ke 2 data.
 MD,
     ],
 

@@ -96,7 +96,7 @@ MD,
 Stok Barang juga punya **Reset ke 0**, tapi tidak mencatat alasan/beban — hindari.
 
 ## Perlu diketahui
-- **Tambahan Gratis** (sumpit, saus sachet) dan Produk Tambahan tanpa komposisi **tidak berkurang** saat dipilih di POS. Kurangi berkala lewat Pemakaian Perlengkapan (kalau Jenis = Perlengkapan) atau Penyesuaian Stok.
+- **Tambahan Gratis** (sumpit, saus sachet) hanya terpotong di POS kalau **Lacak Stok**-nya dicentang (Bahan Baku & Kemasan → Edit). Kalau tidak dicentang, kurangi berkala lewat Pemakaian Perlengkapan (Jenis = Perlengkapan) atau Penyesuaian Stok.
 
 ## Jangan
 - Jangan membuang barang basi dengan Reset — pakai Penyesuaian alasan **Rusak/Kadaluarsa** supaya nilainya masuk beban.
@@ -118,7 +118,7 @@ MD,
 |---|---|---|---|---|
 | **Batalkan** | Sudah dibayar (Selesai) | ✅ Kembali | ✅ Uang dikeluarkan | Keluar dari laporan |
 | **Hapus** | Hanya Pending / Dibatalkan | Tidak berubah | Tidak berubah | Disembunyikan |
-| **Edit** | Pending (Owner: semua) | — | ⚠️ Saldo kas tidak ikut berubah | Total berubah |
+| **Edit** | Pending: diskon & metode bayar. Selesai/Dibatalkan: hanya nama & catatan | — | Tidak berubah | Pending: total ikut diskon |
 | **Batalkan Bill Tersimpan** | Bill Pending di POS | — | — | — |
 
 ## Pilih yang mana?
@@ -131,7 +131,7 @@ MD,
 - Kiriman ke cabang yang sudah diterima tidak bisa dibatalkan → **Retur Cabang**.
 
 ## Jangan
-- Jangan Edit diskon/metode bayar order yang sudah dibayar — kas dan Setoran Kasir jadi tidak cocok.
+- Diskon/metode bayar order yang sudah dibayar dikunci — koreksinya selalu lewat Batalkan + order baru.
 MD,
     ],
 
@@ -183,6 +183,7 @@ MD,
 
 ## Produk tampil tapi "Habis"
 1. Produk punya **komposisi**? Tanpa komposisi produk memakai stoknya sendiri (biasanya 0).
+   **Tambahan Gratis** dengan Lacak Stok dicentang → cek stoknya di cabang ini (isi lewat PO/Penyesuaian), atau hilangkan centang Lacak Stok.
 2. Stok **setiap bahan** komposisi cukup di cabang ini? Lihat tulisan "Stok tersedia … (terbatas: nama bahan)" di POS, lalu cek Stok Barang.
 3. Bahan komposisi **milik cabang yang sama**?
 4. Satuan takaran benar? (gram vs kg)
