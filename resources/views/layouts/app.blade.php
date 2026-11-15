@@ -665,7 +665,7 @@
         @endcanany
 
         <!-- STOK & GUDANG -->
-        @canany(['stok.view', 'stok.request', 'stok.transfer', 'master.bahan_baku.view', 'master.produk_jual.view', 'item.view', 'pemakaian_perlengkapan.view', 'produksi.view', 'kiriman.view', 'retur.view'])
+        @canany(['stok.view', 'stok.request', 'stok.transfer', 'master.bahan_baku.view', 'master.produk_jual.view', 'item.view', 'pemakaian_perlengkapan.view', 'produksi.view', 'kiriman.view', 'retur.view', 'stok_opname.view', 'stok_opname.hitung', 'stok_opname.ajukan', 'stok_opname.setujui'])
         <div class="nav-section-title">Stok & Gudang</div>
         @can('stok.view')
         <a href="{{ route('stok.dashboard') }}"
@@ -693,6 +693,16 @@
             <span>Transfer Stok</span>
         </a>
         @endcan
+        {{-- Stok Opname (RANCANGAN_STOK_OPNAME.md) — badge = menunggu persetujuan --}}
+        @canany(['stok_opname.view', 'stok_opname.hitung', 'stok_opname.ajukan', 'stok_opname.setujui'])
+        @php $opnameBadge = \App\Services\StokOpnameService::badgeMenu(); @endphp
+        <a href="{{ route('stok-opname.index') }}"
+           class="nav-link {{ request()->routeIs('stok-opname.*') ? 'active' : '' }}">
+            <i class="bi bi-clipboard-check"></i>
+            <span>Stok Opname</span>
+            @if($opnameBadge > 0)<span class="badge bg-danger ms-auto">{{ $opnameBadge }}</span>@endif
+        </a>
+        @endcanany
         {{-- 4.49 Tahap B1 — Produksi bahan setengah jadi di gudang --}}
         @can('produksi.view')
         <a href="{{ route('produksi.index') }}"

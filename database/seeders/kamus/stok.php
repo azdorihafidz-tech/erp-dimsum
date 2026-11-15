@@ -65,12 +65,12 @@ MD,
     ],
 
     [
-        'slug' => 'penyesuaian-stok', 'judul' => 'Penyesuaian Stok (Stock Opname)', 'kelompok' => 'Stok & Gudang', 'urutan' => 25,
+        'slug' => 'penyesuaian-stok', 'judul' => 'Penyesuaian Stok', 'kelompok' => 'Stok & Gudang', 'urutan' => 25,
         'letak' => 'Stok & Gudang → Stok Barang → tombol Penyesuaian Stok',
         'ringkasan' => 'Menyamakan stok di sistem dengan hasil hitung fisik. Selisihnya dicatat dengan alasan; rusak/hilang dicatat sebagai beban.',
         'izin' => ['stok.adjustment'],
         'route_names' => ['stok.adjustment', 'stok.adjustment.*'],
-        'terkait' => ['stok-barang', 'pemakaian-perlengkapan', 'cara-menambah-stok', 'cara-mengurangi-stok'],
+        'terkait' => ['stok-opname', 'stok-barang', 'pemakaian-perlengkapan', 'cara-menambah-stok', 'cara-mengurangi-stok'],
         'kata_kunci' => 'penyesuaian stok adjustment stock opname opname hitung fisik selisih stok rusak hilang susut kadaluarsa koreksi stok stok awal',
         'konten' => <<<'MD'
 ## Fungsi
@@ -85,20 +85,73 @@ Mengisi **jumlah stok fisik** hasil hitung, lalu sistem menghitung selisihnya de
 | Alasan | Stok | Catatan keuangan |
 |---|---|---|
 | Susut, Rusak/Kadaluarsa, Hilang/Dicuri | Naik/turun sesuai selisih | Selisih turun → **Beban Kerugian Stok**; selisih naik → **Koreksi Stok Masuk**. Tanpa kas (saldo kas tidak berubah), tapi masuk Laporan Keuangan/Laba Rugi |
-| Salah Hitung, Audit (Stock Opname) | Naik/turun | Tidak dicatat ke keuangan (murni koreksi data) |
+| Salah Hitung, Audit (Stock Opname) | Naik/turun | Selisih **turun** → **Selisih Persediaan** (tanpa kas, masuk Laba Rugi). Selisih **naik** tidak dicatat ke keuangan |
 | Lainnya | Naik/turun | Hanya dicatat kalau "Catat sebagai biaya rugi" dicentang |
 
 - **Stok turun** — batch tertua dipotong dulu (FIFO), atau pilih batch sendiri.
 - **Stok naik** — dibuat batch baru dengan harga: harga yang diisi sendiri, atau **Harga Standar** barang di cabang ini. Bisa juga menambah ke batch yang sudah ada.
 - Owner/Admin Pusat dapat notifikasi; stok minimum dicek ulang.
 
+- Barang yang sedang ada di **Stok Opname** yang belum selesai di lokasi itu **tidak bisa** disesuaikan di sini (juga Hapus Stok) — selesaikan/batalkan opname itu dulu.
+
 ## Wajib
 - Pilih alasan yang benar — alasan menentukan apakah selisih jadi beban/pemasukan di laporan.
 - Untuk **stok awal** saat mulai pakai aplikasi: Penyesuaian dengan harga diisi (atau isi Harga Standar dulu), supaya modal (HPP) penjualan tidak 0.
 
 ## Jangan
+- Untuk hitung fisik rutin (akhir bulan) pakai menu **Stok Opname**: ada hitung buta, rincian penyebab, foto, persetujuan, dan berita acara.
 - Jangan pakai Penyesuaian untuk barang yang dipakai sehari-hari (gas, plastik, sabun) — pakai **Pemakaian Perlengkapan** supaya ada catatan pemakaiannya.
 - Jangan pakai Penyesuaian untuk memindahkan barang ke cabang lain — pakai **Transfer Stok**.
+MD,
+    ],
+
+    [
+        'slug' => 'stok-opname', 'judul' => 'Stok Opname', 'kelompok' => 'Stok & Gudang', 'urutan' => 26,
+        'letak' => 'Stok & Gudang → Stok Opname',
+        'ringkasan' => 'Hitung fisik stok per lokasi dengan hitung buta, rincian penyebab selisih, foto, dan persetujuan. Kerugian masuk Laba Rugi tanpa mengurangi kas.',
+        'izin' => ['stok_opname.view', 'stok_opname.hitung', 'stok_opname.ajukan', 'stok_opname.setujui'],
+        'route_names' => ['stok-opname.*'],
+        'terkait' => ['penyesuaian-stok', 'stok-barang', 'produksi', 'cara-mengurangi-stok'],
+        'kata_kunci' => 'stok opname stock opname hitung fisik hitung stok cek stok selisih stok barang hilang barang rusak basi kedaluwarsa freezer mati susut sampel tester makan karyawan salah catat lebih berita acara akhir bulan audit stok',
+        'konten' => <<<'MD'
+## Fungsi
+Mencocokkan stok sistem dengan hitungan fisik di satu lokasi. Setiap selisih wajib dirinci penyebabnya, lalu disetujui. Saat disetujui stok disesuaikan dan kerugiannya dicatat sebagai **beban tanpa kas** — muncul di Laba Rugi, saldo kas tidak berubah.
+
+## Supaya menu ini muncul & bisa dipakai
+- Menu muncul kalau punya salah satu centangan: **Lihat Stok Opname**, **Hitung Stok Opname**, **Mulai & Periksa Stok Opname**, atau **Setujui / Tolak Stok Opname**.
+- **Mulai** opname & isi rincian: centangan **Mulai & Periksa Stok Opname**. **Mengisi jumlah**: centangan **Hitung Stok Opname** dan dipilih sebagai penghitung (pemeriksa juga boleh menghitung).
+- **Setujui/Tolak**: centangan **Setujui / Tolak Stok Opname** (bawaan: Owner & Admin Pusat). Orang yang ikut menghitung tidak bisa menyetujui opname itu, kecuali Owner.
+- **Batalkan**: centangan **Batalkan Stok Opname**.
+- Hanya lokasi yang menjadi akses user. Barang yang bisa dihitung: Bahan Baku, Kemasan, Tambahan Gratis **milik lokasi itu** yang dicentang *Lacak Stok* (Produk Jual tidak punya stok sendiri).
+- **Hitung buta** & **batas nilai wajib foto barang hilang** diatur di **Pengaturan Umum**.
+
+## Alur
+Mulai → **Sedang dihitung** (isi jumlah / scan kode) → pemeriksa cek selisih, minta hitung ulang, rincikan penyebab → **Ajukan** → **Menunggu persetujuan** → **Setujui** (selesai, dikunci) atau **Tolak** (kembali dihitung). **Batalkan** bisa sebelum disetujui.
+
+## Apa yang terjadi kalau tombol diklik
+| Tombol | Stok | Keuangan | Kas |
+|---|---|---|---|
+| Mulai Opname | Belum berubah. Barang yang dipilih terkunci dari Penyesuaian Stok & Hapus Stok | — | — |
+| Isi jumlah / scan | Belum berubah. Stok sistem saat itu dicatat per barang | — | — |
+| Ajukan / Tolak / Batalkan | Belum berubah | — | — |
+| **Setujui** | Disesuaikan sebesar **selisih** (fisik − sistem saat dihitung), bukan menimpa angka. Kurang → batch tertua dipotong (FIFO). Rusak/Basi/Freezer mati → masuk **Stok Rusak**. Lebih → batch baru harga pokok rata-rata | 1 baris per penyebab, tanpa kas: Kerugian Stok – Rusak / Basi / Hilang, Penyusutan Stok, Promosi & Sampel, Makan Karyawan (Beban Konsumsi), Selisih Persediaan; kelebihan → Selisih Lebih Persediaan (pendapatan lain) | Tidak berubah |
+
+- Kartu stok mencatat tiap penyesuaian sebagai **Penyesuaian** dengan referensi opname.
+- Baris keuangan opname tidak bisa diedit/dihapus dari Kas & Transaksi.
+
+## Wajib
+- Rincian penyebab barang yang kurang harus **sama dengan selisih** (boleh dipecah).
+- **Foto** untuk Rusak, Basi/Kedaluwarsa, Freezer mati; untuk Hilang kalau nilainya mencapai batas di Pengaturan Umum.
+- Semua barang dalam opname harus dihitung (atau dikeluarkan dengan alasan) sebelum diajukan.
+
+## Jangan
+- Jangan menyetujui kalau hari itu sudah **Closing Harian / Tutup Buku** — akan ditolak; buka kunci atau setujui besok.
+- Jangan mencatat waste saat produksi lewat opname — itu dicatat di hasil nyata menu **Produksi**.
+- Kalau stok keburu terjual sehingga tidak cukup dikurangi saat disetujui, persetujuan ditolak: tolak opname dan hitung ulang barang itu.
+
+## Menu yang mirip & bedanya
+- **Penyesuaian Stok**: koreksi cepat satu barang, langsung berlaku tanpa persetujuan & tanpa rincian penyebab. Stok Opname untuk hitung fisik rutin yang perlu bukti & persetujuan.
+- **Pemakaian Perlengkapan**: mencatat barang habis pakai sehari-hari, bukan selisih hitung.
 MD,
     ],
 

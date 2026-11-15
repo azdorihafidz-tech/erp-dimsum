@@ -52,7 +52,7 @@ MD,
         'terkait' => ['purchase-order', 'penyesuaian-stok', 'produksi', 'transfer-stok', 'kiriman-cabang'],
         'kata_kunci' => 'tambah stok isi stok stok masuk stok awal barang masuk restock',
         'konten' => <<<'MD'
-## Ada 5 cara
+## Ada 6 cara
 
 | Cara | Kapan dipakai | Harga (modal) batch | Kas |
 |---|---|---|---|
@@ -77,19 +77,20 @@ MD,
     [
         'slug' => 'cara-mengurangi-stok', 'judul' => 'Bagaimana mengurangi stok?', 'kelompok' => 'Cara Melakukan', 'urutan' => 30,
         'letak' => 'POS / Stok & Gudang',
-        'ringkasan' => 'Ada 5 cara: dijual di POS, Pemakaian Perlengkapan, Penyesuaian Stok, Transfer/Kiriman keluar, Retur ke gudang. Pencatatan keuangannya beda.',
-        'izin' => ['stok.view', 'order.create', 'pemakaian_perlengkapan.view', 'stok.adjustment'],
+        'ringkasan' => 'Ada 6 cara: dijual di POS, Pemakaian Perlengkapan, Stok Opname, Penyesuaian Stok, Transfer/Kiriman keluar, Retur ke gudang. Pencatatan keuangannya beda.',
+        'izin' => ['stok.view', 'order.create', 'pemakaian_perlengkapan.view', 'stok.adjustment', 'stok_opname.ajukan'],
         'route_names' => [],
-        'terkait' => ['pos', 'pemakaian-perlengkapan', 'penyesuaian-stok', 'transfer-stok', 'retur-cabang'],
+        'terkait' => ['pos', 'pemakaian-perlengkapan', 'stok-opname', 'penyesuaian-stok', 'transfer-stok', 'retur-cabang'],
         'kata_kunci' => 'kurangi stok stok keluar buang barang barang rusak barang hilang pakai barang',
         'konten' => <<<'MD'
-## Ada 5 cara
+## Ada 6 cara
 
 | Cara | Untuk apa | Tercatat sebagai |
 |---|---|---|
 | **Dijual di POS** | Bahan komposisi produk | HPP penjualan |
 | **Pemakaian Perlengkapan** | Gas, sabun, tisu, ATK (Jenis = Perlengkapan) | Laporan Pemakaian Perlengkapan |
-| **Penyesuaian Stok** | Rusak, hilang, susut, salah hitung | Rusak/hilang/susut → Beban Kerugian Stok; salah hitung/audit → tidak dicatat ke keuangan |
+| **Stok Opname** | Hitung fisik rutin: rusak, basi, freezer mati, hilang, susut, sampel, makan karyawan, salah catat (pakai foto & persetujuan) | Beban per penyebab tanpa kas; barang rusak/basi ditahan di Stok Rusak |
+| **Penyesuaian Stok** | Koreksi cepat satu barang | Rusak/hilang/susut → Beban Kerugian Stok; salah hitung/audit yang menurunkan stok → Selisih Persediaan |
 | **Transfer / Kiriman** (Kirim) | Pindah ke lokasi lain | Pindah stok (Kiriman: penjualan gudang) |
 | **Retur Cabang** | Kembalikan kiriman ke gudang | Pindah stok, uang bisa kembali |
 
@@ -99,7 +100,7 @@ Stok Barang juga punya **Reset ke 0**, tapi tidak mencatat alasan/beban — hind
 - **Tambahan Gratis** (sumpit, saus sachet) hanya terpotong di POS kalau **Lacak Stok**-nya dicentang (Bahan Baku & Kemasan → Edit). Kalau tidak dicentang, kurangi berkala lewat Pemakaian Perlengkapan (Jenis = Perlengkapan) atau Penyesuaian Stok.
 
 ## Jangan
-- Jangan membuang barang basi dengan Reset — pakai Penyesuaian alasan **Rusak/Kadaluarsa** supaya nilainya masuk beban.
+- Jangan membuang barang basi dengan Reset — pakai **Stok Opname** (penyebab Basi/Kedaluwarsa) atau Penyesuaian alasan **Rusak/Kadaluarsa** supaya nilainya masuk beban.
 MD,
     ],
 

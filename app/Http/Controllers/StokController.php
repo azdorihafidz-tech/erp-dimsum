@@ -237,7 +237,11 @@ class StokController extends Controller
         }
 
         $namaCabang = $stock->lokasi?->nama_cabang ?? 'lokasi ini';
-        $this->stokService->resetStok($stock);
+        try {
+            $this->stokService->resetStok($stock);
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         return back()->with('success', "Stok {$namaItem} di {$namaCabang} berhasil di-reset ke 0.");
     }

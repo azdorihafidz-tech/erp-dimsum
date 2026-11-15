@@ -660,6 +660,19 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 
 **Deploy production**: digabung dgn [[4.39]] — lihat instruksi deploy di sana. Setelah itu: buat supplier "Gudang Pusat" dgn Supplier Internal = Gudang Pusat; cek saklar wajib bukti tiap cabang; koreksi Harga Standar bahan yang terlanjur tertimpa (Owner sendiri).
 
+### 4.52 🟢 Stok Opname (2026-11-17, dikerjakan bertahap — rancangan & keputusan Owner: `RANCANGAN_STOK_OPNAME.md`)
+
+Owner menyetujui semua saran P1–P15 di rancangan. Prinsip: kerugian = **beban tanpa kas** (nilai = harga pokok FIFO), stok & keuangan baru berubah saat **disetujui**, yang diterapkan = **selisih** (fisik − stok sistem saat barang itu dihitung) → lokasi tetap boleh berjualan selama opname.
+
+**Tahap A — alur inti** (migration `2026_11_17_100001`):
+- Tabel `stok_opnames`, `stok_opname_penghitung`, `stok_opname_items` (qty_sistem dicatat SAAT dihitung), `stok_opname_rincian`, `stok_rusak` (penampung) + `pengaturan_umums.opname_*` (hitung buta, batas foto hilang, pengingat). Akun COA baru 6-1402…6-1406, 6-1501, 7-1103 (Selisih Lebih Persediaan), 7-1104 (Pemulihan Kerugian Stok) + kategori `OPN-*` lewat `App\Support\StokOpnameAkun::pastikan()` (dipanggil migration, seeder, service). 6-1401 lama tidak diubah.
+- **Laba Rugi Formal menjumlah per akun tanpa melihat masuk/keluar** → pemasukan JANGAN pernah memakai kategori beban; pembatalan kerugian = baris **minus** di akun beban yang sama.
+- `App\Enums\PenyebabSelisihStok` (rusak, basi, freezer_mati, hilang, susut, sampel, makan_karyawan → Beban Konsumsi 6-1303, salah_catat, lebih). Rusak/Basi/Freezer mati → `stok_rusak` + foto wajib; Hilang foto wajib kalau perkiraan nilai FIFO ≥ batas (bawaan Rp 200.000, 0 = semua).
+- Semua aturan di `StokOpnameService` (mulai, hitung, scan kode +1, hitung ulang, keluarkan barang, rincian, ajukan, tolak, setujui, batal, hak, `badgeMenu()`). Controller `StokOpnameController` tipis — **catch RuntimeException meneruskan HttpException** (abort 403 dari service juga RuntimeException). Satuan berat/volume (`KonversiSatuan::FAKTOR`) boleh desimal, lainnya bulat. Satu barang hanya di satu opname berjalan per lokasi. Penghitung tidak boleh menyetujui opname yang ia hitung (kecuali Owner). Persetujuan: kunci baris stok, cek SEMUA kekurangan dulu (stok keburu terjual → tolak utuh), tolak kalau hari ini sudah Closing (`ClosingLock::terkunci`), 1 TK tanpa kas per penyebab (`referensi_type='stok_opname'`, nomor `SO-…-RUSAK`), kartu stok tipe Penyesuaian + referensi. Lebih → batch baru harga pokok rata-rata.
+- `StokService` baru: `pastikanTidakDiopname()` (dipakai `adjustment()` & `resetStok()` — Penyesuaian/Hapus Stok dikunci untuk barang di opname berjalan), `kurangiPenyesuaian()`, `tambahPenyesuaian()`, `hargaPokokRataRata()`, `perkiraanNilaiKeluar()`. **Perbaikan Penyesuaian Stok**: alasan salah_hitung/audit yang MENURUNKAN stok → TK `OPN-SELISIH` (Selisih Persediaan); yang menaikkan tetap tidak dicatat (P3).
+- Izin `stok_opname.view/hitung/ajukan/setujui/batal/stok_rusak/ganti_rugi/laporan` di `StokOpnameSeeder` (ADDITIVE, centangan bawaan hanya saat izin pertama dibuat; spread ke PermissionSeeder/RolePermissionSeeder; terdaftar di DatabaseSeeder & GoLiveSeeder). Setujui & ganti rugi bawaan hanya Admin Pusat (+Owner). Menu Stok & Gudang → Stok Opname (badge). Panduan `stok-opname`, tooltip `stok_opname.*`, Kamus `stok-opname` + entri Penyesuaian Stok & Cara mengurangi stok diperbarui.
+- Test `Tahap7/StokOpnameAlurTest` (15).
+
 ### 4.51 🟢 Perbaikan Temuan A–G Audit Kamus Menu (2026-11-16)
 
 Permintaan Owner: "perbaiki semua" temuan yang ditulis ⚠️ di Kamus (4.50). Semua dikerjakan; Kamus, panduan (`Perbaikan451Seeder`, marker `<!-- PERBAIKAN-451 -->` di penggajian, recurring, cabang, laporan-keuangan, keuangan-laporan, laporan-cabang, laporan-neraca) & tooltip (`penggajian.bayar_kas`, `recurring.frekuensi`, `recurring.tanggal_jatuh_tempo`) ikut diperbarui.

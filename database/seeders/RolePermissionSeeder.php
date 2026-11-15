@@ -75,6 +75,7 @@ class RolePermissionSeeder extends Seeder
             'label_cup.print', // 4.44 Poin 2 — Label Produk
             ...LaporanPenjualanKasirSeeder::ROLE_DEFAULTS['admin_pusat'], // 4.46
             ...Porting449Seeder::ROLE_DEFAULTS['admin_pusat'], // 4.49
+            ...StokOpnameSeeder::ROLE_DEFAULTS['admin_pusat'], // Stok Opname
         ],
 
         'admin_gudang' => [
@@ -100,6 +101,7 @@ class RolePermissionSeeder extends Seeder
             // Master Varian Produk (Tahap 2 D'mentai) — DB+Model saja, UI Tahap 3
             'master.item_varian.view', 'master.item_varian.create', 'master.item_varian.edit', 'master.item_varian.delete',
             ...Porting449Seeder::ROLE_DEFAULTS['admin_gudang'], // 4.49
+            ...StokOpnameSeeder::ROLE_DEFAULTS['admin_gudang'], // Stok Opname
         ],
 
         'manajer_cabang' => [
@@ -142,6 +144,7 @@ class RolePermissionSeeder extends Seeder
             'label_cup.print', // 4.44 Poin 2 — Label Produk
             ...LaporanPenjualanKasirSeeder::ROLE_DEFAULTS['manajer_cabang'], // 4.46
             ...Porting449Seeder::ROLE_DEFAULTS['manajer_cabang'], // 4.49
+            ...StokOpnameSeeder::ROLE_DEFAULTS['manajer_cabang'], // Stok Opname
         ],
 
         'kasir' => [
@@ -168,6 +171,7 @@ class RolePermissionSeeder extends Seeder
             'label_cup.print', // 4.44 Poin 2 — Label Produk
             ...LaporanPenjualanKasirSeeder::ROLE_DEFAULTS['kasir'], // 4.46
             ...Porting449Seeder::ROLE_DEFAULTS['kasir'], // 4.49
+            ...StokOpnameSeeder::ROLE_DEFAULTS['kasir'], // Stok Opname
         ],
 
         'operator_produksi' => [
@@ -186,6 +190,7 @@ class RolePermissionSeeder extends Seeder
             // Antrian — operator bisa kelola & lihat display
             'antrian.lihat', 'antrian.kelola', 'antrian.display',
             ...Porting449Seeder::ROLE_DEFAULTS['operator_produksi'], // 4.49
+            ...StokOpnameSeeder::ROLE_DEFAULTS['operator_produksi'], // Stok Opname
         ],
 
         'helper' => [
@@ -195,6 +200,7 @@ class RolePermissionSeeder extends Seeder
             'cuti.view',
             'scan_absensi',
             'antrian.lihat',
+            ...StokOpnameSeeder::ROLE_DEFAULTS['helper'], // Stok Opname
         ],
     ];
 

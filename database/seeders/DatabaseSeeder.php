@@ -41,6 +41,7 @@ class DatabaseSeeder extends Seeder
             Porting449Seeder::class,           // 4.49 — porting coffeeshop: label gambar, POS HP, produksi, kiriman, retur (setelah LabelProdukSeeder)
             Perbaikan450Seeder::class,        // 4.50 — panduan & tooltip perbaikan temuan audit Kamus Menu
             Perbaikan451Seeder::class,        // 4.51 — panduan & tooltip perbaikan temuan A–G
+            StokOpnameSeeder::class,         // Stok Opname — izin, akun COA, panduan & tooltip (RANCANGAN_STOK_OPNAME.md)
             KamusMenuSeeder::class,           // 4.50 — Kamus Menu (isi dari database/seeders/kamus/*.php)
         ]);
     }

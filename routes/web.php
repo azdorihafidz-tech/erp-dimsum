@@ -244,6 +244,23 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
     Route::post('/stock-transfer/{stockTransfer}/terima', [StockTransferController::class, 'terima'])->name('stock-transfer.terima');
     Route::post('/stock-transfer/{stockTransfer}/batalkan', [StockTransferController::class, 'batalkan'])->name('stock-transfer.batalkan');
 
+    // ===== Stok Opname (RANCANGAN_STOK_OPNAME.md) — izin dicek di StokOpnameService =====
+    Route::prefix('stok-opname')->name('stok-opname.')->controller(\App\Http\Controllers\StokOpnameController::class)->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/create', 'create')->name('create');
+        Route::post('/', 'store')->name('store');
+        Route::get('/{stokOpname}', 'show')->name('show');
+        Route::post('/{stokOpname}/hitung', 'hitung')->name('hitung');
+        Route::post('/{stokOpname}/scan', 'scan')->name('scan');
+        Route::post('/{stokOpname}/hitung-ulang', 'hitungUlang')->name('hitung-ulang');
+        Route::post('/{stokOpname}/keluarkan', 'keluarkan')->name('keluarkan');
+        Route::post('/{stokOpname}/rincian', 'rincian')->name('rincian');
+        Route::post('/{stokOpname}/ajukan', 'ajukan')->name('ajukan');
+        Route::post('/{stokOpname}/setujui', 'setujui')->name('setujui');
+        Route::post('/{stokOpname}/tolak', 'tolak')->name('tolak');
+        Route::post('/{stokOpname}/batal', 'batal')->name('batal');
+    });
+
     // ===== 4.49 Tahap B1 — PRODUKSI bahan setengah jadi di gudang (porting erp-coffeeshop) =====
     Route::prefix('produksi')->name('produksi.')->controller(\App\Http\Controllers\ProduksiController::class)->group(function () {
         Route::get('/resep', 'resepIndex')->name('resep.index');
