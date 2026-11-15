@@ -209,8 +209,8 @@ class AppServiceProvider extends ServiceProvider
 
     private function triggerRecurringIfNeeded(): void
     {
-        if (! \App\Support\Paket::aktif('keuangan')) {
-            return; // Transaksi Berulang tidak termasuk paket
+        if (! \App\Support\Paket::aktif('keuangan') || \App\Support\Paket::bacaSaja()) {
+            return; // Transaksi Berulang tidak termasuk paket / langganan habis (baca-saja)
         }
         $cacheKey = 'recurring_run_' . now()->toDateString();
         if (Cache::has($cacheKey)) {

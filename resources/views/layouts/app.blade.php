@@ -1340,6 +1340,8 @@
     </div>
     @endif
 
+    <x-pita-langganan />
+
     @yield('content')
 </main>
 

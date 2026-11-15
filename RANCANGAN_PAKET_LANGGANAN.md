@@ -1,6 +1,6 @@
 # Rancangan Paket Modul, Masa Langganan & Akun Tim IT — ERP D'mentai
 
-Status: **DISETUJUI Owner** (2026-11-17) — dikerjakan bertahap.
+Status: **DISETUJUI Owner** (2026-11-17) — **SELESAI Tahap A–D** (2026-11-18, CLAUDE.md 4.53). Deploy digabung di `public/deploy-452.php`, menunggu persetujuan Owner.
 
 **Keputusan akhir Owner:** Q1 pembagian modul pas · Q2 paket hanya tombol cepat, modul tetap bebas diaktifkan di luar paket (tampil "Kustom") · Q3 baca-saja · Q4 tenggang 7 hari, peringatan H-14 · Q5 segel rusak = **mode lunak**: aplikasi tetap jalan memakai isi yang ada, hanya Teknisi yang melihat pita merah + notifikasi (database & cPanel semua pelanggan dipegang tim IT) · **Verifikasi dua langkah DITUNDA** — gantinya: kata sandi Teknisi minimal 12 karakter & berbeda per instalasi, batas salah login tetap aktif, semua login & tindakan Teknisi tercatat di Aktivitas Tim IT.
 Keputusan yang sudah ada: modul dipilih **per modul** (+ paket siap pakai), modul yang dimatikan **disembunyikan, datanya aman**, **satu akun Teknisi per orang IT**, "masuk sebagai user" **ditunda**, **masa aktif langganan dibuat sekarang**. Kamus Menu & Panduan wajib.

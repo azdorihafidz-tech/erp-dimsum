@@ -4,8 +4,13 @@
  *
  * Deploy gabungan 4.50 (Kamus Menu + perbaikan audit) + 4.51 (perbaikan A–G) +
  * 4.52 (Stok Opname: opname, berita acara, laporan kerugian, stok rusak, ganti rugi,
- * dashboard & pengingat). Jalankan sekali di SETIAP instalasi (demo dulu, lalu live).
- *  1. migrate → 6 migration baru (hanya tabel/kolom baru + akun COA & kategori transaksi baru)
+ * dashboard & pengingat) + 4.53 (Paket Modul, Masa Langganan & akun Tim IT).
+ * Jalankan sekali di SETIAP instalasi (demo dulu, lalu live).
+ *  0. SEBELUM membuka link: tambahkan ke .env server baris TEKNISI_NAMA, TEKNISI_EMAIL,
+ *     TEKNISI_PASSWORD (min. 12 karakter huruf+angka, BEDA per instalasi) → akun Tim IT pertama.
+ *     Hapus ketiga baris itu dari .env setelah deploy berhasil.
+ *  1. migrate → 7 migration baru (hanya tabel/kolom baru + akun COA & kategori transaksi baru;
+ *     tabel lisensi = semua modul aktif, tanpa batas tanggal → tidak ada yang berubah)
  *  2. Perbaikan450Seeder, Perbaikan451Seeder, StokOpnameSeeder (izin: centangan role bawaan HANYA
  *     untuk izin yang baru dibuat), KamusMenuSeeder — semua idempotent
  *  3. clear & rebuild cache
@@ -50,6 +55,7 @@ foreach ([
     ['db:seed', ['--class' => 'Perbaikan450Seeder', '--force' => true]],
     ['db:seed', ['--class' => 'Perbaikan451Seeder', '--force' => true]],
     ['db:seed', ['--class' => 'StokOpnameSeeder', '--force' => true]],
+    ['db:seed', ['--class' => 'PaketLanggananSeeder', '--force' => true]],
     ['db:seed', ['--class' => 'KamusMenuSeeder', '--force' => true]],
     ['view:clear', []], ['cache:clear', []], ['route:clear', []], ['config:cache', []], ['route:cache', []],
 ] as [$perintah, $opsi]) {
@@ -65,6 +71,46 @@ foreach ([
             break;
         }
     }
+}
+
+// 4.53 — akun Tim IT pertama dari .env (dibaca langsung dari file: config bisa sedang di-cache)
+if (! $adaError) {
+    echo "=== Akun Tim IT ===\n";
+    try {
+        $env = \Dotenv\Dotenv::parse((string) @file_get_contents(base_path('.env')));
+        $nama = trim((string) ($env['TEKNISI_NAMA'] ?? ''));
+        $email = strtolower(trim((string) ($env['TEKNISI_EMAIL'] ?? '')));
+        $sandi = (string) ($env['TEKNISI_PASSWORD'] ?? '');
+        $ada = \App\Models\User::where('role', 'teknisi')->count();
+        if ($email !== '') {
+            if (! filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($sandi) < 12 || ! preg_match('/[A-Za-z]/', $sandi) || ! preg_match('/\d/', $sandi)) {
+                $adaError = true;
+                echo "GAGAL: TEKNISI_EMAIL harus email valid dan TEKNISI_PASSWORD minimal 12 karakter berisi huruf dan angka.\n";
+            } elseif ($u = \App\Models\User::where('email', $email)->first()) {
+                if ($u->role?->value === 'teknisi') {
+                    echo "Akun Tim IT {$email} sudah ada (tidak diubah).\n";
+                } else {
+                    $adaError = true;
+                    echo "GAGAL: email {$email} sudah dipakai akun pelanggan. Pakai email lain untuk Tim IT.\n";
+                }
+            } else {
+                \App\Models\User::create(['name' => $nama ?: 'Tim IT', 'email' => $email, 'password' => \Illuminate\Support\Facades\Hash::make($sandi),
+                    'role' => 'teknisi', 'is_active' => true]);
+                echo "Akun Tim IT dibuat: {$email} (kata sandi sesuai .env, tidak ditampilkan).\n";
+            }
+        } elseif ($ada === 0) {
+            $adaError = true;
+            echo "GAGAL: belum ada akun Tim IT. Tambahkan TEKNISI_NAMA, TEKNISI_EMAIL, TEKNISI_PASSWORD ke .env lalu buka ulang link ini.\n";
+        } else {
+            echo "{$ada} akun Tim IT sudah ada.\n";
+        }
+        echo "Paket saat ini: " . \App\Support\Paket::namaPaket() . " (" . count(\App\Support\Paket::data()['modul']) . " modul), langganan: "
+            . (\App\Support\Paket::data()['aktif_sampai']?->format('d/m/Y') ?? 'tanpa batas') . ".\n";
+    } catch (\Throwable $e) {
+        $adaError = true;
+        echo 'GAGAL membuat akun Tim IT: ' . $e->getMessage() . "\n";
+    }
+    echo "\n";
 }
 
 $cetak = function (string $judul, callable $isi) {
@@ -146,6 +192,8 @@ if (! $adaError) {
     echo "=== DEPLOY SELESAI ===\n";
     echo "Menu baru: Bantuan → Kamus Menu; Stok & Gudang → Stok Opname & Stok Rusak; Laporan → Kerugian Stok; SDM → Ganti Rugi Stok.\n";
     echo "Pengaturan Umum → kartu Stok Opname (hitung buta, batas foto, pengingat).\n";
+    echo "Tim IT: login dengan akun dari .env → Pengaturan → Paket & Langganan / Tim IT. Owner: Keamanan → Aktivitas Tim IT.\n";
+    echo "HAPUS baris TEKNISI_NAMA/TEKNISI_EMAIL/TEKNISI_PASSWORD dari .env sekarang.\n";
 } else {
     echo "=== SELESAI DENGAN ERROR — cek pesan di atas (lock tidak dibuat) ===\n";
 }

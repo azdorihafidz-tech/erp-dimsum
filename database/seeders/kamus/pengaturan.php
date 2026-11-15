@@ -62,7 +62,7 @@ MD,
         'ringkasan' => 'Akun login: email, password, role (hak akses), cabang yang boleh dibuka, aktif/nonaktif.',
         'izin' => ['user.view'],
         'route_names' => ['user.*'],
-        'terkait' => ['role-hak-akses', 'karyawan', 'cabang'],
+        'terkait' => ['role-hak-akses', 'karyawan', 'cabang', 'aktivitas-tim-it'],
         'kata_kunci' => 'user akun login password reset password role cabang user nonaktif tambah user kasir baru',
         'konten' => <<<'MD'
 ## Fungsi
@@ -76,6 +76,7 @@ Membuat dan mengelola akun yang bisa login.
 - Role yang tidak boleh melihat semua cabang hanya mengelola user yang berbagi cabang dengannya, dan hanya bisa menugaskan ke cabangnya sendiri.
 - Tidak bisa menghapus/menonaktifkan akun sendiri, atau menghapus satu-satunya Owner.
 - **Cabang default** = cabang yang terpilih otomatis saat login.
+- Akun **Tim IT** penyedia aplikasi tidak tampil di daftar ini dan tidak bisa diubah dari sini. Kapan tim IT login dan apa yang dilakukannya bisa dilihat Owner di **Keamanan → Aktivitas Tim IT**.
 
 ## Apa yang terjadi
 | Tombol | Akibat |
@@ -96,14 +97,15 @@ MD,
         'ringkasan' => 'Mengatur centangan izin untuk setiap role, dan membuat role sendiri (mis. "Kru").',
         'izin' => ['@owner'],
         'route_names' => ['role.*'],
-        'terkait' => ['manajemen-user'],
-        'kata_kunci' => 'role hak akses izin permission centang menu tidak muncul akses ditolak 403 role baru',
+        'terkait' => ['manajemen-user', 'cara-fitur-tidak-ada'],
+        'kata_kunci' => 'role hak akses izin permission centang menu tidak muncul akses ditolak 403 role baru paket modul',
         'konten' => <<<'MD'
 ## Fungsi
 Menentukan menu & tombol apa saja yang bisa dipakai setiap role.
 
 ## Supaya menu ini muncul & bisa dipakai
-- **Khusus Owner** (Owner selalu bisa semua menu).
+- **Khusus Owner** (Owner selalu bisa semua menu **yang termasuk paket** aplikasi usaha Anda).
+- Centangan untuk modul yang **tidak termasuk paket** tidak ditampilkan di sini dan menunya tidak muncul untuk siapa pun; centangan lamanya tetap tersimpan dan kembali kalau modul diaktifkan tim IT.
 
 ## Cara kerjanya
 - Setiap menu punya centangan sendiri; tombol penting (hapus, batalkan, approve) juga punya centangan sendiri. **Centangan selalu berlaku** — kalau tidak dicentang, menu tidak tampil dan alamatnya ditolak.
@@ -112,9 +114,11 @@ Menentukan menu & tombol apa saja yang bisa dipakai setiap role.
 - Yang **tidak bisa** diberikan ke role lain: Role & Hak Akses dan Pengaturan Umum (khusus Owner).
 
 ## Tips kalau ada yang bilang "menu tidak muncul"
-1. Cek centangan menu itu di role user tersebut.
-2. Cek **Kamus Menu** menu itu → bagian "Supaya menu ini muncul" (sering ada saklar di menu lain, mis. Antrian/Label/Kirim ke Cabang di Edit Cabang).
-3. Cek cabang di pojok kanan atas.
+1. Cek apakah menunya termasuk paket — kalau Owner pun tidak melihatnya, hubungi tim IT (lihat Kamus "Kenapa menu atau fitur tidak ada?").
+2. Cek centangan menu itu di role user tersebut.
+3. Cek **Kamus Menu** menu itu → bagian "Supaya menu ini muncul" (sering ada saklar di menu lain, mis. Antrian/Label/Kirim ke Cabang di Edit Cabang).
+4. Cek cabang di pojok kanan atas.
+5. Kalau tombol Simpan selalu ditolak dan ada pita "Mode baca-saja": langganan sudah habis — hubungi tim IT.
 MD,
     ],
 
