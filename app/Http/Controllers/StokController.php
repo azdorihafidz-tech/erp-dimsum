@@ -113,6 +113,11 @@ class StokController extends Controller
             $movements = $query->orderByDesc('created_at')->paginate(30)->withQueryString();
         }
 
+        // Stok Opname — nomor SO untuk tautan di kolom referensi
+        $nomorSO = $movements->isNotEmpty() && \Illuminate\Support\Facades\Schema::hasTable('stok_opnames')
+            ? \App\Models\StokOpname::whereIn('id', collect($movements->items())->where('referensi_type', 'stok_opname')->pluck('referensi_id'))->pluck('nomor', 'id')
+            : collect();
+
         $stokSaat = ($item && $lokasi)
             ? $this->stokService->getStok($item->id, $lokasi->id)
             : 0;
@@ -124,7 +129,7 @@ class StokController extends Controller
         $selectedItem = $item;
         $selectedLokasi = $lokasi;
 
-        return view('stok.kartu', compact('items','lokasiList','movements','item','lokasi','stokSaat','minimumLokasi','selectedItem','selectedLokasi'));
+        return view('stok.kartu', compact('items','lokasiList','movements','item','lokasi','stokSaat','minimumLokasi','selectedItem','selectedLokasi','nomorSO'));
     }
 
     /**

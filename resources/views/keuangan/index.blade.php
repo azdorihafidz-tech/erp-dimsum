@@ -424,6 +424,13 @@
                                style="font-size:0.72rem">
                                 <i class="bi bi-bag-plus"></i> PO
                             </a>
+                        @elseif($trx->referensi_type === 'stok_opname')
+                            <a href="{{ route('stok-opname.show', $trx->referensi_id) }}"
+                               class="btn btn-xs btn-outline-warning py-0 px-1"
+                               title="Dari Stok Opname yang sudah disetujui. Tidak bisa diedit/dihapus."
+                               style="font-size:0.72rem">
+                                <i class="bi bi-clipboard-check"></i> Opname
+                            </a>
                         @elseif($trx->referensi_type === 'stock_movement' || str_contains($trx->referensi_type ?? '', 'StockMovement'))
                             <a href="{{ route('stok.index') }}"
                                class="btn btn-xs btn-outline-warning py-0 px-1"
@@ -511,6 +518,11 @@
                         <i class="bi bi-bag-plus me-1"></i>Lihat PO
                     </a>
                     <span class="text-muted" style="font-size:0.72rem"><i class="bi bi-lock me-1"></i>Edit dari PO</span>
+                @elseif($trx->referensi_type === 'stok_opname')
+                    <a href="{{ route('stok-opname.show', $trx->referensi_id) }}" class="btn btn-sm btn-outline-warning py-1" style="font-size:0.78rem">
+                        <i class="bi bi-clipboard-check me-1"></i>Stok Opname
+                    </a>
+                    <span class="text-muted" style="font-size:0.72rem"><i class="bi bi-lock me-1"></i>Dari Stok Opname</span>
                 @elseif($trx->referensi_type === 'stock_movement' || str_contains($trx->referensi_type ?? '', 'StockMovement'))
                     <a href="{{ route('stok.index') }}" class="btn btn-sm btn-outline-warning py-1" style="font-size:0.78rem">
                         <i class="bi bi-sliders me-1"></i>Adjustment Stok

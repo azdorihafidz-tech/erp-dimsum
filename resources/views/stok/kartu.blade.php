@@ -197,10 +197,14 @@
                             {{ fmt_qty($mv->qty) }}
                         </td>
                         <td class="d-none d-lg-table-cell">
+                            @if($mv->referensi_type === 'stok_opname' && isset($nomorSO[$mv->referensi_id]))
+                            <a href="{{ route('stok-opname.show', $mv->referensi_id) }}" style="font-size:0.78rem"><i class="bi bi-clipboard-check me-1"></i>{{ $nomorSO[$mv->referensi_id] }}</a>
+                            @else
                             <span class="text-muted" style="font-size:0.78rem">
                                 {{ $mv->referensi_type ? Str::limit($mv->referensi_type, 20) : '—' }}
                                 @if($mv->referensi_id) #{{ $mv->referensi_id }} @endif
                             </span>
+                            @endif
                         </td>
                         <td class="d-none d-xl-table-cell">
                             <span class="text-muted" style="font-size:0.8rem">
@@ -276,6 +280,9 @@
                 <div class="text-muted mt-1" style="font-size:0.78rem">
                     <i class="bi bi-chat-left-text me-1"></i>{{ $mv->catatan }}
                 </div>
+                @endif
+                @if($mv->referensi_type === 'stok_opname' && isset($nomorSO[$mv->referensi_id]))
+                <div class="mt-1" style="font-size:0.78rem"><a href="{{ route('stok-opname.show', $mv->referensi_id) }}"><i class="bi bi-clipboard-check me-1"></i>{{ $nomorSO[$mv->referensi_id] }}</a></div>
                 @endif
                 <div class="text-muted mt-1" style="font-size:0.78rem">
                     <i class="bi bi-person me-1"></i>{{ $mv->user?->name ?? '—' }}

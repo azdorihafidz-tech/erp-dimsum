@@ -259,6 +259,7 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
         Route::post('/{stokOpname}/setujui', 'setujui')->name('setujui');
         Route::post('/{stokOpname}/tolak', 'tolak')->name('tolak');
         Route::post('/{stokOpname}/batal', 'batal')->name('batal');
+        Route::get('/{stokOpname}/berita-acara', 'beritaAcara')->name('berita-acara');
     });
 
     // ===== 4.49 Tahap B1 — PRODUKSI bahan setengah jadi di gudang (porting erp-coffeeshop) =====
@@ -722,6 +723,7 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
         Route::get('/stok', [LaporanStokController::class, 'index'])->name('stok');
         Route::get('/stok/pergerakan', [LaporanStokController::class, 'pergerakan'])->name('stok.pergerakan');
         Route::get('/stok/minimum', [LaporanStokController::class, 'minimum'])->name('stok.minimum');
+        Route::get('/kerugian-stok', [\App\Http\Controllers\LaporanKerugianStokController::class, 'index'])->name('kerugian-stok'); // Stok Opname
         Route::get('/keuangan/laba-rugi', [LaporanKeuanganController::class, 'labaRugi'])->name('keuangan.laba-rugi');
         Route::get('/keuangan/arus-kas', [LaporanKeuanganController::class, 'arusKas'])->name('keuangan.arus-kas');
         Route::get('/keuangan/harian', [LaporanKeuanganController::class, 'harian'])->name('keuangan.harian');

@@ -57,6 +57,34 @@ MD,
     ],
 
     [
+        'slug' => 'laporan-kerugian-stok', 'judul' => 'Laporan → Kerugian Stok', 'kelompok' => 'Laporan', 'urutan' => 21,
+        'letak' => 'Laporan → Kerugian Stok',
+        'ringkasan' => 'Nilai barang rusak/basi/hilang dari Stok Opname yang disetujui: per penyebab, per lokasi, per barang, stok rusak, ganti rugi, dan yang sudah dipulihkan.',
+        'izin' => ['stok_opname.laporan'],
+        'route_names' => ['laporan.kerugian-stok'],
+        'terkait' => ['stok-opname', 'laporan-laba-rugi-formal', 'laporan-stok'],
+        'kata_kunci' => 'laporan kerugian stok barang hilang barang rusak basi kedaluwarsa susut sampel selisih persediaan akurasi opname ganti rugi karyawan stok rusak',
+        'konten' => <<<'MD'
+## Fungsi
+Merangkum kerugian stok dari **Stok Opname yang disetujui** dalam satu periode (tanggal persetujuan): kerugian kotor, yang dipulihkan (uang ganti rugi/pemasok + barang yang kembali), kelebihan stok, dan **kerugian bersih**. Ekspor Excel & PDF.
+
+## Supaya menu ini muncul & bisa dipakai
+- Centangan **Laporan Kerugian Stok** (bawaan: Admin Pusat & Manajer Cabang).
+- Role tanpa akses semua cabang hanya melihat lokasinya.
+- Datanya baru ada setelah ada opname yang **disetujui** di menu Stok & Gudang → Stok Opname.
+
+## Apa yang terjadi kalau tombol diklik
+| Tombol | Stok | Kas |
+|---|---|---|
+| Tampilkan / Excel / PDF | Tidak berubah (hanya membaca) | Tidak berubah |
+
+## Menu yang mirip & bedanya
+- **Laba Rugi Formal**: kerugian yang sama tampil sebagai akun beban per penyebab di antara beban lain.
+- **Berita Acara** (di halaman opname): rincian satu opname, bukan rangkuman periode.
+MD,
+    ],
+
+    [
         'slug' => 'laporan-keuangan', 'judul' => 'Laporan → Keuangan', 'kelompok' => 'Laporan', 'urutan' => 30,
         'letak' => 'Laporan → Keuangan (Laba Rugi, Arus Kas, Harian)',
         'ringkasan' => 'Rekap pemasukan/pengeluaran per kategori dan arus kas dari semua transaksi Kas & Transaksi.',

@@ -1020,6 +1020,11 @@
                 <i class="bi bi-boxes"></i><span>Stok</span>
             </a>
             @endcan
+            @can('stok_opname.laporan')
+            <a href="{{ route('laporan.kerugian-stok') }}" class="nav-link {{ request()->routeIs('laporan.kerugian-stok') ? 'active' : '' }}">
+                <i class="bi bi-graph-down-arrow"></i><span>Kerugian Stok</span>
+            </a>
+            @endcan
             @can('laporan.keuangan.view')
             <a href="{{ route('laporan.keuangan.laba-rugi') }}" class="nav-link {{ request()->routeIs('laporan.keuangan.*') ? 'active' : '' }}">
                 <i class="bi bi-cash-stack"></i><span>Keuangan</span>

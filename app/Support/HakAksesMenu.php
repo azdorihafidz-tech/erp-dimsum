@@ -95,7 +95,7 @@ class HakAksesMenu
         'laporan.saldo_kas.view', 'laporan.setoran_harian.view', 'laporan.konsumsi_bahan.view', 'laporan.laba_rugi.view',
         'laporan.laba_rugi_formal.view', 'laporan.neraca.view', 'laporan.buku_besar.view', 'laporan.eksekutif.view',
         'laporan.simulator.view', 'laporan.jam_ramai.view', 'laporan.perlengkapan.view', 'laporan.setoran_kasir.view',
-        'laporan.cabang_vs_cabang.view',
+        'laporan.cabang_vs_cabang.view', 'stok_opname.laporan',
     ];
 
     /**

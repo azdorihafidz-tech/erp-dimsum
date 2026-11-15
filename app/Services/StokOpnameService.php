@@ -682,6 +682,91 @@ class StokOpnameService
         return $per;
     }
 
+    // ===================== Berita Acara =====================
+
+    /** Boleh mengunduh berita acara? Penghitung buta tidak boleh selama opname berjalan. */
+    public function bolehUnduhBeritaAcara(User $user, StokOpname $o): bool
+    {
+        return $this->bolehLihat($user, $o) && (! $o->berjalan() || $this->bolehLihatSistem($user, $o));
+    }
+
+    /**
+     * Data Berita Acara Stok Opname (PDF & Excel). Sebelum disetujui nilai =
+     * perkiraan (FIFO sekarang) dan dokumen bertanda SEMENTARA.
+     */
+    public function dataBeritaAcara(StokOpname $o): array
+    {
+        $o->loadMissing(['cabang', 'pembuat', 'pengaju', 'penyetuju', 'penghitung']);
+        $final = $o->status === StokOpname::DISETUJUI;
+        $rows = $o->items()->with(['item.category', 'rincian', 'penghitung'])->get()
+            ->sortBy(fn ($r) => mb_strtolower((string) $r->item?->nama_item))->values();
+
+        $baris = [];
+        $keluar = [];
+        $foto = [];
+        $rk = ['dihitung' => 0, 'cocok' => 0, 'kurang' => 0, 'lebih' => 0, 'nilai_kurang' => 0.0, 'nilai_lebih' => 0.0, 'nilai_sistem' => 0.0];
+        foreach ($rows as $r) {
+            if ($r->dikeluarkan) {
+                $keluar[] = ['kode' => $r->item?->kode_item, 'nama' => $r->item?->nama_item, 'alasan' => $r->alasan_dikeluarkan];
+                continue;
+            }
+            $s = $r->selisih();
+            if ($final) {
+                $harga = (float) $r->harga_pokok;
+                $nilai = (float) $r->nilai_selisih;
+            } else {
+                $harga = $this->stok->hargaPokokRataRata($r->item_id, $o->cabang_id);
+                $nilai = $s === null ? 0.0 : ($s < 0 ? -$this->stok->perkiraanNilaiKeluar($r->item_id, $o->cabang_id, abs($s)) : round($s * $harga, 2));
+            }
+            if ($s !== null) {
+                $rk['dihitung']++;
+                $rk['nilai_sistem'] += max(0, (float) $r->qty_sistem) * ($final ? $this->hargaUntukAkurasi($r, $harga) : $harga);
+                if (abs($s) <= 0.0005) {
+                    $rk['cocok']++;
+                } elseif ($s < 0) {
+                    $rk['kurang']++;
+                    $rk['nilai_kurang'] += abs($nilai);
+                } else {
+                    $rk['lebih']++;
+                    $rk['nilai_lebih'] += $nilai;
+                }
+            }
+            $penyebab = $r->rincian->map(fn ($x) => $x->penyebab->labelPendek() . ' ' . self::angka((float) $x->qty))->implode(', ');
+            foreach ($r->rincian as $x) {
+                if ($x->foto_path) {
+                    $foto[] = ['nama' => $r->item?->nama_item, 'penyebab' => $x->penyebab->labelPendek(), 'qty' => (float) $x->qty, 'path' => $x->foto_path, 'catatan' => $x->catatan];
+                }
+            }
+            $baris[] = [
+                'kode' => $r->item?->kode_item, 'nama' => $r->item?->nama_item, 'kategori' => $r->item?->category?->nama_kategori,
+                'satuan' => $r->item?->satuan, 'sistem' => $r->qty_sistem === null ? null : (float) $r->qty_sistem,
+                'fisik' => $r->qty_fisik === null ? null : (float) $r->qty_fisik, 'selisih' => $s, 'harga' => round($harga, 2),
+                'nilai' => round($nilai, 2), 'penyebab' => $penyebab ?: ($s !== null && $s > 0.0005 ? 'Lebih' : ''),
+                'penghitung' => $r->penghitung?->name,
+            ];
+        }
+        if ($final && $o->ringkasan) {
+            $rk = array_merge($rk, $o->ringkasan);
+        }
+        $rk['nilai_kurang'] = round($rk['nilai_kurang'], 2);
+        $rk['nilai_lebih'] = round($rk['nilai_lebih'], 2);
+        $rk['nilai_bersih'] = round($rk['nilai_lebih'] - $rk['nilai_kurang'], 2);
+        $rk['akurasi'] = $final ? ($o->akurasi !== null ? (float) $o->akurasi : null) : ($rk['dihitung'] ? round($rk['cocok'] / $rk['dihitung'] * 100, 2) : null);
+        if (! array_key_exists('akurasi_nilai', $rk) || ! $final) {
+            $rk['akurasi_nilai'] = $rk['nilai_sistem'] > 0 ? round(max(0, 1 - ($rk['nilai_kurang'] + $rk['nilai_lebih']) / $rk['nilai_sistem']) * 100, 2) : null;
+        }
+
+        return [
+            'o' => $o, 'final' => $final, 'baris' => $baris, 'dikeluarkan' => $keluar, 'foto' => $foto, 'ringkasan' => $rk,
+            'penghitung' => $o->penghitung->pluck('name')->merge($rows->pluck('penghitung.name'))->filter()->unique()->values()->all(),
+        ];
+    }
+
+    private function hargaUntukAkurasi(StokOpnameItem $r, float $harga): float
+    {
+        return $harga > 0 ? $harga : $this->stok->hargaPokokRataRata($r->item_id, $r->opname->cabang_id);
+    }
+
     /**
      * Angka merah di menu: penyetuju = opname menunggu persetujuan; penghitung =
      * opname yang sedang menunggu dia hitung. Aman sebelum migration (cek tabel).

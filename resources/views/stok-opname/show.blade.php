@@ -78,6 +78,12 @@
     @if($editable && $lihatSistem)
     <a href="{{ route('stok-opname.show', $o) }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-clockwise me-1"></i>Muat ulang selisih</a>
     @endif
+    @if($bolehUnduh && $o->status !== 'dibatalkan')
+    <div class="btn-group btn-group-sm">
+        <a href="{{ route('stok-opname.berita-acara', [$o, 'format' => 'pdf']) }}" class="btn btn-outline-dark"><i class="bi bi-file-earmark-pdf me-1"></i>Berita Acara{{ $o->status === 'disetujui' ? '' : ' (sementara)' }}</a>
+        <a href="{{ route('stok-opname.berita-acara', [$o, 'format' => 'excel']) }}" class="btn btn-outline-dark" title="Excel"><i class="bi bi-file-earmark-excel"></i></a>
+    </div>
+    @endif
 </div>
 
 @if($masalah)

@@ -153,6 +153,7 @@ class StokOpnameController extends Controller
             'ikutHitung'   => $this->service->ikutMenghitung($user, $o) && ! StokOpnameService::isOwner($user),
             'bolehBatal'   => $user->hasPermission('stok_opname.batal') && StokOpnameService::bolehAksesLokasi($user, $o->cabang_id),
             'perkiraan'    => $perkiraan,
+            'bolehUnduh'   => $this->service->bolehUnduhBeritaAcara($user, $o),
             'masalah'      => $o->status === StokOpname::MENGHITUNG && $lihatSistem ? $this->service->masalahPengajuan($o) : [],
             'penyebabKurang' => PenyebabSelisihStok::untukKurang(),
             'batasFoto'    => StokOpnameService::batasFotoHilang(),
@@ -282,6 +283,27 @@ class StokOpnameController extends Controller
         }
 
         return back()->with('success', "Stok opname {$stokOpname->nomor} ditolak dan kembali ke tahap hitung.");
+    }
+
+    /** Berita Acara Stok Opname (?format=pdf|excel). Sebelum disetujui bertanda SEMENTARA. */
+    public function beritaAcara(Request $request, StokOpname $stokOpname)
+    {
+        $user = auth()->user();
+        abort_unless($this->service->bolehUnduhBeritaAcara($user, $stokOpname), 403,
+            'Berita acara bisa diunduh setelah opname selesai (penghitung buta tidak melihat stok sistem selama opname berjalan).');
+        $d = $this->service->dataBeritaAcara($stokOpname);
+        $nama = 'Berita-Acara-' . $stokOpname->nomor . ($d['final'] ? '' : '-SEMENTARA');
+
+        if ($request->input('format') === 'excel') {
+            return \Maatwebsite\Excel\Facades\Excel::download(new \App\Exports\BeritaAcaraStokOpnameExport($d, $user->name), $nama . '.xlsx');
+        }
+
+        return \Barryvdh\DomPDF\Facade\Pdf::loadView('stok-opname.berita-acara-pdf', [
+            'd'             => $d,
+            'judulLaporan'  => 'Berita Acara Stok Opname',
+            'filterInfo'    => ['Nomor' => $stokOpname->nomor, 'Lokasi' => $stokOpname->cabang?->nama_cabang ?? '-'],
+            'footerDicetak' => 'Dicetak oleh: ' . $user->name . ' pada ' . now()->format('d/m/Y H:i') . ' WIB',
+        ])->setPaper('a4', 'portrait')->download($nama . '.pdf');
     }
 
     public function batal(Request $request, StokOpname $stokOpname)

@@ -135,8 +135,12 @@ Mulai → **Sedang dihitung** (isi jumlah / scan kode) → pemeriksa cek selisih
 | Isi jumlah / scan | Belum berubah. Stok sistem saat itu dicatat per barang | — | — |
 | Ajukan / Tolak / Batalkan | Belum berubah | — | — |
 | **Setujui** | Disesuaikan sebesar **selisih** (fisik − sistem saat dihitung), bukan menimpa angka. Kurang → batch tertua dipotong (FIFO). Rusak/Basi/Freezer mati → masuk **Stok Rusak**. Lebih → batch baru harga pokok rata-rata | 1 baris per penyebab, tanpa kas: Kerugian Stok – Rusak / Basi / Hilang, Penyusutan Stok, Promosi & Sampel, Makan Karyawan (Beban Konsumsi), Selisih Persediaan; kelebihan → Selisih Lebih Persediaan (pendapatan lain) | Tidak berubah |
+| **Berita Acara** (PDF/Excel) | Tidak berubah | — | — |
 
-- Kartu stok mencatat tiap penyesuaian sebagai **Penyesuaian** dengan referensi opname.
+
+- Kartu stok mencatat tiap penyesuaian sebagai **Penyesuaian** dengan nomor SO yang bisa diklik.
+- Berita Acara sebelum disetujui bertanda **SEMENTARA**; penghitung yang hitung buta baru bisa mengunduhnya setelah opname selesai.
+- Rangkuman kerugian per periode: **Laporan → Kerugian Stok**.
 - Baris keuangan opname tidak bisa diedit/dihapus dari Kas & Transaksi.
 
 ## Wajib

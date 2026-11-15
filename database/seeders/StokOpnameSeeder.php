@@ -86,6 +86,13 @@ class StokOpnameSeeder extends Seeder
             'urutan' => 44,
             'aktif'  => true,
         ]);
+        Panduan::updateOrCreate(['slug' => 'laporan-kerugian-stok'], [
+            'judul'  => 'Laporan Kerugian Stok',
+            'konten' => self::PANDUAN_LAPORAN,
+            'modul'  => 'laporan',
+            'urutan' => 46,
+            'aktif'  => true,
+        ]);
     }
 
     private function tooltip(): void
@@ -96,6 +103,8 @@ class StokOpnameSeeder extends Seeder
             ['stok_opname.penghitung', 'Penghitung', 'Orang yang mengisi jumlah fisik. Hanya user berizin "Hitung Stok Opname" yang punya akses ke lokasi ini yang muncul.'],
             ['stok_opname.hitung_buta', 'Hitung buta', 'Kalau nyala, penghitung tidak melihat stok sistem — supaya angka yang diisi benar-benar hasil hitungan. Pemeriksa & penyetuju tetap melihat selisih. Diatur di Pengaturan Umum.'],
             ['stok_opname.scan', 'Scan / ketik kode', 'Ketik kode barang lalu Enter, atau pakai scanner barcode yang bekerja seperti keyboard. Sekali scan = jumlah fisik +1.'],
+            ['laporan_kerugian_stok.kotor', 'Kerugian kotor', 'Jumlah nilai barang yang kurang dari semua Stok Opname yang DISETUJUI di periode ini (harga pokok FIFO). Tidak mengurangi kas.'],
+            ['laporan_kerugian_stok.bersih', 'Kerugian bersih', 'Kerugian kotor dikurangi uang yang diterima kembali (ganti rugi karyawan, uang pemasok), barang yang kembali (diganti pemasok / dipakai lagi), dan kelebihan stok.'],
             ['stok_opname.penyebab', 'Penyebab selisih', 'Barang yang kurang wajib dirinci penyebabnya (boleh dipecah, mis. 2 rusak + 1 hilang). Rusak/Basi/Freezer mati masuk Stok Rusak; semua kerugian dicatat sebagai beban tanpa mengurangi kas.'],
         ] as $i => [$key, $title, $content]) {
             Tooltip::updateOrCreate(['key' => $key], ['title' => $title, 'content' => $content, 'modul' => 'stok', 'aktif' => true, 'urutan' => 120 + $i]);
@@ -148,6 +157,9 @@ Satu barang hanya boleh ada di satu opname yang belum selesai per lokasi. Selama
 - Penyetuju klik **Setujui** atau **Tolak** (alasan wajib; opname kembali ke tahap hitung).
 - Orang yang ikut menghitung **tidak bisa** menyetujui opname itu sendiri (kecuali Owner).
 
+### Berita Acara
+Tombol **Berita Acara** (PDF) dan ikon Excel di halaman opname: kepala, rincian per barang (sistem, fisik, selisih, harga pokok, nilai, penyebab), ringkasan & **akurasi %**, lampiran foto, dan kolom tanda tangan Penghitung / Pemeriksa / Penyetuju. Sebelum disetujui dokumen bertanda **SEMENTARA**. Penghitung yang hitung buta baru bisa mengunduhnya setelah opname selesai.
+
 ### 5. Saat disetujui
 - Stok disesuaikan sebesar selisih, nilai kerugian = **harga pokok FIFO** (batch tertua).
 - Keuangan mendapat satu baris per penyebab **tanpa kas** (tidak bisa diedit/dihapus dari Kas & Transaksi).
@@ -164,5 +176,27 @@ Satu barang hanya boleh ada di satu opname yang belum selesai per lokasi. Selama
 - **Barang tidak ada di daftar saat memulai**: barang harus milik lokasi itu, bertipe Bahan Baku/Kemasan/Tambahan Gratis, dan dicentang *Lacak Stok*.
 - **"Sedang dihitung di Stok Opname SO-…" saat Penyesuaian Stok**: selesaikan atau batalkan opname itu dulu.
 - **Tombol Ajukan tidak aktif**: lihat kotak kuning "Sebelum bisa diajukan".
+MARKDOWN;
+
+    public const PANDUAN_LAPORAN = <<<'MARKDOWN'
+## Tujuan
+Melihat berapa nilai barang yang hilang/rusak/basi dalam satu periode, dari mana penyebabnya, dan berapa yang sudah kembali.
+
+## Langkah-langkah
+1. Buka **Laporan → Kerugian Stok**.
+2. Pilih **lokasi** (atau semua lokasi) dan **periode** (bawaan: awal bulan sampai hari ini).
+3. Klik **Tampilkan**. Unduh dengan tombol **Excel** atau **PDF**.
+
+## Isi laporan
+- **Kerugian kotor**: nilai barang yang kurang (harga pokok FIFO) dari opname yang **disetujui** di periode itu.
+- **Dipulihkan**: uang yang diterima kembali (ganti rugi karyawan, uang dari pemasok) + kerugian yang dibatalkan karena barang kembali (diganti pemasok / dipakai lagi).
+- **Kelebihan stok**: nilai barang yang fisiknya lebih banyak dari sistem.
+- **Kerugian bersih** = kotor − dipulihkan − kelebihan.
+- Rincian **per penyebab**, **per lokasi** (jumlah opname & akurasi rata-rata), **per barang** (50 terbesar), **stok rusak tertahan** & tindak lanjutnya, dan **ganti rugi karyawan**.
+
+## Catatan Penting
+- Kerugian stok tidak mengurangi kas. Di **Laba Rugi Formal** kerugian tampil per akun: Kerugian Stok – Rusak / Basi / Hilang, Penyusutan Stok, Promosi & Sampel, Selisih Persediaan; kelebihan di Selisih Lebih Persediaan.
+- Periode dihitung dari **tanggal persetujuan** opname, bukan tanggal mulai.
+- Role tanpa akses semua cabang hanya melihat lokasinya sendiri.
 MARKDOWN;
 }
