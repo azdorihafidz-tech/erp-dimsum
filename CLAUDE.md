@@ -3,8 +3,8 @@
 > **Untuk Claude Code**: File ini adalah **single source of truth** untuk seluruh project. WAJIB dibaca sebelum eksekusi apapun.
 > Isinya: keputusan bisnis, temuan audit, aturan teknis, dan filosofi kerja.
 
-**Versi**: 4.13  
-**Update terakhir**: 2026-11-10 (Porting coffeeshop: Produksi, Kirim ke Cabang, Retur, POS HP, Label gambar — [[4.49]]; Warna Aplikasi di Pengaturan Umum — [[4.48]]; POS: harga terkunci + izin Ubah Harga, produk sama digabung, panel bayar tablet — [[4.47]]; Laporan Transaksi/Produk/Kategori di menu Penjualan untuk kasir — [[4.46]]; Order dihapus tidak masuk laporan — [[4.45]]; Porting erp-coffeeshop: POS pilih cabang, Identitas Usaha, APK Kasir, Label Produk — [[4.44]]; Rapikan Role & Hak Akses — [[4.43]]; Ambil Produk Jual dari cabang lain — [[4.42]]; POS tipe transaksi per cabang & Uang Pas — [[4.41]]; POS stok tersedia dari resep — [[4.40]]; Data barang terpisah per cabang — lihat [[4.39]]; Perbaikan Harga, Wajib Bukti, PO ke Gudang, Role Bebas — lihat [[4.38]])  
+**Versi**: 4.14  
+**Update terakhir**: 2026-11-15 (Kamus Menu Tahap 1 — [[4.50]]; Porting coffeeshop: Produksi, Kirim ke Cabang, Retur, POS HP, Label gambar — [[4.49]]; Warna Aplikasi di Pengaturan Umum — [[4.48]]; POS: harga terkunci + izin Ubah Harga, produk sama digabung, panel bayar tablet — [[4.47]]; Laporan Transaksi/Produk/Kategori di menu Penjualan untuk kasir — [[4.46]]; Order dihapus tidak masuk laporan — [[4.45]]; Porting erp-coffeeshop: POS pilih cabang, Identitas Usaha, APK Kasir, Label Produk — [[4.44]]; Rapikan Role & Hak Akses — [[4.43]]; Ambil Produk Jual dari cabang lain — [[4.42]]; POS tipe transaksi per cabang & Uang Pas — [[4.41]]; POS stok tersedia dari resep — [[4.40]]; Data barang terpisah per cabang — lihat [[4.39]]; Perbaikan Harga, Wajib Bukti, PO ke Gudang, Role Bebas — lihat [[4.38]])  
 **Status**: 🎉 **PROJECT LIVE DI PRODUCTION** (https://erp.dmentaiindonesia.com — domain lama `erpdimsum.azwacore.com` sudah tidak dipakai; **GO-LIVE data real: lihat [[4.28]]**) — Tahap 1-7 SELESAI SEMUA + rangkaian bug fix & improvement lintas sesi (lihat section 4 utk detail lengkap tiap item): Bug Fix Ronde 2, Rename Jenis Menu/Master Bumbu Pusat, Fitur Import dari Bumbu Pusat, Rename Label & Hapus Gojek/Grab, Fix Foto Produk Production, UI Preview Harga Master/Subtotal Resep (Ronde 3-5), Auto-isi Satuan Master Bumbu Pusat, Fix ENUM Kategori Saldo Awal, Fix Label Kode Kategori Wajib, Default Basis Program Loyalty ke Rp, Widget Total Pembelian Pelanggan, Fix Export Excel Laporan Keuangan. **Sprint 3 Batch 1 SELESAI SEMUA** (5 menu Prioritas 1 — Penjualan, Setoran Kasir, Setoran Harian/Rekap, Stok 3 sub-view, Laba Rugi Produksi — lihat [[4.24]], [[4.25]]) — Sprint 2 (konversi satuan resep) DIDEFER [[12.12]], Sprint 3 Batch 2/3 (17 menu Laporan Prioritas 2/3) + TODO tracking stock movement [[12.14]] MENYUSUL [[12.13]].
 
 ---
@@ -125,6 +125,7 @@ Setiap fitur/menu BARU wajib:
 3. Tambah panduan di menu Panduan (via `PanduanKontenSeeder`)
 4. Tambah tooltip untuk form-form penting (via `TooltipKontenSeeder`)
 5. **Embed tombol "Cara Pakai" (`<x-panduan-button slug="{slug}" />`) di halaman fitur** — pojok kanan atas header halaman, atau header section untuk sub-fitur (mis. section Varian di form Produk Jual). Panduan yang cuma bisa diakses lewat menu Panduan (bukan langsung dari halaman fiturnya) dianggap **belum lengkap**.
+6. **Kamus Menu** (sejak [[4.50]]) — tambah/ubah entri di `database/seeders/kamus/{kelompok}.php`, lalu jalankan `KamusMenuSeeder` saat deploy. Berlaku untuk **menu baru** DAN **perubahan perilaku menu lama** (tombol baru, saklar baru di Cabang/Pengaturan, izin baru, efek ke stok/kas/laporan berubah). Isi wajib dari KODE, bukan ingatan, dengan urutan bagian: Fungsi → **Supaya menu ini muncul & bisa dipakai** (izin, saklar di menu LAIN, data yang harus ada dulu) → Alur → **Apa yang terjadi kalau tombol diklik** (tabel stok/kas/laporan) → Wajib → Jangan → Menu yang mirip & bedanya. `route_names` diisi supaya tombol Kamus di header langsung menuju entri itu. Kalau fitur menambah cara baru untuk tujuan yang sama, perbarui juga entri **Cara Melakukan** terkait (`kamus/cara.php`). Guard rail: `tests/Feature/Tahap7/KamusMenuTest.php` GAGAL kalau ada link sidebar tanpa entri — jangan menambah ke daftar `BELUM`, tulis entrinya.
 
 Ini WAJIB, bukan optional. Kalau lupa, kerjaan bakal dobel di akhir.
 
@@ -658,6 +659,26 @@ Setelah Tahap 7 "selesai" ([[4.12]]), test manual final Owner menemukan 4 bug ba
 **Tahap E/F (harga & qty minimum per outlet dalam 1 data barang) — DITOLAK Owner 2026-10-19, tidak pernah dirilis, digantikan [[4.39]] (data terpisah per cabang).** Yang tetap dipakai dari situ: audit menu stok (stok rendah hanya `qty_minimum > 0`, Dashboard Stok SUM minimum, Kartu Stok minimum lokasi, fallback harga batch & `api.stok.qty` pakai `hargaBeliDiCabang`).
 
 **Deploy production**: digabung dgn [[4.39]] — lihat instruksi deploy di sana. Setelah itu: buat supplier "Gudang Pusat" dgn Supplier Internal = Gudang Pusat; cek saklar wajib bukti tiap cabang; koreksi Harga Standar bahan yang terlanjur tertimpa (Owner sendiri).
+
+### 4.50 🟢 Kamus Menu — Penjelasan Fungsi, Syarat, Alur & Dampak Tiap Menu + Pencarian (2026-11-15, Tahap 1)
+
+**Permintaan Owner**: menu bantuan yang lebih detail dari Panduan — tiap menu dijelaskan fungsinya, syarat supaya muncul (termasuk saklar di menu lain), alurnya, dan dampak/hasil tiap tombol; bisa dicari dengan kata sehari-hari. Bedanya dgn Panduan: Panduan = langkah klik; Kamus = fungsi + syarat + dampak.
+
+**Struktur**: tabel `kamus_menus` (migration `2026_11_15_100001`; slug, judul, kelompok = judul bagian sidebar / "Cara Melakukan", letak, ringkasan, konten Markdown GFM, kata_kunci, `izin` JSON "salah satu cukup" + pseudo `@owner`/`@semua_cabang`, `route_names` JSON pola nama route, `terkait` JSON slug). Isi **dimiliki kode**: `database/seeders/kamus/{penjualan,stok,pembelian,cara}.php` → `KamusMenuSeeder` (updateOrCreate per slug, entri yang tidak ada di file DIHAPUS, + panduan `kamus-menu` + tooltip `kamus_menu.cari`; terdaftar di DatabaseSeeder & GoLiveSeeder setelah Porting449Seeder). Model `KamusMenu` (`semuaAktif()` cache `kamus_menu:semua:v1`, `bolehDilihat()` pakai `hasPermission` — entri hanya tampil kalau user boleh membuka menunya, `untukRoute()`, `cari()` skor judul 10/kata kunci 6/letak+ringkasan 4/isi ≤3, utamakan entri yang memuat SEMUA kata, buang kata umum "cara/bagaimana/di/ke…", `izinTeks()` = display_name permission). Route `kamus-menu.index` (`?q=`) & `kamus-menu.show` — semua user login (seperti Panduan), entri tanpa hak → 404. Sidebar Bantuan → **Kamus Menu**; komponen `<x-kamus-menu-tombol />` di topbar (otomatis ke entri yang `route_names`-nya cocok dgn halaman yang dibuka, kalau tidak ada → daftar). Halaman detail: kotak "Siapa yang bisa membuka" otomatis dari kolom izin, "Buka menu ini", "Menu terkait".
+
+**Tahap 1 (36 entri)**: Penjualan (POS, Riwayat Order, Laporan Transaksi/Produk/Kategori, Pelanggan, Jenis Menu, Master Bumbu Pusat, Program Loyalty), Antrian Produksi (Cek, Kelola, Mode Produksi, Display TV), Stok & Gudang (Dashboard Stok, Stok Barang, Penyesuaian Stok, Permintaan, Transfer, Produksi, Kiriman Cabang, Retur Cabang, Bahan Baku, Produk Jual, Semua Barang, Pemakaian Perlengkapan), Pembelian (PO, Supplier, Dashboard PO), Cara Melakukan (pindah barang gudang→cabang, tambah stok, kurangi stok, batal/perbaiki transaksi, produk di banyak cabang, produk tidak muncul/Habis di POS, membuat resep, mengatur harga). **Belum**: Dashboard, Keuangan, SDM, Aset, Laporan, Pengaturan, Bantuan, Keamanan + Cara Melakukan (uang cabang→pusat, mencatat uang, melihat untung, akses karyawan) — daftar route di `KamusMenuTest::BELUM` (hanya boleh berkurang).
+
+**Temuan saat audit isi (BELUM difix — dilaporkan ke Owner, tercatat sebagai ⚠️ di Kamus)**:
+1. **Edit Order** (diskon/metode bayar) pada order sudah dibayar: `OrderObserver::updated()` mengubah `transaksi_keuangans.jumlah` lewat `withoutEvents` → **saldo kas & `order_payments` (Setoran Kasir) tidak ikut berubah**; split payment: semua baris TK ditimpa total_bayar.
+2. **Hapus Pelanggan** (`CascadeDeleteService::deletePelangganCascade`) soft-delete SEMUA order + order_items pelanggan → omzet hilang dari laporan padahal kas/TK tetap. Tidak ada tombol Nonaktifkan pelanggan di UI.
+3. **Hapus Bahan Baku/Produk Jual** (`deleteItemCascade`) ikut soft-delete order_items & PO items barang itu → Laporan Produk tidak menghitung lagi (Laporan Transaksi tetap); Produk Jual: file foto dihapus permanen walau item hanya soft-delete.
+4. **Tambahan Gratis & Produk Tambahan tanpa komposisi tidak memotong stok** saat dipilih di POS (`potongStokUntukItem` hanya bahan_baku/kemasan/produk_jual) — beda dari spesifikasi 7.1 ("ikut motong stok kalau di-track").
+5. Permintaan Stok/Transfer Stok: menu sidebar dijaga `stok.request`/`stok.transfer`, tapi halaman daftarnya butuh `stok.view` (sekarang tidak ada role yang kena).
+6. Laporan Laba Rugi "Per Jenis Menu" selalu "-" (order POS tidak menyimpan `order_items.jenis_olahan`).
+
+**Test**: `Tahap7/KamusMenuTest` (10) — guard rail sidebar (setiap `route('…')` di `<nav id="sidebar">` + `EKSTRA` harus cocok dgn `route_names` entri, kecuali `BELUM`), BELUM tidak berisi yang sudah ada, pola route/izin valid, cari, detail (tabel tampil), hak lihat (kasir tanpa izin → 404), tombol header, panduan/tooltip, seeder idempotent + menghapus entri usang. Semua tabel Markdown di 36 entri dicek ter-render jadi `<table>`.
+
+**Deploy (belum — tunggu Owner)**: 1 migration + `KamusMenuSeeder`.
 
 ### 4.49 🟢 Porting erp-coffeeshop: Produksi, Kirim ke Cabang, Retur Cabang, POS HP, Label Gambar (2026-11-10)
 
@@ -1698,6 +1719,7 @@ Setiap kali mulai kerja fitur baru, Claude Code WAJIB:
 - [ ] Eksekusi dengan test bertahap
 - [ ] Update section "Status" di roadmap (bagian 5.4)
 - [ ] Tambah permission + panduan + tooltip untuk fitur baru
+- [ ] Tambah/perbarui **Kamus Menu** (`database/seeders/kamus/*.php`) — termasuk syarat di menu lain & efek tiap tombol (3.6 poin 6)
 - [ ] Cek filter cabang manual di query (SECURITY!)
 - [ ] Kabari user ketika selesai & minta test
 

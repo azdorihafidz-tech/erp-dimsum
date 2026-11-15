@@ -912,6 +912,10 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
     Route::get('/panduan', [PanduanController::class, 'index'])->name('panduan.index');
     Route::get('/panduan/{slug}', [PanduanController::class, 'show'])->name('panduan.show');
 
+    // ===== KAMUS MENU (4.50, semua user login; entri ikut izin menunya) =====
+    Route::get('/kamus-menu', [\App\Http\Controllers\KamusMenuController::class, 'index'])->name('kamus-menu.index');
+    Route::get('/kamus-menu/{slug}', [\App\Http\Controllers\KamusMenuController::class, 'show'])->name('kamus-menu.show');
+
     // ===== ADMIN: PANDUAN =====
     // 4.43: ikut centangan Kelola Panduan & Tooltip (dulu role:owner,admin_pusat)
     Route::middleware('can:panduan.kelola')->prefix('admin/panduan')->name('admin.panduan.')->group(function () {

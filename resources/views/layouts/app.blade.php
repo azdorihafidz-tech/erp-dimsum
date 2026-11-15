@@ -1178,6 +1178,11 @@
             <i class="bi bi-journal-text"></i>
             <span>Panduan</span>
         </a>
+        <a href="{{ route('kamus-menu.index') }}"
+           class="nav-link {{ request()->routeIs('kamus-menu.*') ? 'active' : '' }}">
+            <i class="bi bi-search-heart"></i>
+            <span>Kamus Menu</span>
+        </a>
 
         <!-- KEAMANAN -->
         @if(isset($authUser) && $authUser->canAny(['lihat_audit_log', 'lihat_data_terhapus', 'lihat_backup']))
@@ -1217,6 +1222,9 @@
     <h1 class="page-title d-none d-sm-block">@yield('title', 'Dashboard')</h1>
 
     <div class="topbar-right">
+
+        <!-- 4.50 Kamus Menu: penjelasan menu yang sedang dibuka -->
+        <x-kamus-menu-tombol />
 
         <!-- Cabang Switcher Component -->
         <x-cabang-switcher />
