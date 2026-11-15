@@ -319,4 +319,34 @@ MD,
 - Jangan mencatat pembelian bahan dari supplier lewat Tambah Transaksi saja — buat **PO** supaya stok & modal (HPP) ikut tercatat; bayarnya lewat "Catat Pembayaran" di PO.
 MD,
     ],
+
+    [
+        'slug' => 'cara-melihat-untung', 'judul' => 'Bagaimana melihat untung?', 'kelompok' => 'Cara Melakukan', 'urutan' => 110,
+        'letak' => 'Penjualan / Laporan / Keuangan',
+        'ringkasan' => 'Ada 5 laporan yang menampilkan "untung" dengan hitungan berbeda. Ini bedanya dan kapan dipakai.',
+        'izin' => ['penjualan.laporan.keuntungan', 'laporan.laba_rugi.view', 'laporan.laba_rugi_formal.view', 'closing.view', 'laporan.keuangan.view'],
+        'route_names' => [],
+        'terkait' => ['laporan-transaksi-kasir', 'laporan-laba-rugi', 'laporan-laba-rugi-formal', 'closing', 'laporan-keuangan'],
+        'kata_kunci' => 'untung laba keuntungan rugi profit margin laba bersih laba kotor',
+        'konten' => <<<'MD'
+## Ada 5 laporan
+
+| Laporan | Untung = | Sudah dikurangi biaya operasional? | Bisa berubah? |
+|---|---|---|---|
+| **Penjualan → Laporan Transaksi/Produk/Kategori** | Pendapatan (setelah diskon) − HPP bahan | ❌ | Ya (berjalan) |
+| **Laporan → Laba Rugi** | Omzet baris order (sebelum diskon order) − HPP bahan | ❌ | Ya |
+| **Laporan → Laba Rugi Formal** | Pendapatan − HPP − beban per akun COA | ✅ | Ya |
+| **Closing / Tutup Buku** | Omzet bersih − HPP − beban (tanpa transfer internal) | ✅ | **Tidak** — dibekukan saat closing |
+| Laporan → Keuangan / Keuangan → Laporan Keuangan | Uang masuk − uang keluar (semua transaksi kas) | — | Ya — ⚠️ **bukan untung**, ikut transfer antar kas & saldo awal |
+
+## Pilih yang mana?
+- Produk mana yang paling menguntungkan → **Laporan Produk** (keuntungan) atau **Laba Rugi per produk**.
+- Untung bersih bulan ini → **Laba Rugi Formal**, lalu kunci dengan **Tutup Buku Bulanan**.
+- Angka resmi yang tidak boleh berubah lagi → **Closing**.
+
+## Wajib (supaya untung akurat)
+- Setiap bahan punya **harga batch > 0** (PO dengan harga benar / stok awal dengan harga).
+- Biaya operasional (gaji, sewa, listrik, pembelian aset) **dicatat di Kas & Transaksi** dengan kategori yang tepat — termasuk gaji (menu Penggajian tidak mencatat ke kas).
+MD,
+    ],
 ];
