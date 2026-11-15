@@ -21,7 +21,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'cabang' => CabangMiddleware::class,
         ]);
         // 4.44 — nama & ikon PWA dari Pengaturan Umum
-        $middleware->web(append: [\App\Http\Middleware\TerapkanBranding::class]);
+        $middleware->web(append: [
+            \App\Http\Middleware\TerapkanBranding::class,
+            \App\Http\Middleware\CatatAktivitasTeknisi::class, // Aktivitas Tim IT
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         // Closing / Tutup Buku — perubahan data di periode terkunci tampil

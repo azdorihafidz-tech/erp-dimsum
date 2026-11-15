@@ -23,6 +23,7 @@ class Roles
     public static function semua(bool $termasukOwner = true): Collection
     {
         $sistem = collect(RoleUser::cases())
+            ->reject(fn ($r) => $r === RoleUser::Teknisi)
             ->when(! $termasukOwner, fn ($c) => $c->reject(fn ($r) => $r === RoleUser::Owner));
 
         $buatan = CustomRole::orderBy('nama')->get()

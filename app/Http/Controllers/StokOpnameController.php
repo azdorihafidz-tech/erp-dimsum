@@ -85,7 +85,7 @@ class StokOpnameController extends Controller
 
         $barangPerLokasi = [];
         $penghitungPerLokasi = [];
-        $calonPenghitung = User::where('is_active', true)->orderBy('name')->get()
+        $calonPenghitung = User::pelanggan()->where('is_active', true)->orderBy('name')->get()
             ->filter(fn (User $u) => $u->hasPermission('stok_opname.hitung'));
         foreach ($lokasi as $l) {
             $terkunci = StokOpnameService::barangTerkunci($l->id);

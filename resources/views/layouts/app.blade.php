@@ -1148,7 +1148,7 @@
         @endcanany
 
         <!-- PENGATURAN -->
-        @if(auth()->check() && (auth()->user()->canAny(['cabang.view', 'user.view', 'pengaturan_penggajian', 'panduan.kelola']) || (isset($authUser) && $authUser->role?->value === 'owner')))
+        @if(auth()->check() && (auth()->user()->canAny(['cabang.view', 'user.view', 'pengaturan_penggajian', 'panduan.kelola']) || (isset($authUser) && $authUser->aksesPenuh())))
         <div class="nav-section-title">Pengaturan</div>
         @endif
         @can('cabang.view')
@@ -1165,7 +1165,7 @@
             <span>Manajemen User</span>
         </a>
         @endcan
-        @if(isset($authUser) && $authUser->role?->value === 'owner')
+        @if(isset($authUser) && $authUser->aksesPenuh())
         <a href="{{ route('role.index') }}"
            class="nav-link {{ request()->routeIs('role.*') ? 'active' : '' }}">
             <i class="bi bi-shield-lock"></i>
@@ -1173,11 +1173,18 @@
         </a>
         @endif
         {{-- 4.43: Pengaturan Umum tetap khusus Owner --}}
-        @if(isset($authUser) && $authUser->role?->value === 'owner')
+        @if(isset($authUser) && $authUser->aksesPenuh())
         <a href="{{ route('pengaturan.umum') }}"
            class="nav-link {{ request()->routeIs('pengaturan.umum*') ? 'active' : '' }}">
             <i class="bi bi-building-gear"></i>
             <span>Pengaturan Umum</span>
+        </a>
+        @endif
+        @if(isset($authUser) && $authUser->isTeknisi())
+        <a href="{{ route('tim-it.index') }}"
+           class="nav-link {{ request()->routeIs('tim-it.*') ? 'active' : '' }}">
+            <i class="bi bi-person-gear"></i>
+            <span>Tim IT</span>
         </a>
         @endif
         @can('pengaturan_penggajian')
@@ -1214,8 +1221,15 @@
         </a>
 
         <!-- KEAMANAN -->
-        @if(isset($authUser) && $authUser->canAny(['lihat_audit_log', 'lihat_data_terhapus', 'lihat_backup']))
+        @if(isset($authUser) && ($authUser->aksesPenuh() || $authUser->canAny(['lihat_audit_log', 'lihat_data_terhapus', 'lihat_backup'])))
         <div class="nav-section-title mt-2">Keamanan</div>
+        @if($authUser->aksesPenuh())
+        <a href="{{ route('aktivitas-tim-it.index') }}"
+           class="nav-link {{ request()->routeIs('aktivitas-tim-it.*') ? 'active' : '' }}">
+            <i class="bi bi-person-badge"></i>
+            <span>Aktivitas Tim IT</span>
+        </a>
+        @endif
         @can('lihat_audit_log')
         <a href="{{ route('audit-log.index') }}"
            class="nav-link {{ request()->routeIs('audit-log.*') ? 'active' : '' }}">

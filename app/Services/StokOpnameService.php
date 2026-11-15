@@ -45,7 +45,7 @@ class StokOpnameService
 
     public static function isOwner(?User $user): bool
     {
-        return $user && $user->role === RoleUser::Owner;
+        return $user && $user->aksesPenuh();
     }
 
     public static function bolehAksesLokasi(User $user, int $cabangId): bool
@@ -799,7 +799,7 @@ class StokOpnameService
     /** User yang boleh menyetujui opname di lokasi ini (termasuk Owner). */
     public function penyetujuUntuk(StokOpname $o): Collection
     {
-        return User::where('is_active', true)->get()
+        return User::pelanggan()->where('is_active', true)->get()
             ->filter(fn (User $u) => $u->hasPermission('stok_opname.setujui') && self::bolehAksesLokasi($u, $o->cabang_id))
             ->values();
     }

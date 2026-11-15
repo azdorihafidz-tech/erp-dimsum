@@ -70,6 +70,7 @@ class GoLiveSeeder extends Seeder
             Perbaikan450Seeder::class,        // 4.50 — panduan & tooltip perbaikan temuan audit Kamus Menu
             Perbaikan451Seeder::class,        // 4.51 — panduan & tooltip perbaikan temuan A–G
             StokOpnameSeeder::class,         // Stok Opname — izin, akun COA, panduan & tooltip (RANCANGAN_STOK_OPNAME.md)
+            PaketLanggananSeeder::class,      // Paket Modul, Langganan & Tim IT — panduan & tooltip (RANCANGAN_PAKET_LANGGANAN.md)
             KamusMenuSeeder::class,           // 4.50 — Kamus Menu (isi dari database/seeders/kamus/*.php)
         ]);
 

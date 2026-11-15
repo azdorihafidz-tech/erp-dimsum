@@ -74,10 +74,14 @@ class KamusMenu extends Model
         if (! $user) {
             return false;
         }
-        if ($user->role === RoleUser::Owner) {
+        $izin = $this->izin ?? [];
+        // Entri khusus Tim IT (menu Paket & Langganan, Tim IT) — Owner pelanggan tidak melihatnya
+        if (in_array('@teknisi', $izin, true)) {
+            return $user->isTeknisi();
+        }
+        if ($user->aksesPenuh()) {
             return true;
         }
-        $izin = $this->izin ?? [];
         if ($izin === []) {
             return true;
         }
@@ -126,6 +130,7 @@ class KamusMenu extends Model
         foreach ($izin as $i) {
             $nama[] = match ($i) {
                 '@owner'        => 'Khusus Owner',
+                '@teknisi'      => 'Khusus Tim IT',
                 '@semua_cabang' => 'Role yang boleh melihat Semua Cabang (Owner, Admin Pusat)',
                 default         => ($label[$i] ?? $i),
             };

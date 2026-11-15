@@ -241,7 +241,7 @@ class KaryawanController extends Controller
             $berubah = $linked && (
                 ($request->filled('user_email') && $request->user_email !== $linked->email)
                 || ($request->filled('user_role') && $request->user_role !== $linked->role?->value));
-            if ($berubah && $linked->role === \App\Enums\RoleUser::Owner) {
+            if ($berubah && $linked->aksesPenuh()) {
                 return back()->withInput()->with('error', 'Akun login karyawan ini adalah akun Owner — email/role-nya diubah lewat Pengaturan → Manajemen User oleh Owner, bukan dari form Karyawan.');
             }
             if ($berubah && ! $actor->can('user.edit')) {

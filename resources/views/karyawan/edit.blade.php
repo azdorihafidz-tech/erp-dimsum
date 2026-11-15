@@ -253,7 +253,7 @@
             @php
                 // 4.50 — akun Owner & user tanpa centangan Edit User: email/role hanya ditampilkan (tidak dikirim).
                 // Dulu pilihan role tidak memuat "Owner" → menyimpan karyawan milik Owner diam-diam menurunkan role-nya.
-                $akunOwner = $karyawan->user->role === \App\Enums\RoleUser::Owner;
+                $akunOwner = $karyawan->user->aksesPenuh();
                 $bolehUbahAkun = ! $akunOwner && auth()->user()->can('user.edit');
             @endphp
             <div class="row g-3">

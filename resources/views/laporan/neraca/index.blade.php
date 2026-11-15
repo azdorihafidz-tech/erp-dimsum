@@ -151,7 +151,7 @@
                 <h6 class="mb-0 fw-bold">MODAL</h6>
                 @can('laporan.neraca.export')
                 @auth
-                @if(auth()->user()->role === \App\Enums\RoleUser::Owner)
+                @if(auth()->user()->aksesPenuh())
                 <button type="button" class="btn btn-outline-secondary btn-sm py-0" data-bs-toggle="modal" data-bs-target="#modalEditModalOwner">
                     <i class="bi bi-pencil"></i>
                 </button>
@@ -180,7 +180,7 @@
 </div>
 
 @auth
-@if(auth()->user()->role === \App\Enums\RoleUser::Owner)
+@if(auth()->user()->aksesPenuh())
 <div class="modal fade" id="modalEditModalOwner" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
         <div class="modal-content">
