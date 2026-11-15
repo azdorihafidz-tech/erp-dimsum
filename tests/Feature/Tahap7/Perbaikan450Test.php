@@ -319,4 +319,17 @@ class Perbaikan450Test extends TestCase
         ])->assertSessionHasNoErrors();
         $this->assertSame($jenis->id, (int) $p->fresh()->jenis_olahan_id);
     }
+
+    // ---------------- Keamanan dashboard (ditemukan saat Kamus Tahap 2) ----------------
+
+    public function test_dashboard_semua_cabang_dan_gudang_tidak_bisa_dibuka_kasir_lewat_alamat(): void
+    {
+        $cabang = $this->cabang();
+        $kasir = $this->buatUser('kasir', $cabang->id);
+        $this->actingAs($kasir)->get(route('dashboard.pusat'))->assertRedirect(route('dashboard'));
+        if (Cabang::gudangPusat()->exists()) {
+            $this->actingAs($kasir)->get(route('dashboard.gudang'))->assertRedirect(route('dashboard.cabang'));
+        }
+        $this->actingAs($this->buatUser('owner'))->get(route('dashboard.pusat'))->assertOk();
+    }
 }

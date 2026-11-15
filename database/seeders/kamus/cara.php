@@ -255,4 +255,68 @@ Data barang terpisah per cabang, jadi **harga diatur di produk/bahan milik setia
 - Jangan mengira Harga Standar = modal sebenarnya: modal penjualan selalu dari batch FIFO (harga PO).
 MD,
     ],
+
+    [
+        'slug' => 'cara-mengirim-uang-ke-pusat', 'judul' => 'Bagaimana memindahkan uang (cabang ke pusat, antar kas)?', 'kelompok' => 'Cara Melakukan', 'urutan' => 90,
+        'letak' => 'Keuangan',
+        'ringkasan' => 'Ada 3 cara: Setoran Kasir, Transfer Dana, Transfer Antar Kas. Bedanya di tujuan, persetujuan, dan pengecekan selisih.',
+        'izin' => ['setoran_kasir.view', 'setoran.view', 'transfer_antar_kas.view'],
+        'route_names' => [],
+        'terkait' => ['setoran-kasir', 'transfer-dana', 'transfer-antar-kas', 'kas-transaksi'],
+        'kata_kunci' => 'setor uang kirim uang ke pusat pindah uang uang kasir setoran harian transfer bank',
+        'konten' => <<<'MD'
+## Ada 3 cara
+
+| | Setoran Kasir | Transfer Dana | Transfer Antar Kas |
+|---|---|---|---|
+| Untuk | Uang tunai penjualan harian kasir | Uang bebas antar cabang | Antar kas di cabang yang sama |
+| Jumlah | Dihitung sistem dari POS, kasir isi uang nyata | Diisi sendiri | Diisi sendiri |
+| Cek selisih | ✅ | ❌ | ❌ |
+| Persetujuan | Pusat Approve/Reject | Penerima Terima/Tolak | Tidak perlu |
+| Kas asal berkurang | Saat **Approve** | Saat **Kirim** | Saat Simpan |
+| Kas tujuan bertambah | Saat Approve | Saat Terima | Saat Simpan |
+| Butuh Gudang Pusat | ✅ (kas tunai pusat) | ❌ | ❌ |
+
+## Pilih yang mana?
+- Kasir menyerahkan uang penjualan hari itu ke pusat → **Setoran Kasir**.
+- Uang lain dikirim ke cabang lain (modal, pinjaman) → **Transfer Dana**.
+- Uang laci disetor ke rekening bank cabang yang sama → **Transfer Antar Kas**.
+- Usaha 1 cabang tanpa Gudang Pusat → **Transfer Antar Kas**.
+
+## Jangan
+- Jangan memakai 2 cara untuk uang yang sama (mis. Setoran Kasir lalu Transfer Dana lagi) — kas pusat jadi dobel.
+MD,
+    ],
+
+    [
+        'slug' => 'cara-mencatat-uang', 'judul' => 'Bagaimana mencatat uang masuk/keluar?', 'kelompok' => 'Cara Melakukan', 'urutan' => 100,
+        'letak' => 'Keuangan / POS / Pembelian',
+        'ringkasan' => 'Sebagian otomatis (POS, PO, setoran), sebagian manual (Kas & Transaksi, Transaksi Berulang). Ini daftarnya.',
+        'izin' => ['keuangan.view'],
+        'route_names' => [],
+        'terkait' => ['kas-transaksi', 'transaksi-berulang', 'purchase-order', 'pos'],
+        'kata_kunci' => 'catat pengeluaran catat pemasukan biaya operasional bayar listrik bayar gaji bayar supplier uang keluar uang masuk',
+        'konten' => <<<'MD'
+## Yang tercatat otomatis (jangan dicatat lagi manual)
+| Kejadian | Dicatat oleh |
+|---|---|
+| Penjualan ke pelanggan | POS (saat order dibayar) |
+| Bayar supplier | Purchase Order → Catat Pembayaran |
+| Setor/kirim uang | Setoran Kasir / Transfer Dana / Transfer Antar Kas |
+| Penjualan gudang ke cabang | Kiriman Cabang (saat cabang Terima) |
+| Barang rusak/hilang | Penyesuaian Stok (beban tanpa kas) |
+
+## Yang dicatat manual
+| Cara | Untuk |
+|---|---|
+| **Kas & Transaksi → Tambah Transaksi** | Biaya sekali-sekali (listrik, perbaikan, belanja kecil), pemasukan lain |
+| **Transaksi Berulang** | Biaya rutin bulanan yang sama (sewa, langganan) |
+
+## Wajib
+- Pilih **kas** yang benar dan **kategori** yang tepat — kategori menentukan baris di laporan & BEP.
+
+## Jangan
+- Jangan mencatat pembelian bahan dari supplier lewat Tambah Transaksi saja — buat **PO** supaya stok & modal (HPP) ikut tercatat; bayarnya lewat "Catat Pembayaran" di PO.
+MD,
+    ],
 ];
