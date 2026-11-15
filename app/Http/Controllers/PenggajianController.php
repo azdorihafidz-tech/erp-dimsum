@@ -80,15 +80,17 @@ class PenggajianController extends Controller
             'potongan_lain' => $request->potongan_lain ?? 0,
         ];
 
-        $count = $this->penggajianService->bulkGenerate(
+        $hasil = $this->penggajianService->bulkGenerate(
             (int) $request->cabang_id,
             $request->periode,
             $override
         );
+        $count = $hasil['dibuat'];
 
-        // Notifikasi ke semua karyawan di cabang tersebut
+        // Notifikasi ke karyawan yang slipnya baru dibuat/dihitung (slip terkunci dilewati)
         $penggajians = Penggajian::where('cabang_id', $request->cabang_id)
             ->where('periode', $request->periode)
+            ->where('status', 'draft')
             ->with('karyawan.user')
             ->get();
         foreach ($penggajians as $pg) {
@@ -100,8 +102,13 @@ class PenggajianController extends Controller
             }
         }
 
+        $pesan = "Berhasil generate {$count} slip gaji untuk periode {$request->periode}.";
+        if ($hasil['dilewati']) {
+            $pesan .= ' Dilewati (slip sudah disetujui/dibayar, tidak dihitung ulang): ' . implode(', ', $hasil['dilewati']) . '.';
+        }
+
         return redirect()->route('penggajian.index', ['periode' => $request->periode])
-            ->with('success', "Berhasil generate {$count} slip gaji untuk periode {$request->periode}.");
+            ->with('success', $pesan);
     }
 
     /**
@@ -110,7 +117,9 @@ class PenggajianController extends Controller
     public function show(Penggajian $penggajian)
     {
         $penggajian->load(['karyawan.cabang', 'cabang', 'approvedBy']);
-        return view('penggajian.show', compact('penggajian'));
+        $penggajian->loadMissing('kas.cabang');
+        $kasPembayar = in_array($penggajian->status, ['draft', 'disetujui'], true) ? $this->penggajianService->kasPembayar($penggajian) : collect(); // 4.51
+        return view('penggajian.show', compact('penggajian', 'kasPembayar'));
     }
 
     /**
@@ -142,18 +151,35 @@ class PenggajianController extends Controller
     /**
      * Tandai dibayar
      */
-    public function bayar(Penggajian $penggajian)
+    public function bayar(Request $request, Penggajian $penggajian)
     {
-        if (!in_array($penggajian->status, ['draft', 'disetujui'])) {
-            return back()->with('error', 'Slip gaji ini sudah dibayar atau tidak valid.');
+        // 4.51 — Bayar = uang benar-benar keluar dari kas yang dipilih (dulu hanya ubah status)
+        $request->validate([
+            'kas_id'        => 'required|integer',
+            'tanggal_bayar' => 'nullable|date|before_or_equal:today',
+        ], ['kas_id.required' => 'Pilih kas yang dipakai membayar gaji.']);
+
+        try {
+            $this->penggajianService->bayar($penggajian, (int) $request->kas_id,
+                $request->input('tanggal_bayar') ?: today()->toDateString(), auth()->id());
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
         }
 
-        $penggajian->update([
-            'status'       => 'dibayar',
-            'tanggal_bayar' => today(),
-        ]);
+        return back()->with('success', 'Gaji dibayar: Rp ' . number_format((float) $penggajian->total_gaji, 0, ',', '.')
+            . ' keluar dari kas ' . ($penggajian->fresh()->kas?->nama_kas ?? '-') . ' (tercatat di Kas & Transaksi).');
+    }
 
-        return back()->with('success', 'Slip gaji berhasil ditandai sebagai dibayar.');
+    /** 4.51 — batalkan pembayaran: uang kembali ke kas, slip kembali Disetujui/Draft. */
+    public function batalBayar(Penggajian $penggajian)
+    {
+        try {
+            $this->penggajianService->batalBayar($penggajian);
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', 'Pembayaran gaji dibatalkan. Uang dikembalikan ke kas.');
     }
 
     /**
@@ -236,7 +262,11 @@ class PenggajianController extends Controller
             $override['potongan_absensi'] = (int) str_replace('.', '', $request->input('potongan_absensi', '0'));
         }
 
-        $penggajian = $this->penggajianService->generate($karyawan, $request->periode, $override);
+        try {
+            $penggajian = $this->penggajianService->generate($karyawan, $request->periode, $override);
+        } catch (\RuntimeException $e) { // 4.51 — slip sudah disetujui/dibayar
+            return back()->withInput()->with('error', $e->getMessage());
+        }
 
         if ($request->filled('catatan')) {
             $penggajian->update(['catatan' => $request->catatan]);

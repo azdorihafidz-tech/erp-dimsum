@@ -49,10 +49,10 @@ Saat **Tambah Cabang**, pilihan "Salin Harga & Pengaturan Barang dari" menyalin 
 | Tombol | Akibat |
 |---|---|
 | Nonaktifkan | Cabang hilang dari pilihan, data tetap |
-| **Hapus** | ⚠️ Cabang **beserta order, PO, stok, permintaan/transfer stok, absensi, dan gaji**-nya disembunyikan (Data Terhapus) — hilang dari semua laporan |
+| **Hapus** | Hanya untuk cabang yang **masih kosong** (salah dibuat). Ditolak kalau sudah punya order, PO, transaksi kas, pergerakan stok, absensi, atau slip gaji — pesan menyebut jumlahnya |
 
 ## Jangan
-- **Jangan hapus cabang yang sudah pernah beroperasi** — pakai **Nonaktifkan**.
+- Cabang yang tutup / tidak dipakai lagi: pakai **Nonaktifkan**, bukan hapus — laporannya tetap utuh.
 MD,
     ],
 
@@ -167,7 +167,7 @@ Angka dasar yang dipakai **Generate Gaji**.
 | Tarif lembur per jam | Uang lembur = jam lembur × tarif (0 = gaji pokok ÷ 173 × 1,5) |
 | Potongan alpa per hari | Dikalikan jumlah Alpha |
 | Hari kerja per minggu (5/6) | 5 = Sabtu ikut libur saat menghitung hari kerja |
-| Potongan telat per menit | ⚠️ **Belum dipakai** dalam perhitungan saat ini |
+| Potongan telat per menit | Dikalikan total menit telat (dari Scan Absensi) → baris "Potongan Telat" di slip. 0 = tidak dipotong |
 
 Perubahan berlaku untuk slip yang di-Generate **setelahnya**.
 MD,

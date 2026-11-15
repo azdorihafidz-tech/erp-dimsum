@@ -337,7 +337,7 @@ MD,
 | **Laporan → Laba Rugi** | Omzet baris order (sebelum diskon order) − HPP bahan | ❌ | Ya |
 | **Laporan → Laba Rugi Formal** | Pendapatan − HPP − beban per akun COA | ✅ | Ya |
 | **Closing / Tutup Buku** | Omzet bersih − HPP − beban (tanpa transfer internal) | ✅ | **Tidak** — dibekukan saat closing |
-| Laporan → Keuangan / Keuangan → Laporan Keuangan | Uang masuk − uang keluar (semua transaksi kas) | — | Ya — ⚠️ **bukan untung**, ikut transfer antar kas & saldo awal |
+| Laporan → Keuangan / Keuangan → Laporan Keuangan | Uang masuk − uang keluar usaha (tanpa transfer internal & saldo awal), **berbasis kas** | ✅ (yang sudah dicatat di kas) | Ya — pembelian bahan dihitung saat dibayar, bukan saat dipakai (HPP) |
 
 ## Pilih yang mana?
 - Produk mana yang paling menguntungkan → **Laporan Produk** (keuntungan) atau **Laba Rugi per produk**.
@@ -346,7 +346,7 @@ MD,
 
 ## Wajib (supaya untung akurat)
 - Setiap bahan punya **harga batch > 0** (PO dengan harga benar / stok awal dengan harga).
-- Biaya operasional (gaji, sewa, listrik, pembelian aset) **dicatat di Kas & Transaksi** dengan kategori yang tepat — termasuk gaji (menu Penggajian tidak mencatat ke kas).
+- Biaya operasional (sewa, listrik, pembelian aset) **dicatat di Kas & Transaksi** dengan kategori yang tepat. Gaji tercatat otomatis saat slip di-**Bayar** di menu Penggajian.
 MD,
     ],
 ];

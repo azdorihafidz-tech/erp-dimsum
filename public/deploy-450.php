@@ -2,10 +2,11 @@
 /**
  * ⚠️ SCRIPT SEKALI PAKAI — HAPUS FILE INI DARI SERVER SETELAH DIJALANKAN ⚠️
  *
- * Deploy 4.50 (Kamus Menu + perbaikan 5 temuan audit) di hosting tanpa terminal. Jalankan sekali di SETIAP
+ * Deploy 4.50 + 4.51 (Kamus Menu + perbaikan temuan audit) di hosting tanpa terminal. Jalankan sekali di SETIAP
  * instalasi (D'mentai live & demo). Script ini:
- *  1. migrate → 2 migration baru: tabel kamus_menus, kolom items.jenis_olahan_id (data lama tidak diubah)
- *  2. Perbaikan450Seeder (panduan & tooltip perbaikan) + KamusMenuSeeder (isi Kamus Menu, idempotent)
+ *  1. migrate → 3 migration baru: tabel kamus_menus, items.jenis_olahan_id, penggajians (potongan telat +
+ *     kas pembayaran). Hanya kolom/tabel baru — data lama tidak diubah
+ *  2. Perbaikan450Seeder + Perbaikan451Seeder (panduan & tooltip) + KamusMenuSeeder (isi Kamus Menu), idempotent
  *  3. clear & rebuild cache
  *
  * Pengaman: wajib ?confirm=YES-KAMUS450 dan storage/deploy-450.lock belum ada.
@@ -45,6 +46,7 @@ foreach ([
     ['cache:clear', []],
     ['migrate', ['--force' => true]],
     ['db:seed', ['--class' => 'Perbaikan450Seeder', '--force' => true]],
+    ['db:seed', ['--class' => 'Perbaikan451Seeder', '--force' => true]],
     ['db:seed', ['--class' => 'KamusMenuSeeder', '--force' => true]],
     ['view:clear', []], ['cache:clear', []], ['route:clear', []], ['config:cache', []], ['route:cache', []],
 ] as [$perintah, $opsi]) {

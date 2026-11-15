@@ -40,6 +40,7 @@ class DatabaseSeeder extends Seeder
             WarnaAplikasiSeeder::class,         // 4.48 — panduan & tooltip Warna Aplikasi (setelah IdentitasUsahaSeeder)
             Porting449Seeder::class,           // 4.49 — porting coffeeshop: label gambar, POS HP, produksi, kiriman, retur (setelah LabelProdukSeeder)
             Perbaikan450Seeder::class,        // 4.50 — panduan & tooltip perbaikan temuan audit Kamus Menu
+            Perbaikan451Seeder::class,        // 4.51 — panduan & tooltip perbaikan temuan A–G
             KamusMenuSeeder::class,           // 4.50 — Kamus Menu (isi dari database/seeders/kamus/*.php)
         ]);
     }

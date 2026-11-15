@@ -71,9 +71,10 @@ Menjumlah transaksi **Kas & Transaksi** per kategori (Laba Rugi) dan per kas (Ar
 ## Supaya menu ini muncul & bisa dipakai
 - Centangan **Lihat Laporan Keuangan (Laba Rugi & Arus Kas)**. {$umum}
 
-## ⚠️ Perlu diketahui
-- Semua transaksi kas ikut dijumlah, termasuk Saldo Awal kas, pembayaran PO, Transfer Antar Kas/Dana, dan Setoran Kasir (sisi keluar & masuk). Angka "laba" di sini = selisih uang masuk-keluar, **bukan untung usaha**.
-- Untuk untung pakai **Laba Rugi** (untung kotor dari penjualan) atau **Laba Rugi Formal** (per akun COA), atau **Closing**.
+## Yang dihitung
+- **Laba Rugi**: transfer antar kas, setoran kasir, transfer dana, dan saldo awal kas **tidak dihitung** (ditampilkan sebagai keterangan). Berbasis kas — pembelian bahan = pengeluaran saat dibayar, belum memakai HPP.
+- **Arus Kas**: semua uang yang bergerak tetap dihitung (memang arus kas), dengan rincian berapa yang berasal dari transfer internal & saldo awal.
+- Untuk laba dengan modal barang pakai **Laba Rugi Formal** atau **Closing**.
 MD,
     ],
 
@@ -93,7 +94,7 @@ MD,
 - Centangan **Lihat Laporan HR — Absensi / Penggajian / Evaluasi**. {$umum}
 
 ## Perlu diketahui
-- Laporan Penggajian menampilkan slip apa adanya (status Draft/Disetujui/Dibayar). Total "dibayar" tidak sama dengan uang yang keluar dari kas kalau pembayaran gaji belum dicatat di Kas & Transaksi.
+- Laporan Penggajian menampilkan slip apa adanya (status Draft/Disetujui/Dibayar). Slip yang dibayar lewat tombol Bayar sudah tercatat di kas; slip yang ditandai Dibayar sebelum 16 Nov 2026 belum tentu.
 MD,
     ],
 
@@ -335,8 +336,8 @@ Melihat kekayaan usaha pada saat ini.
 | Persediaan | Sisa batch stok × harga batch (FIFO) |
 | Aset tetap | Nilai buku di Manajemen Aset |
 
-## ⚠️ Perlu diketahui
-- Persediaan ikut menghitung sisa stok milik **barang yang sudah dihapus**. Kalau barang dobel dihapus padahal stoknya belum dinolkan, nilai persediaan terlihat lebih besar dari Dashboard/Laporan Stok.
+## Perlu diketahui
+- Persediaan **tidak** menghitung sisa stok milik barang yang sudah dihapus (sama dengan Dashboard & Laporan Stok). Kalau barang seperti itu dipulihkan, stoknya ikut terhitung lagi.
 MD,
     ],
 
@@ -465,8 +466,9 @@ Melihat cabang mana yang paling besar pemasukan/pengeluarannya.
 ## Supaya menu ini muncul & bisa dipakai
 - Centangan **Lihat Laporan Cabang vs Cabang** **dan** role boleh melihat semua cabang.
 
-## ⚠️ Perlu diketahui
-- Pemasukan/pengeluaran diambil dari semua transaksi kas (termasuk transfer antar kas). Untuk membandingkan penjualan murni, pakai **Penjualan → Laporan Transaksi** per cabang.
+## Yang dihitung
+- Pemasukan/pengeluaran **usaha** dari Kas & Transaksi — tanpa transfer antar kas, setoran kasir, transfer dana, dan saldo awal. Setoran ditampilkan di kolom setoran sendiri.
+- Untuk membandingkan penjualan murni, pakai **Penjualan → Laporan Transaksi** per cabang.
 MD,
     ],
 ];

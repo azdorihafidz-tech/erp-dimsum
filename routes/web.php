@@ -553,6 +553,7 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
         Route::put('/penggajian/{penggajian}', [PenggajianController::class, 'update'])->name('penggajian.update');
         Route::post('/penggajian/{penggajian}/approve', [PenggajianController::class, 'approve'])->name('penggajian.approve');
         Route::post('/penggajian/{penggajian}/bayar', [PenggajianController::class, 'bayar'])->name('penggajian.bayar');
+        Route::post('/penggajian/{penggajian}/batal-bayar', [PenggajianController::class, 'batalBayar'])->name('penggajian.batal-bayar'); // 4.51
         Route::delete('/penggajian/{penggajian}', [PenggajianController::class, 'destroy'])->name('penggajian.destroy');
     });
 

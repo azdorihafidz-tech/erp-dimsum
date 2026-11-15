@@ -42,8 +42,22 @@ class PenggajianService
     /**
      * Generate slip gaji untuk 1 karyawan pada periode tertentu
      */
+    /** 4.51 — slip yang sudah Disetujui/Dibayar tidak boleh dihitung ulang (dulu nominal tertimpa & status jadi Draft lagi). */
+    public const STATUS_TERKUNCI = ['disetujui', 'dibayar'];
+
+    public function slipTerkunci(Karyawan $karyawan, string $periode): ?Penggajian
+    {
+        return Penggajian::where('karyawan_id', $karyawan->id)->where('periode', $periode)
+            ->whereIn('status', self::STATUS_TERKUNCI)->first();
+    }
+
     public function generate(Karyawan $karyawan, string $periode, array $override = []): Penggajian
     {
+        if ($terkunci = $this->slipTerkunci($karyawan, $periode)) {
+            throw new \RuntimeException("Slip gaji {$karyawan->nama_lengkap} periode {$periode} sudah {$terkunci->status} — tidak bisa dihitung ulang. "
+                . ($terkunci->status === 'dibayar' ? 'Klik Batal Bayar di slip itu dulu kalau memang perlu dihitung ulang.' : 'Slip yang sudah disetujui dianggap final.'));
+        }
+
         return DB::transaction(function () use ($karyawan, $periode, $override) {
             [$tahun, $bulan] = explode('-', $periode);
             $tanggalAwal  = Carbon::create($tahun, $bulan, 1)->startOfMonth();
@@ -114,6 +128,14 @@ class PenggajianService
                 ? (float) $override['potongan_absensi']
                 : $potonganAbsensiAuto;
 
+            // 4.51 — potongan telat: total menit telat (dari Scan Absensi) × tarif per menit
+            // (Pengaturan Penggajian). Dulu tarifnya tersimpan tapi tidak pernah dipakai.
+            $menitTelat         = (int) $absensis->where('status', 'hadir')->sum('menit_telat');
+            $tarifTelatPerMenit = (float) PengaturanGaji::getSetting('potongan_telat_per_menit', 0);
+            $potonganTelat      = isset($override['potongan_telat']) && $override['potongan_telat'] !== ''
+                ? (float) $override['potongan_telat']
+                : round($menitTelat * $tarifTelatPerMenit);
+
             // BPJS Kesehatan: % dari gaji pokok (ditanggung karyawan)
             $persenBpjsKes   = (float) ($karyawan->tunjangan_bpjs_kesehatan_persen ?? 1);
             $bpjsKesehatan   = (float) ($override['bpjs_kesehatan'] ?? round($gajiPokok * $persenBpjsKes / 100));
@@ -132,7 +154,7 @@ class PenggajianService
             // ── TOTAL ─────────────────────────────────────────────────────
             $totalPenambahan  = $gajiPokok + $tunjanganJabatan + $tunjanganMakan + $tunjanganTransport
                 + $tunjanganKehadiran + $uangLembur + $bonus + $insentif + $thr + $komisi + $tunjangan;
-            $totalPotongan    = $potonganAbsensi + $bpjsKesehatan + $bpjsTk + $pph21 + $kasbon + $potonganLain;
+            $totalPotongan    = $potonganAbsensi + $potonganTelat + $bpjsKesehatan + $bpjsTk + $pph21 + $kasbon + $potonganLain;
             $totalGaji        = max(0, $totalPenambahan - $totalPotongan);
 
             return Penggajian::updateOrCreate(
@@ -142,6 +164,7 @@ class PenggajianService
                     'jumlah_hari_kerja'    => $hariKerja,
                     'jumlah_hadir'         => $jumlahHadir,
                     'jumlah_alpha'         => $jumlahAlpha,
+                    'menit_telat_total'    => $menitTelat,
                     'jam_lembur_total'     => $jamLembur,
                     'gaji_pokok'           => $gajiPokok,
                     'tunjangan_jabatan'    => $tunjanganJabatan,
@@ -155,6 +178,7 @@ class PenggajianService
                     'thr'                  => $thr,
                     'komisi'               => $komisi,
                     'potongan_absensi'     => $potonganAbsensi,
+                    'potongan_telat'       => $potonganTelat,
                     'bpjs_kesehatan'       => $bpjsKesehatan,
                     'bpjs_ketenagakerjaan' => $bpjsTk,
                     'pph21'                => $pph21,
@@ -172,21 +196,130 @@ class PenggajianService
     }
 
     /**
-     * Bulk generate untuk semua karyawan aktif di cabang
+     * Generate untuk semua karyawan aktif di cabang.
+     * 4.51 — slip yang sudah Disetujui/Dibayar DILEWATI (tidak ditimpa).
+     *
+     * @return array{dibuat: int, dilewati: string[]}
      */
-    public function bulkGenerate(int $cabangId, string $periode, array $override = []): int
+    public function bulkGenerate(int $cabangId, string $periode, array $override = []): array
     {
         $karyawans = Karyawan::withoutGlobalScope(\App\Models\Scopes\CabangScope::class)
             ->where('cabang_id', $cabangId)
             ->where('status', 'aktif')
             ->get();
 
-        $count = 0;
+        $dibuat = 0;
+        $dilewati = [];
         foreach ($karyawans as $k) {
+            if ($this->slipTerkunci($k, $periode)) {
+                $dilewati[] = $k->nama_lengkap;
+                continue;
+            }
             $this->generate($k, $periode, $override);
-            $count++;
+            $dibuat++;
         }
 
-        return $count;
+        return ['dibuat' => $dibuat, 'dilewati' => $dilewati];
+    }
+
+    // ═════════════════════ 4.51 — PEMBAYARAN GAJI KE KAS ═════════════════════
+
+    /** Kas yang boleh dipakai membayar slip ini: kas aktif cabang slip + kas Gudang Pusat (gaji dibayar pusat). */
+    public function kasPembayar(Penggajian $penggajian)
+    {
+        $cabangIds = \App\Models\Cabang::gudangPusat()->pluck('id')->push($penggajian->cabang_id)->unique()->filter();
+
+        return \App\Models\Kas::aktif()->whereIn('cabang_id', $cabangIds)->with('cabang')
+            ->orderByRaw('cabang_id = ? DESC', [$penggajian->cabang_id])->orderBy('nama_kas')->get()
+            ->filter(fn ($k) => \App\Support\CabangAktif::bolehAkses($k->cabang_id))->values();
+    }
+
+    /**
+     * Bayar slip: kas yang dipilih BERKURANG sebesar total gaji (transaksi Pengeluaran
+     * kategori Gaji Karyawan, ber-referensi 'penggajian' → tidak bisa diedit dari Kas & Transaksi).
+     */
+    public function bayar(Penggajian $penggajian, int $kasId, string $tanggal, ?int $userId): Penggajian
+    {
+        if (! in_array($penggajian->status, ['draft', 'disetujui'], true)) {
+            throw new \RuntimeException('Slip gaji ini sudah dibayar atau tidak valid.');
+        }
+        $kas = $this->kasPembayar($penggajian)->firstWhere('id', $kasId);
+        if (! $kas) {
+            throw new \RuntimeException('Kas tidak valid — pilih kas aktif milik cabang karyawan atau Gudang Pusat.');
+        }
+        $jumlah = round((float) $penggajian->total_gaji, 2);
+
+        return DB::transaction(function () use ($penggajian, $kas, $tanggal, $userId, $jumlah) {
+            $trx = null;
+            if ($jumlah > 0) {
+                $kategori = \App\Models\KategoriTransaksi::where('kode', 'GAJI')->first();
+                $nama = $penggajian->karyawan?->nama_lengkap ?? ('Karyawan #' . $penggajian->karyawan_id);
+                $trx = \App\Models\TransaksiKeuangan::create([
+                    'cabang_id'            => $kas->cabang_id,
+                    'kas_id'               => $kas->id,
+                    'nomor_transaksi'      => $this->nomorTransaksiGaji($tanggal),
+                    'tanggal_transaksi'    => $tanggal,
+                    'tipe'                 => \App\Enums\TipeTransaksiKeuangan::Pengeluaran,
+                    'kategori'             => \App\Enums\KategoriTransaksi::Gaji,
+                    'kategori_id'          => $kategori?->id,
+                    'kategori_pengeluaran' => \App\Enums\KategoriPengeluaran::GajiUpah,
+                    'keterangan'           => "Gaji {$nama} periode {$penggajian->periode}",
+                    'jumlah'               => $jumlah,
+                    'referensi_type'       => 'penggajian',
+                    'referensi_id'         => $penggajian->id,
+                    'created_by'           => $userId,
+                ]);
+                \App\Models\Kas::whereKey($kas->id)->decrement('saldo_sekarang', $jumlah);
+            }
+
+            $penggajian->update([
+                'status'                => 'dibayar',
+                'tanggal_bayar'         => $tanggal,
+                'kas_id'                => $kas->id,
+                'transaksi_keuangan_id' => $trx?->id,
+            ]);
+
+            return $penggajian;
+        });
+    }
+
+    /** Batal Bayar: uang kembali ke kas, transaksi gaji dihapus, slip kembali Disetujui (atau Draft). */
+    public function batalBayar(Penggajian $penggajian): Penggajian
+    {
+        if ($penggajian->status !== 'dibayar') {
+            throw new \RuntimeException('Slip gaji ini belum dibayar.');
+        }
+
+        return DB::transaction(function () use ($penggajian) {
+            if ($penggajian->transaksi_keuangan_id) {
+                $trx = \App\Models\TransaksiKeuangan::find($penggajian->transaksi_keuangan_id);
+                if ($trx) {
+                    if ($trx->kas_id) {
+                        \App\Models\Kas::whereKey($trx->kas_id)->increment('saldo_sekarang', (float) $trx->jumlah);
+                    }
+                    // hapus permanen (pola Batal Bayar PO) supaya tidak bisa "dipulihkan" dari Data Terhapus
+                    // tanpa saldo; lewat model → kunci Closing tetap berlaku
+                    $trx->forceDelete();
+                }
+            }
+            $penggajian->update([
+                'status'                => $penggajian->approved_by ? 'disetujui' : 'draft',
+                'tanggal_bayar'         => null,
+                'kas_id'                => null,
+                'transaksi_keuangan_id' => null,
+            ]);
+
+            return $penggajian;
+        });
+    }
+
+    private function nomorTransaksiGaji(string $tanggal): string
+    {
+        $prefix = 'GAJI-' . Carbon::parse($tanggal)->format('Ymd');
+        $last = \App\Models\TransaksiKeuangan::withTrashed()->where('nomor_transaksi', 'like', $prefix . '-%')
+            ->orderByDesc('id')->value('nomor_transaksi');
+        $seq = ($last && preg_match('/(\d+)$/', $last, $m)) ? ((int) $m[1]) + 1 : 1;
+
+        return $prefix . '-' . str_pad((string) $seq, 4, '0', STR_PAD_LEFT);
     }
 }

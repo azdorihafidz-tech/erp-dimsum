@@ -52,8 +52,41 @@ class CascadeDeleteService
      *
      * Return: array jumlah record yang ter-soft-delete per entitas.
      */
+    /**
+     * 4.51 — Cabang yang sudah beroperasi TIDAK boleh dihapus: dulu ikut menyembunyikan semua
+     * order, PO, stok, transaksi kas, absensi & gaji cabang itu (hilang dari semua laporan).
+     * Cabang seperti itu cukup dinonaktifkan. Hapus hanya untuk cabang yang salah dibuat/kosong.
+     *
+     * @return string[] alasan (kosong = boleh dihapus)
+     */
+    public function alasanCabangTidakBolehDihapus(Cabang $cabang): array
+    {
+        $id = $cabang->id;
+        $cek = [
+            'order'              => DB::table('orders')->where('cabang_id', $id)->whereNull('deleted_at')->count(),
+            'purchase order'     => DB::table('purchase_orders')->where('cabang_id', $id)->whereNull('deleted_at')->count(),
+            'transaksi kas'      => DB::table('transaksi_keuangans')->where('cabang_id', $id)->whereNull('deleted_at')->count(),
+            'pergerakan stok'    => DB::table('stock_movements')->where(fn ($q) => $q->where('lokasi_asal_id', $id)->orWhere('lokasi_tujuan_id', $id))->count(),
+            'absensi'            => DB::table('absensis')->where('cabang_id', $id)->whereNull('deleted_at')->count(),
+            'slip gaji'          => DB::table('penggajians')->where('cabang_id', $id)->whereNull('deleted_at')->count(),
+        ];
+        $alasan = [];
+        foreach ($cek as $nama => $n) {
+            if ($n > 0) {
+                $alasan[] = "{$n} {$nama}";
+            }
+        }
+
+        return $alasan;
+    }
+
     public function deleteCabangCascade(Cabang $cabang): array
     {
+        if ($alasan = $this->alasanCabangTidakBolehDihapus($cabang)) {
+            throw new \Exception('cabang ini sudah punya ' . implode(', ', $alasan)
+                . '. Cabang yang sudah beroperasi tidak dihapus supaya laporan tetap utuh — pakai tombol Nonaktifkan.');
+        }
+
         return DB::transaction(function () use ($cabang) {
             $id  = $cabang->id;
             $now = Carbon::now();

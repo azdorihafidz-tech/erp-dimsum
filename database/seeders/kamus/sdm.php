@@ -302,30 +302,32 @@ Menghitung gaji karyawan per bulan dan mencetak slip.
 
 ## Supaya menu ini muncul & bisa dipakai
 - Melihat & cetak: **Lihat Penggajian**. Generate, edit, approve, bayar, hapus: **Kelola Penggajian**.
-- Data yang harus ada dulu: **Karyawan aktif** (gaji pokok, % BPJS), **absensi** bulan itu, **Hari Libur**, **Pengaturan Penggajian** (tarif lembur, potongan alpa, hari kerja per minggu).
+- Data yang harus ada dulu: **Karyawan aktif** (gaji pokok, % BPJS), **absensi** bulan itu, **Hari Libur**, **Pengaturan Penggajian** (tarif lembur, potongan alpa, potongan telat per menit, hari kerja per minggu).
+- Untuk **Bayar**: kas aktif di cabang karyawan atau di Gudang Pusat.
 
 ## Cara menghitung (per karyawan)
 - Hari kerja = hari dalam bulan − Minggu (− Sabtu kalau 5 hari kerja) − hari libur.
-- Hadir, Alpha, jam lembur diambil dari absensi bulan itu.
+- Hadir, Alpha, jam lembur, dan **menit telat** diambil dari absensi bulan itu.
 - Uang lembur = jam lembur × tarif (Pengaturan, atau gaji ÷ 173 × 1,5).
 - Potongan absensi = jumlah Alpha × potongan alpa per hari.
+- **Potongan telat** = total menit telat × potongan telat per menit.
 - BPJS dari % di data karyawan; PPh21 dihitung otomatis; tunjangan/bonus/kasbon/potongan lain diisi saat generate.
 
 ## Alur
-**Generate** (1 cabang, 1 bulan) → slip **Draft** → **Approve** → **Bayar**.
+**Generate** (1 cabang, 1 bulan) → slip **Draft** → **Approve** → **Bayar** (pilih kas).
 
 ## Apa yang terjadi kalau tombol diklik
-| Tombol | Akibat |
-|---|---|
-| Generate | Slip setiap karyawan aktif cabang itu dibuat/dihitung ulang; karyawan ber-akun dapat notifikasi |
-| Approve | Status Disetujui |
-| **Bayar** | Status Dibayar + tanggal bayar. ⚠️ **Kas TIDAK berkurang otomatis** |
+| Tombol | Slip | Kas |
+|---|---|---|
+| Generate | Slip Draft dibuat/dihitung ulang; slip **Disetujui/Dibayar dilewati** (namanya disebutkan); karyawan ber-akun dapat notifikasi | — |
+| Approve | Disetujui (tidak bisa diedit/dihitung ulang lagi) | — |
+| **Bayar** (pilih kas + tanggal) | Dibayar | Kas terpilih **berkurang** sebesar total gaji; tercatat otomatis di Kas & Transaksi (kategori Gaji Karyawan) |
+| **Batal Bayar** | Kembali Disetujui/Draft | Uang **kembali** ke kas, transaksi gaji dihapus |
 
-## Wajib
-- Setelah gaji dibayar, catat pengeluarannya di **Kas & Transaksi** (kategori Gaji) dari kas yang dipakai membayar — supaya saldo kas & laporan benar.
+Transaksi gaji tidak bisa diedit/dihapus dari Kas & Transaksi — pakai Batal Bayar. Tanggal yang sudah Closing tidak bisa dibayar/dibatalkan.
 
 ## Jangan
-- ⚠️ **Jangan Generate ulang** bulan yang slipnya sudah Disetujui/Dibayar — nominal slip itu ikut dihitung ulang dan tertimpa.
+- Jangan mencatat gaji lagi secara manual di Kas & Transaksi — Bayar sudah mencatatnya (kecuali slip yang ditandai Dibayar **sebelum** pembaruan 16 Nov 2026).
 - Hari bolos yang tidak dicatat tidak dipotong — isi **Alpha** di Absensi Manual sebelum Generate.
 MD,
     ],

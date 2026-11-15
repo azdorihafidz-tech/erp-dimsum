@@ -18,7 +18,8 @@ class Penggajian extends Model
         'gaji_pokok', 'tunjangan', 'tunjangan_jabatan', 'tunjangan_makan',
         'tunjangan_transport', 'tunjangan_kehadiran',
         'uang_lembur', 'bonus', 'insentif', 'thr', 'komisi',
-        'potongan_absensi', 'potongan_lain',
+        'potongan_absensi',
+        'potongan_telat', 'potongan_lain', // 4.51: potongan_telat
         'bpjs_kesehatan', 'bpjs_ketenagakerjaan', 'pph21', 'kasbon',
         'total_gaji', 'status', 'tanggal_bayar',
         'tarif_lembur_per_jam_override', 'potongan_alpa_per_hari_override',
@@ -32,12 +33,14 @@ class Penggajian extends Model
         'jumlah_hari_kerja',
         'jumlah_hadir',
         'jumlah_alpha',
+        'menit_telat_total', // 4.51
         'jam_lembur_total',
         'gaji_pokok',
         'tunjangan',
         'uang_lembur',
         'bonus',
         'potongan_absensi',
+        'potongan_telat', // 4.51
         'potongan_lain',
         'bpjs_kesehatan',
         'bpjs_ketenagakerjaan',
@@ -46,6 +49,7 @@ class Penggajian extends Model
         'total_gaji',
         'status',
         'tanggal_bayar',
+        'kas_id', 'transaksi_keuangan_id', // 4.51 — pembayaran gaji tercatat di kas
         'catatan',
         'approved_by',
         'tunjangan_jabatan',
@@ -89,6 +93,12 @@ class Penggajian extends Model
             'uang_lembur_manual'             => 'boolean',
             'potongan_alpa_manual'           => 'boolean',
         ];
+    }
+
+    /** 4.51 — kas yang dipakai membayar */
+    public function kas()
+    {
+        return $this->belongsTo(Kas::class);
     }
 
     public function karyawan()

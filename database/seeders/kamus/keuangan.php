@@ -114,6 +114,7 @@ Semua uang yang masuk/keluar dicatat di sini, per **Kas** (laci tunai, rekening 
 | Catat Pembayaran PO | Pengeluaran dari kas yang dipilih |
 | Transfer Antar Kas / Transfer Dana / Setoran Kasir | Pasangan keluar-masuk antar kas |
 | Kiriman/Retur Cabang | Pengeluaran cabang & pemasukan gudang |
+| Penggajian → Bayar | Pengeluaran Gaji Karyawan dari kas yang dipilih |
 | Transaksi Berulang | Sesuai template |
 | Kas baru dengan saldo awal | Pemasukan "Saldo Awal" |
 | Penyesuaian Stok (rusak/hilang/susut) | Beban/koreksi **tanpa kas** (saldo tidak berubah) |
@@ -148,21 +149,22 @@ MD,
     [
         'slug' => 'laporan-keuangan-kas', 'judul' => 'Laporan Keuangan (menu Keuangan)', 'kelompok' => 'Keuangan', 'urutan' => 30,
         'letak' => 'Keuangan → Laporan Keuangan',
-        'ringkasan' => 'Rekap pemasukan & pengeluaran per kategori dalam 1 bulan, dari semua transaksi Kas & Transaksi.',
+        'ringkasan' => 'Pemasukan & pengeluaran usaha per kategori dalam 1 bulan (berbasis kas), tanpa transfer internal & saldo awal.',
         'izin' => ['laporan.keuangan.view'],
         'route_names' => ['keuangan.laporan'],
         'terkait' => ['kas-transaksi', 'cara-melihat-untung'],
         'kata_kunci' => 'laporan keuangan rekap pemasukan pengeluaran per kategori bulanan',
         'konten' => <<<'MD'
 ## Fungsi
-Menjumlah semua transaksi **Kas & Transaksi** dalam 1 bulan, dikelompokkan per kategori (Pemasukan & Pengeluaran).
+Menjumlah transaksi **Kas & Transaksi** dalam 1 bulan per kategori (judul halaman: "Pemasukan & Pengeluaran Usaha").
 
 ## Supaya menu ini muncul & bisa dipakai
-- Centangan **Laporan Keuangan**. Data mengikuti cabang di pojok kanan atas (atau pilihan cabang saat "Semua Cabang").
+- Centangan **Laporan Keuangan**. Data mengikuti cabang di pojok kanan atas (atau pilihan cabang saat "Semua Cabang"). Role yang hanya boleh cabangnya sendiri selalu melihat cabangnya.
 
-## ⚠️ Perlu diketahui
-- Walau judul halamannya "Laporan Laba / Rugi", isinya adalah **rekap uang masuk-keluar**: ikut terhitung Saldo Awal kas, pembayaran PO, Transfer Antar Kas, Transfer Dana, dan Setoran Kasir (masing-masing sisi keluar & masuk). Jadi **bukan angka untung**.
-- Untuk untung pakai **Laporan → Laba Rugi** atau **Laba Rugi Formal**; untuk untung yang sudah dikunci pakai **Closing / Tutup Buku**.
+## Yang dihitung
+- **Tidak dihitung**: transfer antar kas, setoran kasir, transfer dana, dan saldo awal kas (uang yang hanya pindah tempat) — jumlahnya ditampilkan sebagai keterangan.
+- Berbasis **kas**: pembelian bahan dihitung sebagai pengeluaran saat dibayar (belum memakai HPP).
+- Untuk laba dengan modal barang pakai **Laba Rugi Formal**; untuk angka yang dikunci pakai **Closing / Tutup Buku**.
 
 ## Hasil
 Hanya menampilkan data.
@@ -407,26 +409,27 @@ Membuat transaksi Kas & Transaksi secara otomatis dari template, supaya biaya ru
 ## Supaya menu ini muncul & bisa dipakai
 - Centangan **Lihat / Buat / Edit / Hapus Transaksi Berulang** (tombol Generate & Aktif/Nonaktif memakai centangan Edit).
 
-## Cara kerjanya (perlu dipahami)
-- Transaksi dibuat **otomatis pada tanggal jatuh tempo** (tanggal 1–31 setiap bulan), saat **ada orang yang membuka aplikasi hari itu**. Kalau hari itu tidak ada yang membuka aplikasi, transaksi bulan itu **tidak dibuat** — klik **Generate** manual.
-- Berlaku antara Tanggal Mulai dan Tanggal Akhir (kosong = seterusnya).
-- Kalau kas diisi, saldo kas langsung berubah. Kalau kas kosong, transaksi tercatat tanpa mengubah saldo kas.
-- Tanggal yang sudah Closing dilewati.
+## Kapan transaksi dibuat
+| Frekuensi | Jatuh tempo |
+|---|---|
+| Harian | Setiap hari |
+| Mingguan | Setiap hari yang sama dengan **Tanggal Mulai** (mis. mulai Senin → tiap Senin) |
+| Bulanan | Setiap **tanggal jatuh tempo**; 29–31 dipakai sebagai hari terakhir di bulan pendek |
+| Tahunan | Tanggal jatuh tempo di **bulan Tanggal Mulai** |
 
-## ⚠️ Perlu diketahui
-- Pilihan **Frekuensi** (Harian/Mingguan/Tahunan) saat ini **tidak berpengaruh** — semua template berjalan bulanan.
-- Tanggal jatuh tempo 29–31 tidak berjalan di bulan yang tidak punya tanggal itu.
-- Pilihan "Auto approve" belum dipakai.
+- Dibuat **1 kali per periode**, otomatis oleh jadwal server (kalau ada) atau saat ada yang membuka aplikasi. Kalau hari jatuh tempo terlewat, transaksinya dibuat saat aplikasi dibuka berikutnya (bertanggal jatuh tempo; kalau tanggal itu sudah Closing → bertanggal hari ini).
+- Berlaku antara Tanggal Mulai dan Tanggal Akhir (kosong = seterusnya). Daftar template menampilkan jatuh tempo berikutnya.
+- Kalau kas diisi, saldo kas langsung berubah. Kalau kas kosong, transaksi tercatat tanpa mengubah saldo kas.
 
 ## Apa yang terjadi kalau tombol diklik
 | Tombol | Akibat |
 |---|---|
 | Simpan template | Belum ada transaksi |
-| **Generate** | Langsung membuat 1 transaksi hari ini (+ ubah saldo kas kalau kas diisi) |
+| **Generate** | Membuat transaksi untuk jatuh tempo yang **belum** dibuat; ditolak kalau periode itu sudah dibuat (tidak bisa dobel) |
 | Nonaktifkan | Tidak dibuat otomatis lagi |
 
 ## Jangan
-- Jangan klik Generate kalau transaksi bulan itu sudah dibuat otomatis — jadi dobel (hapus dobelnya di Kas & Transaksi).
+- Jangan mencatat transaksi yang sama manual di Kas & Transaksi — jadi dobel.
 MD,
     ],
 ];

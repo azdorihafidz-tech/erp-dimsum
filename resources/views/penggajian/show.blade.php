@@ -26,9 +26,18 @@
         @endif
         @if(in_array($penggajian->status, ['draft','disetujui']))
         @can('penggajian.manage')
-        <form action="{{ route('penggajian.bayar', $penggajian) }}" method="POST" class="d-inline">
+        {{-- 4.51 — Bayar = uang keluar dari kas yang dipilih --}}
+        <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#modalBayarGaji">
+            <i class="bi bi-cash me-1"></i>Bayar
+        </button>
+        @endcan
+        @endif
+        @if($penggajian->status === 'dibayar')
+        @can('penggajian.manage')
+        <form action="{{ route('penggajian.batal-bayar', $penggajian) }}" method="POST" class="d-inline"
+              onsubmit="return confirm('Batalkan pembayaran gaji ini? Uang dikembalikan ke kas{{ $penggajian->kas ? ' ' . addslashes($penggajian->kas->nama_kas) : '' }}.')">
             @csrf
-            <button class="btn btn-sm btn-success"><i class="bi bi-cash me-1"></i>Tandai Dibayar</button>
+            <button class="btn btn-sm btn-outline-danger"><i class="bi bi-arrow-counterclockwise me-1"></i>Batal Bayar</button>
         </form>
         @endcan
         @endif
@@ -130,6 +139,7 @@
                         @php
                             $potonganItems = [
                                 'Potongan Alpha (' . $penggajian->jumlah_alpha . ' hari)' => $penggajian->potongan_absensi,
+                                'Potongan Telat (' . (int) $penggajian->menit_telat_total . ' menit)' => $penggajian->potongan_telat,
                                 'BPJS Kesehatan'           => $penggajian->bpjs_kesehatan,
                                 'BPJS Ketenagakerjaan JHT' => $penggajian->bpjs_ketenagakerjaan,
                                 'PPh21'                    => $penggajian->pph21,
@@ -166,7 +176,7 @@
                 </div>
 
                 @if($penggajian->tanggal_bayar)
-                <div class="mt-2 text-muted small">Dibayar pada: {{ $penggajian->tanggal_bayar->format('d/m/Y') }}</div>
+                <div class="mt-2 text-muted small">Dibayar pada: {{ $penggajian->tanggal_bayar->format('d/m/Y') }}@if($penggajian->kas) dari kas <strong>{{ $penggajian->kas->nama_kas }}</strong>@elseif(! $penggajian->transaksi_keuangan_id) <span class="text-warning">(dibayar sebelum ada pencatatan kas otomatis — pastikan sudah dicatat di Kas &amp; Transaksi)</span>@endif</div>
                 @endif
                 @if($penggajian->approvedBy)
                 <div class="text-muted small">Disetujui oleh: {{ $penggajian->approvedBy->name }}</div>
@@ -258,6 +268,12 @@
                         <td class="px-3 py-2 text-end text-danger">- Rp {{ number_format($penggajian->potongan_absensi, 0, ',', '.') }}</td>
                     </tr>
                     @endif
+                    @if((float)$penggajian->potongan_telat > 0)
+                    <tr>
+                        <td class="px-3 py-2 text-muted">Pot. Telat ({{ (int) $penggajian->menit_telat_total }} menit)</td>
+                        <td class="px-3 py-2 text-end text-danger">- Rp {{ number_format($penggajian->potongan_telat, 0, ',', '.') }}</td>
+                    </tr>
+                    @endif
                     <tr class="table-primary">
                         <td class="px-3 py-2 fw-bold">Take Home Pay</td>
                         <td class="px-3 py-2 text-end fw-bold text-primary">Rp {{ number_format($penggajian->total_gaji, 0, ',', '.') }}</td>
@@ -279,4 +295,46 @@
         @endif
     </div>
 </div>
+
+@if(in_array($penggajian->status, ['draft','disetujui']))
+@can('penggajian.manage')
+{{-- 4.51 — Modal Bayar Gaji (di luar form lain) --}}
+<div class="modal fade" id="modalBayarGaji" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="POST" action="{{ route('penggajian.bayar', $penggajian) }}" class="modal-content">
+            @csrf
+            <div class="modal-header">
+                <h6 class="modal-title fw-bold"><i class="bi bi-cash me-1"></i>Bayar Gaji {{ $penggajian->karyawan?->nama_lengkap }}</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info small py-2">
+                    <strong>Rp {{ number_format($penggajian->total_gaji, 0, ',', '.') }}</strong> akan dicatat sebagai pengeluaran <em>Gaji Karyawan</em>
+                    dan <strong>saldo kas yang dipilih berkurang</strong>. Bisa dibatalkan dengan tombol Batal Bayar.
+                </div>
+                <label class="form-label fw-semibold">Dibayar dari kas <span class="text-danger">*</span> <x-tooltip key="penggajian.bayar_kas" /></label>
+                @php $kasDefaultId = $kasPembayar->first(fn ($k) => $k->cabang_id === $penggajian->cabang_id && $k->default_untuk === 'tunai')?->id; @endphp
+                <select name="kas_id" class="form-select mb-3" required>
+                    <option value="">— Pilih kas —</option>
+                    @foreach($kasPembayar as $k)
+                    <option value="{{ $k->id }}" @selected($k->id === $kasDefaultId)>
+                        {{ $k->nama_kas }} — {{ $k->cabang?->nama_cabang }} (saldo Rp {{ number_format($k->saldo_sekarang, 0, ',', '.') }})
+                    </option>
+                    @endforeach
+                </select>
+                @if($kasPembayar->isEmpty())
+                <div class="text-danger small mb-2">Belum ada kas aktif di cabang karyawan / Gudang Pusat. Buat dulu di Kas &amp; Transaksi → Kelola Kas.</div>
+                @endif
+                <label class="form-label fw-semibold">Tanggal bayar</label>
+                <input type="date" name="tanggal_bayar" class="form-control" value="{{ today()->toDateString() }}" max="{{ today()->toDateString() }}">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-success btn-sm" @disabled($kasPembayar->isEmpty())><i class="bi bi-check-lg me-1"></i>Bayar & Catat ke Kas</button>
+            </div>
+        </form>
+    </div>
+</div>
+@endcan
+@endif
 @endsection
