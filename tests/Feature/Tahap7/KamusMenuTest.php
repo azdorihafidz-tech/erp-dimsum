@@ -25,13 +25,11 @@ class KamusMenuTest extends TestCase
     use DatabaseTransactions;
 
     /**
-     * Menu sidebar yang penjelasannya BELUM ditulis (dikerjakan bertahap).
+     * Menu sidebar yang penjelasannya BELUM ditulis. Sejak 4.50 Tahap 2 SEMUA menu sudah punya entri — daftar ini harus tetap KOSONG.
      * HANYA BOLEH BERKURANG. Menu baru di sidebar TIDAK boleh ditambahkan ke sini —
      * tulis penjelasannya di database/seeders/kamus/*.php (CLAUDE.md 3.6 poin 6).
      */
     private const BELUM = [
-        'cabang.index', 'user.index', 'role.index', 'pengaturan.umum', 'pengaturan.penggajian', 'admin.tooltips.index',
-        'admin.panduan.index', 'panduan.index', 'audit-log.index', 'trash.index', 'backup.index',
     ];
 
     /** Link sidebar yang nama route-nya dipilih lewat kondisi (tidak tertangkap regex). */
@@ -75,7 +73,7 @@ class KamusMenuTest extends TestCase
         $pola = collect(KamusMenuSeeder::entri())->flatMap(fn ($e) => $e['route_names'] ?? [])->all();
         $kurang = [];
         foreach ($this->routeSidebar() as $nama) {
-            if (in_array($nama, ['kamus-menu.index'], true) || in_array($nama, self::BELUM, true)) {
+            if (in_array($nama, self::BELUM, true)) {
                 continue;
             }
             if (! collect($pola)->contains(fn ($p) => Str::is($p, $nama))) {
@@ -153,9 +151,15 @@ class KamusMenuTest extends TestCase
             ->get(route('stock-transfer.index'))
             ->assertOk()->assertSee(route('kamus-menu.show', 'transfer-stok'), false);
 
-        // halaman tanpa entri khusus → ke daftar Kamus
         $this->actingAs($owner)->get(route('panduan.index'))
-            ->assertOk()->assertSee(route('kamus-menu.index'), false);
+            ->assertOk()->assertSee(route('kamus-menu.show', 'panduan'), false);
+
+        // halaman tanpa entri khusus (Profil) → tombol header menuju daftar Kamus
+        $html = $this->actingAs($owner)->get(route('profile.edit'))->assertOk()->getContent();
+        $this->assertMatchesRegularExpression(
+            '~<a href="' . preg_quote(route('kamus-menu.index'), '~') . '"\s+class="btn btn-sm btn-light~',
+            $html
+        );
     }
 
     public function test_panduan_tooltip_dan_link_sidebar_ada(): void
