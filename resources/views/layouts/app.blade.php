@@ -902,6 +902,7 @@
             'face-registration.*','shift.*','hari-libur.*','laporan.absensi'
         );
         @endphp
+        @if(\App\Support\Paket::aktif('sdm')) {{-- Paket: grup Absensi ikut modul SDM --}}
         <a href="#absensiMenu" data-bs-toggle="collapse"
            class="nav-link {{ $absensiActive ? 'active' : '' }}"
            aria-expanded="{{ $absensiActive ? 'true' : 'false' }}">
@@ -957,6 +958,7 @@
             </a>
             @endcan
         </div>
+        @endif
         @can('penggajian.view')
         <a href="{{ route('penggajian.index') }}"
            class="nav-link {{ request()->routeIs('penggajian.*') ? 'active' : '' }}">
@@ -1185,6 +1187,11 @@
            class="nav-link {{ request()->routeIs('tim-it.*') ? 'active' : '' }}">
             <i class="bi bi-person-gear"></i>
             <span>Tim IT</span>
+        </a>
+        <a href="{{ route('paket.index') }}"
+           class="nav-link {{ request()->routeIs('paket.*') ? 'active' : '' }}">
+            <i class="bi bi-box2-heart"></i>
+            <span>Paket & Langganan</span>
         </a>
         @endif
         @can('pengaturan_penggajian')

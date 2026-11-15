@@ -350,4 +350,26 @@ MD,
 - Biaya operasional (sewa, listrik, pembelian aset) **dicatat di Kas & Transaksi** dengan kategori yang tepat. Gaji tercatat otomatis saat slip di-**Bayar** di menu Penggajian.
 MD,
     ],
+    [
+        'slug' => 'cara-fitur-tidak-ada', 'judul' => 'Kenapa menu atau fitur tidak ada?', 'kelompok' => 'Cara Melakukan', 'urutan' => 5,
+        'letak' => 'Semua menu',
+        'ringkasan' => 'Tiga penyebab: tidak termasuk paket aplikasi, belum dicentang di Role & Hak Akses, atau aplikasi sedang baca-saja karena langganan habis.',
+        'izin' => [],
+        'route_names' => [],
+        'terkait' => ['role-hak-akses', 'manajemen-user'],
+        'kata_kunci' => 'menu tidak ada fitur hilang tidak bisa dibuka tidak termasuk paket akses ditolak 403 tombol tidak muncul tidak bisa simpan baca saja langganan habis',
+        'konten' => <<<'MD'
+## Ada 3 penyebab
+
+| Penyebab | Tandanya | Cara mengatasi |
+|---|---|---|
+| **Tidak termasuk paket** aplikasi usaha Anda | Menu tidak ada untuk **siapa pun**, termasuk Owner. Membuka alamatnya menampilkan "Fitur … tidak termasuk paket Anda" | Hubungi tim IT penyedia aplikasi. Data lama tetap aman |
+| **Belum dicentang** untuk role Anda | Owner melihat menunya, Anda tidak | Minta Owner mencentang di **Pengaturan → Role & Hak Akses** |
+| **Baca-saja** (langganan habis) | Ada pita di atas halaman; menu terlihat tapi tombol Simpan/transaksi ditolak | Hubungi tim IT untuk memperpanjang langganan |
+
+## Perlu diketahui
+- Sebelum baca-saja ada peringatan mulai 14 hari sebelum langganan berakhir, lalu masa tenggang (bawaan 7 hari) di mana aplikasi masih normal.
+- Saat baca-saja Anda tetap bisa login, melihat data, dan mengunduh laporan.
+MD,
+    ],
 ];

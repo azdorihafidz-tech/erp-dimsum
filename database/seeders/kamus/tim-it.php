@@ -11,7 +11,7 @@ return [
         'ringkasan' => 'Mengelola akun tim IT penyedia aplikasi: tambah, ganti kata sandi, aktif/nonaktif. Akun ini tersembunyi dari pelanggan.',
         'izin' => ['@teknisi'],
         'route_names' => ['tim-it.*'],
-        'terkait' => ['aktivitas-tim-it', 'manajemen-user'],
+        'terkait' => ['aktivitas-tim-it', 'paket-langganan', 'manajemen-user'],
         'kata_kunci' => 'tim it teknisi akun teknisi admin aplikasi penyedia aplikasi vendor maintenance support akun rahasia',
         'konten' => <<<'MD'
 ## Fungsi
@@ -61,6 +61,37 @@ Menunjukkan kapan tim IT penyedia aplikasi masuk ke aplikasi Anda dan apa yang m
 
 ## Menu yang mirip & bedanya
 - **Audit Log**: perubahan data oleh semua user (data lama → baru). Aktivitas Tim IT khusus akun tim IT, termasuk login.
+MD,
+    ],
+
+    [
+        'slug' => 'paket-langganan', 'judul' => 'Paket & Langganan', 'kelompok' => 'Pengaturan', 'urutan' => 91,
+        'letak' => 'Pengaturan → Paket & Langganan (hanya terlihat oleh akun Tim IT)',
+        'ringkasan' => 'Menentukan modul yang aktif untuk pelanggan ini dan sampai kapan langganan berlaku (masa tenggang lalu baca-saja).',
+        'izin' => ['@teknisi'],
+        'route_names' => ['paket.*'],
+        'terkait' => ['tim-it', 'cara-fitur-tidak-ada', 'role-hak-akses'],
+        'kata_kunci' => 'paket modul langganan lisensi aktif sampai masa tenggang baca saja matikan fitur nyalakan fitur paket dasar menengah lengkap kustom',
+        'konten' => <<<'MD'
+## Fungsi
+Mengatur **modul** apa saja yang boleh dipakai pelanggan (sesuai kesepakatan pembayaran) dan **masa langganan**. Berlaku untuk semua user di instalasi ini, termasuk Owner.
+
+## Supaya menu ini muncul & bisa dipakai
+- Hanya akun **Tim IT**. Owner pelanggan tidak melihat menu ini.
+
+## Apa yang terjadi kalau tombol diklik
+| Tombol / isian | Akibat |
+|---|---|
+| Dasar / Menengah / Lengkap | Hanya mengisi centangan cepat; modul tetap bisa diubah satu-satu (tampil "Kustom") |
+| Centang / hilangkan modul | Modul yang dibutuhkan ikut menyala; modul yang membutuhkan ikut mati |
+| **Simpan** | Modul mati: menu, tombol, entri Kamus, centangan di Role & Hak Akses hilang; alamatnya langsung menampilkan "tidak termasuk paket". **Data tidak dihapus** — menyalakan lagi mengembalikan semuanya. Pekerjaan otomatis modul itu berhenti. Tercatat di Aktivitas Tim IT |
+| Aktif sampai + masa tenggang | Mulai 14 hari sebelum berakhir: pita kuning untuk Owner. Lewat tanggal: pita merah untuk semua user (masih normal). Lewat masa tenggang: **baca-saja** (lihat & unduh laporan boleh, simpan/ubah/hapus & transaksi ditolak). Tim IT tidak terkena baca-saja |
+
+## Wajib
+- Simpan dari halaman ini saja. Isi yang diubah langsung di database membuat **segel tidak cocok** — aplikasi tetap jalan, tapi Tim IT mendapat peringatan sampai disimpan ulang.
+
+## Jangan
+- Jangan mematikan modul yang sedang dipakai pelanggan tanpa pemberitahuan — menu langsung hilang dari semua user.
 MD,
     ],
 ];

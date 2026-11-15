@@ -79,6 +79,9 @@ class KamusMenu extends Model
         if (in_array('@teknisi', $izin, true)) {
             return $user->isTeknisi();
         }
+        if (! $this->termasukPaket()) {
+            return false;
+        }
         if ($user->aksesPenuh()) {
             return true;
         }
@@ -96,6 +99,33 @@ class KamusMenu extends Model
                 continue;
             }
             if ($user->hasPermission($i)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** Menu entri ini termasuk paket? (semua izin nyata / semua route di luar paket → tidak) */
+    public function termasukPaket(): bool
+    {
+        $izin = array_values(array_filter($this->izin ?? [], fn ($i) => ! str_starts_with($i, '@')));
+        if ($izin) {
+            foreach ($izin as $i) {
+                if (\App\Support\Paket::izinDiizinkan($i)) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        $route = $this->route_names ?? [];
+        if (! $route) {
+            return true;
+        }
+        foreach ($route as $r) {
+            $m = \App\Support\Paket::modulUntukRoute(str_replace('*', 'x', $r));
+            if ($m === null || \App\Support\Paket::aktif($m)) {
                 return true;
             }
         }

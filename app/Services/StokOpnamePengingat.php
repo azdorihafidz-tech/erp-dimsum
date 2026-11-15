@@ -36,6 +36,9 @@ class StokOpnamePengingat
         if (! self::siap()) {
             return false;
         }
+        if (! \App\Support\Paket::aktif('stok_opname')) {
+            return false;
+        }
         $s = StokOpnameService::setting();
         if (! $s->opname_pengingat_aktif) {
             return false;

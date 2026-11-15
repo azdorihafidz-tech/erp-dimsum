@@ -93,6 +93,9 @@ class GantiRugiService
         if (! $cara) {
             throw new RuntimeException('Pilih cara pembayaran: tunai atau potong gaji.');
         }
+        if ($cara === 'potong_gaji' && ! \App\Support\Paket::aktif('penggajian')) {
+            throw new RuntimeException('Potong gaji butuh modul Penggajian yang belum termasuk paket. Pilih tunai.');
+        }
         $cicilan = $cara === 'potong_gaji' ? (int) ($data['jumlah_cicilan'] ?? 1) : 1;
         if ($cicilan < 1 || $cicilan > 12) {
             throw new RuntimeException('Cicilan potong gaji 1 sampai 12 bulan.');

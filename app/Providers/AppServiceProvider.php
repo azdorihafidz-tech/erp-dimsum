@@ -124,6 +124,10 @@ class AppServiceProvider extends ServiceProvider
 
         // Owner bypass semua gate check
         Gate::before(function (User $user, string $ability) {
+            // Paket: izin milik modul yang tidak termasuk paket ditolak untuk SEMUA user (RANCANGAN_PAKET_LANGGANAN.md)
+            if (! \App\Support\Paket::izinDiizinkan($ability)) {
+                return false;
+            }
             if ($user->aksesPenuh()) {
                 return true;
             }
@@ -197,6 +201,7 @@ class AppServiceProvider extends ServiceProvider
             }
             Cache::put($kunci, true, now()->addHour());
             app(\App\Services\StokOpnamePengingat::class)->jalankan();
+            \App\Support\Paket::peringatkanSegelRusak(); // mode lunak: Tim IT diberi tahu
         } catch (\Throwable $e) {
             \Log::warning('Pengingat stok opname gagal: ' . $e->getMessage());
         }
@@ -204,6 +209,9 @@ class AppServiceProvider extends ServiceProvider
 
     private function triggerRecurringIfNeeded(): void
     {
+        if (! \App\Support\Paket::aktif('keuangan')) {
+            return; // Transaksi Berulang tidak termasuk paket
+        }
         $cacheKey = 'recurring_run_' . now()->toDateString();
         if (Cache::has($cacheKey)) {
             return;

@@ -226,7 +226,7 @@
             <div class="col-6 col-md-2"><label class="form-label small mb-0">Nilai (Rp)</label>
                 <input type="number" min="1" step="1" name="nilai" class="form-control form-control-sm" value="{{ (int) round($gantiRugi['sisa']) }}" required></div>
             <div class="col-6 col-md-2"><label class="form-label small mb-0">Cara</label>
-                <select name="cara" class="form-select form-select-sm" id="grCara"><option value="potong_gaji">Potong gaji</option><option value="tunai">Tunai</option></select></div>
+                <select name="cara" class="form-select form-select-sm" id="grCara">@if(\App\Support\Paket::aktif('penggajian'))<option value="potong_gaji">Potong gaji</option>@endif<option value="tunai">Tunai</option></select></div>
             <div class="col-6 col-md-2 gr-cicil"><label class="form-label small mb-0">Dicicil</label>
                 <select name="jumlah_cicilan" class="form-select form-select-sm">@for($c = 1; $c <= 12; $c++)<option value="{{ $c }}">{{ $c }} bulan</option>@endfor</select></div>
             <div class="col-6 col-md-2 gr-tunai" style="display:none"><label class="form-label small mb-0">Masuk ke kas</label>

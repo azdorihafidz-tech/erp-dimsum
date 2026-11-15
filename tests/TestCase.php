@@ -6,5 +6,11 @@ use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        \App\Support\Paket::lupakan(); // status paket disimpan statis per proses
+    }
+
     //
 }
