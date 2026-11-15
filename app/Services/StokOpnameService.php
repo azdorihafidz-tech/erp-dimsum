@@ -779,12 +779,19 @@ class StokOpnameService
         }
         $lokasi = fn ($q) => $user->canAccessAllBranches() ? $q : $q->whereIn('cabang_id', $user->cabangs()->pluck('cabangs.id'));
 
+        // Masa pengingat akhir bulan: lokasi yang belum opname ikut dihitung (pemeriksa/penyetuju)
+        $belum = 0;
+        if (($user->hasPermission('stok_opname.ajukan') || $user->hasPermission('stok_opname.setujui')) && StokOpnamePengingat::dalamMasa()) {
+            $ids = $user->canAccessAllBranches() ? Cabang::where('is_active', true)->pluck('id') : $user->cabangs()->pluck('cabangs.id');
+            $belum = StokOpnamePengingat::lokasiBelum($ids)->count();
+        }
+
         if ($user->hasPermission('stok_opname.setujui')) {
-            return $lokasi(StokOpname::where('status', StokOpname::DIAJUKAN))->count();
+            return $lokasi(StokOpname::where('status', StokOpname::DIAJUKAN))->count() + $belum;
         }
 
         return $lokasi(StokOpname::where('status', StokOpname::MENGHITUNG)
-            ->whereHas('penghitung', fn ($q) => $q->where('users.id', $user->id)))->count();
+            ->whereHas('penghitung', fn ($q) => $q->where('users.id', $user->id)))->count() + $belum;
     }
 
     // ===================== Notifikasi =====================

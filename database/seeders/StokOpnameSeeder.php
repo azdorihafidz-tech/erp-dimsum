@@ -134,6 +134,7 @@ class StokOpnameSeeder extends Seeder
             ['stok_rusak.tindakan', 'Tindak lanjut stok rusak', 'Diganti barang / Dipakai lagi: barang kembali ke stok jual, kerugian dibatalkan. Dibayar uang / Dipotong tagihan: uang masuk kas sebagai Pemulihan Kerugian Stok. Dimusnahkan: foto wajib + Berita Acara Pemusnahan.'],
             ['ganti_rugi.cara', 'Ganti rugi karyawan', 'Bebankan nilai barang hilang ke karyawan. Tunai: kas lokasi bertambah sekarang. Potong gaji: dicicil 1–12 bulan mulai slip bulan depan, tidak melebihi gaji bersih. Nilai bawaan = harga pokok; nilai lain wajib alasan.'],
             ['pengaturan_umum.stok_opname', 'Pengaturan Stok Opname', 'Hitung buta untuk opname baru, batas nilai barang hilang yang wajib foto, dan pengingat lokasi yang belum opname di akhir bulan.'],
+            ['stok_opname.akurasi', 'Akurasi', 'Persentase barang yang jumlah fisiknya sama dengan stok sistem (barang cocok ÷ barang dihitung) pada opname yang disetujui. Berita Acara juga menampilkan akurasi berdasarkan nilai rupiah.'],
             ['stok_opname.penyebab', 'Penyebab selisih', 'Barang yang kurang wajib dirinci penyebabnya (boleh dipecah, mis. 2 rusak + 1 hilang). Rusak/Basi/Freezer mati masuk Stok Rusak; semua kerugian dicatat sebagai beban tanpa mengurangi kas.'],
         ] as $i => [$key, $title, $content]) {
             Tooltip::updateOrCreate(['key' => $key], ['title' => $title, 'content' => $content, 'modul' => 'stok', 'aktif' => true, 'urutan' => 120 + $i]);
@@ -194,6 +195,11 @@ Tombol **Berita Acara** (PDF) dan ikon Excel di halaman opname: kepala, rincian 
 - Keuangan mendapat satu baris per penyebab **tanpa kas** (tidak bisa diedit/dihapus dari Kas & Transaksi).
 - Barang Rusak/Basi/Freezer mati masuk **Stok Rusak** untuk ditindaklanjuti.
 - Opname dikunci.
+
+### Dashboard & pengingat
+**Stok Opname → Dashboard**: status bulan ini per lokasi (sudah / menunggu persetujuan / sedang dihitung / **belum** = merah), daftar menunggu persetujuan, kerugian per penyebab dibanding bulan lalu, grafik akurasi 6 bulan per lokasi (dengan tabel), 10 barang paling sering selisih, stok rusak tertahan, dan ringkasan ganti rugi.
+
+Menjelang akhir bulan (bawaan **H-3, jam 08.00**, diatur di Pengaturan Umum) lokasi yang belum opname bulan itu mendapat **notifikasi** ke kepala lokasi (kalau kosong: Manajer Cabang lokasi itu) dan Owner — satu kali per orang per hari — dan **angka merah** di menu Stok Opname.
 
 ## Catatan Penting
 - **Waste produksi** (hasil nyata lebih sedikit dari rencana) dicatat di menu **Produksi**, bukan lewat opname — biayanya sudah masuk modal hasil produksi.

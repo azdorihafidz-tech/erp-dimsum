@@ -247,6 +247,7 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
     // ===== Stok Opname (RANCANGAN_STOK_OPNAME.md) — izin dicek di StokOpnameService =====
     Route::prefix('stok-opname')->name('stok-opname.')->controller(\App\Http\Controllers\StokOpnameController::class)->group(function () {
         Route::get('/', 'index')->name('index');
+        Route::get('/dashboard', 'dashboard')->name('dashboard');
         Route::get('/create', 'create')->name('create');
         Route::post('/', 'store')->name('store');
         Route::get('/{stokOpname}', 'show')->name('show');

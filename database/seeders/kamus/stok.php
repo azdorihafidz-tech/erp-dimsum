@@ -141,6 +141,10 @@ Mulai → **Sedang dihitung** (isi jumlah / scan kode) → pemeriksa cek selisih
 - Kartu stok mencatat tiap penyesuaian sebagai **Penyesuaian** dengan nomor SO yang bisa diklik.
 - Berita Acara sebelum disetujui bertanda **SEMENTARA**; penghitung yang hitung buta baru bisa mengunduhnya setelah opname selesai.
 - Rangkuman kerugian per periode: **Laporan → Kerugian Stok**.
+
+## Dashboard & pengingat
+- Tombol **Dashboard** di daftar opname: status bulan ini per lokasi (sudah / menunggu persetujuan / sedang dihitung / **belum** = merah), daftar menunggu persetujuan, kerugian per penyebab vs bulan lalu, grafik akurasi 6 bulan per lokasi, 10 barang paling sering selisih, stok rusak tertahan, ringkasan ganti rugi.
+- **Pengingat akhir bulan** (Pengaturan Umum → Stok Opname; bawaan H-3 jam 08.00): lokasi yang belum memulai opname bulan itu → notifikasi lonceng ke kepala lokasi (Cabang → Kepala Cabang; kalau kosong: Manajer Cabang lokasi itu) + Owner, sekali per orang per hari, dan angka merah di menu Stok Opname. Dikirim saat ada yang membuka aplikasi (tidak bergantung cron hosting).
 - Baris keuangan opname tidak bisa diedit/dihapus dari Kas & Transaksi.
 
 ## Wajib

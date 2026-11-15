@@ -170,6 +170,29 @@ class AppServiceProvider extends ServiceProvider
 
         // On-request recurring trigger: generate sekali per hari tanpa perlu cron
         $this->triggerRecurringIfNeeded();
+        $this->triggerPengingatOpnameIfNeeded();
+    }
+
+    /**
+     * Stok Opname — pengingat akhir bulan, dicek paling banyak sekali per jam saat
+     * aplikasi dibuka (hosting belum tentu menjalankan cron; tanpa proc_open/exec).
+     * Pengiriman sendiri aman dobel: satu kali per orang per hari (dicek di tabel notifikasi).
+     */
+    private function triggerPengingatOpnameIfNeeded(): void
+    {
+        if ($this->app->runningInConsole() || $this->app->runningUnitTests()) {
+            return;
+        }
+        $kunci = 'stok_opname_pengingat:' . now()->format('Y-m-d-H');
+        try {
+            if (Cache::has($kunci)) {
+                return;
+            }
+            Cache::put($kunci, true, now()->addHour());
+            app(\App\Services\StokOpnamePengingat::class)->jalankan();
+        } catch (\Throwable $e) {
+            \Log::warning('Pengingat stok opname gagal: ' . $e->getMessage());
+        }
     }
 
     private function triggerRecurringIfNeeded(): void

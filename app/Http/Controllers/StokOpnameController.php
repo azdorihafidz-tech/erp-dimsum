@@ -68,6 +68,14 @@ class StokOpnameController extends Controller
         return view('stok-opname.index', compact('opnames', 'lokasi', 'filter'));
     }
 
+    public function dashboard()
+    {
+        abort_unless($this->izinMenu(), 403);
+        $d = app(\App\Services\StokOpnameDashboardService::class)->hitung($this->lokasiBoleh());
+
+        return view('stok-opname.dashboard', compact('d'));
+    }
+
     public function create()
     {
         abort_unless(auth()->user()->hasPermission('stok_opname.ajukan'), 403);

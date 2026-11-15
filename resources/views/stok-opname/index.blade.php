@@ -7,6 +7,7 @@
     <h5 class="mb-0 fw-bold"><i class="bi bi-clipboard-check me-2 text-primary"></i>Stok Opname</h5>
     <div class="d-flex gap-2 align-items-center flex-wrap">
         <x-panduan-button slug="stok-opname" />
+        <a href="{{ route('stok-opname.dashboard') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a>
         @if(auth()->user()->hasPermission('stok_opname.ajukan'))
         <a href="{{ route('stok-opname.create') }}" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle me-1"></i>Mulai Opname</a>
         @endif

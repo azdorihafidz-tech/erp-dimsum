@@ -1,6 +1,6 @@
 # Rancangan Stok Opname — ERP D'mentai
 
-Status: **RANCANGAN — menunggu persetujuan Owner** (2026-11-15)
+Status: **DISETUJUI Owner ("setuju semua saran") — SELESAI DIKERJAKAN Tahap A–E** (2026-11-17, lihat CLAUDE.md 4.52). Deploy menunggu persetujuan Owner (`public/deploy-452.php`).
 Acuan: fitur Stok Opname ERP BABA, disesuaikan dengan kondisi D'mentai. Semua angka data di bawah diambil dari salinan database lokal (`erp_dimsum`).
 
 ---
