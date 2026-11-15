@@ -29,6 +29,18 @@ class StokRusak extends Model
     public function cabang()  { return $this->belongsTo(Cabang::class); }
     public function item()    { return $this->belongsTo(Item::class)->withTrashed(); }
     public function rincian() { return $this->belongsTo(StokOpnameRincian::class, 'stok_opname_rincian_id'); }
+    public function tindakan() { return $this->hasMany(StokRusakTindakan::class)->orderBy('id'); }
+
+    /** Opname asal (lewat rincian). */
+    public function opname(): ?StokOpname
+    {
+        return $this->rincian?->opnameItem?->opname;
+    }
+
+    public function umurHari(): int
+    {
+        return (int) $this->tanggal?->diffInDays(today());
+    }
 
     public function nilaiSisa(): float
     {

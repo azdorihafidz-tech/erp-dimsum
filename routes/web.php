@@ -262,6 +262,11 @@ Route::middleware(['auth', 'verified', 'cabang'])->group(function () {
         Route::get('/{stokOpname}/berita-acara', 'beritaAcara')->name('berita-acara');
     });
 
+    // Stok Rusak (Stok Opname Tahap C)
+    Route::get('/stok-rusak', [\App\Http\Controllers\StokRusakController::class, 'index'])->name('stok-rusak.index');
+    Route::post('/stok-rusak/{stokRusak}/tindak', [\App\Http\Controllers\StokRusakController::class, 'tindak'])->name('stok-rusak.tindak');
+    Route::get('/stok-rusak/berita-acara/{tindakan}', [\App\Http\Controllers\StokRusakController::class, 'beritaAcara'])->name('stok-rusak.berita-acara');
+
     // ===== 4.49 Tahap B1 — PRODUKSI bahan setengah jadi di gudang (porting erp-coffeeshop) =====
     Route::prefix('produksi')->name('produksi.')->controller(\App\Http\Controllers\ProduksiController::class)->group(function () {
         Route::get('/resep', 'resepIndex')->name('resep.index');

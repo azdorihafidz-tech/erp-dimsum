@@ -160,6 +160,45 @@ MD,
     ],
 
     [
+        'slug' => 'stok-rusak', 'judul' => 'Stok Rusak', 'kelompok' => 'Stok & Gudang', 'urutan' => 27,
+        'letak' => 'Stok & Gudang → Stok Rusak',
+        'ringkasan' => 'Barang rusak/basi/freezer mati dari Stok Opname ditahan di sini. Tindak lanjut: kembali ke pemasok (ganti barang / uang / potong tagihan), musnahkan, atau dipakai lagi.',
+        'izin' => ['stok_opname.stok_rusak', 'stok_opname.view'],
+        'route_names' => ['stok-rusak.*'],
+        'terkait' => ['stok-opname', 'laporan-kerugian-stok', 'supplier'],
+        'kata_kunci' => 'stok rusak barang rusak barang basi kedaluwarsa freezer mati buang barang musnahkan berita acara pemusnahan retur ke pemasok supplier ganti barang potong tagihan dipakai lagi',
+        'konten' => <<<'MD'
+## Fungsi
+Menahan barang yang dicatat Rusak, Basi/Kedaluwarsa, atau Freezer mati saat **Stok Opname disetujui**, lalu mencatat tindak lanjutnya. Barang di sini tidak termasuk stok jual (tidak bisa dijual, dipakai resep, atau ditransfer). Kerugiannya sudah dicatat saat opname disetujui.
+
+## Supaya menu ini muncul & bisa dipakai
+- Menu muncul dengan centangan **Kelola Stok Rusak** atau **Lihat Stok Opname**; tombol **Tindak lanjut** hanya dengan **Kelola Stok Rusak**.
+- Isinya baru ada setelah ada Stok Opname yang **disetujui** dengan penyebab Rusak/Basi/Freezer mati.
+- Hanya lokasi yang menjadi akses user. Untuk uang dari pemasok, lokasi harus punya **Kas** aktif.
+
+## Apa yang terjadi kalau tombol diklik
+| Tindakan | Stok | Keuangan | Kas |
+|---|---|---|---|
+| Diganti barang (pemasok) | Masuk lagi ke stok jual, harga pokok semula | Kerugian dibatalkan (baris minus di akun beban penyebabnya) | — |
+| Dibayar uang (pemasok) | — | Pemulihan Kerugian Stok (pendapatan lain) | Kas terpilih **bertambah** |
+| Dipotong tagihan (pemasok) | — | Pemulihan Kerugian Stok, nomor PO wajib | Kas yang membayar PO **bertambah** |
+| Dimusnahkan | — | Tidak ada (sudah dicatat saat opname) | — |
+| Dipakai lagi (hanya penyebab Rusak) | Masuk lagi ke stok jual, harga pokok semula | Kerugian dibatalkan | — |
+
+## Wajib
+- Foto untuk pemusnahan. Berita Acara Pemusnahan (PDF) dibuat otomatis dengan nomor `BA-TahunBulan-Urut`.
+- Nomor PO / faktur untuk potong tagihan.
+
+## Jangan
+- Jangan memakai lagi barang basi, kedaluwarsa, atau kena freezer mati — sistem menolaknya.
+- Jangan buang barang rusak lewat Penyesuaian Stok kalau sudah tercatat di sini — kerugiannya akan dobel.
+
+## Menu yang mirip & bedanya
+- **Retur Cabang**: mengembalikan kiriman dari cabang ke gudang (antar lokasi sendiri), bukan ke pemasok.
+MD,
+    ],
+
+    [
         'slug' => 'permintaan-stok', 'judul' => 'Permintaan Stok', 'kelompok' => 'Stok & Gudang', 'urutan' => 30,
         'letak' => 'Stok & Gudang → Permintaan Stok',
         'ringkasan' => 'Cabang meminta bahan ke gudang/cabang lain. Setelah disetujui, gudang memprosesnya lewat Transfer Stok (tanpa jual-beli).',

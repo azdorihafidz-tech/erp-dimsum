@@ -86,6 +86,13 @@ class StokOpnameSeeder extends Seeder
             'urutan' => 44,
             'aktif'  => true,
         ]);
+        Panduan::updateOrCreate(['slug' => 'stok-rusak'], [
+            'judul'  => 'Stok Rusak (tindak lanjut barang rusak)',
+            'konten' => self::PANDUAN_RUSAK,
+            'modul'  => 'stok',
+            'urutan' => 45,
+            'aktif'  => true,
+        ]);
         Panduan::updateOrCreate(['slug' => 'laporan-kerugian-stok'], [
             'judul'  => 'Laporan Kerugian Stok',
             'konten' => self::PANDUAN_LAPORAN,
@@ -105,6 +112,7 @@ class StokOpnameSeeder extends Seeder
             ['stok_opname.scan', 'Scan / ketik kode', 'Ketik kode barang lalu Enter, atau pakai scanner barcode yang bekerja seperti keyboard. Sekali scan = jumlah fisik +1.'],
             ['laporan_kerugian_stok.kotor', 'Kerugian kotor', 'Jumlah nilai barang yang kurang dari semua Stok Opname yang DISETUJUI di periode ini (harga pokok FIFO). Tidak mengurangi kas.'],
             ['laporan_kerugian_stok.bersih', 'Kerugian bersih', 'Kerugian kotor dikurangi uang yang diterima kembali (ganti rugi karyawan, uang pemasok), barang yang kembali (diganti pemasok / dipakai lagi), dan kelebihan stok.'],
+            ['stok_rusak.tindakan', 'Tindak lanjut stok rusak', 'Diganti barang / Dipakai lagi: barang kembali ke stok jual, kerugian dibatalkan. Dibayar uang / Dipotong tagihan: uang masuk kas sebagai Pemulihan Kerugian Stok. Dimusnahkan: foto wajib + Berita Acara Pemusnahan.'],
             ['stok_opname.penyebab', 'Penyebab selisih', 'Barang yang kurang wajib dirinci penyebabnya (boleh dipecah, mis. 2 rusak + 1 hilang). Rusak/Basi/Freezer mati masuk Stok Rusak; semua kerugian dicatat sebagai beban tanpa mengurangi kas.'],
         ] as $i => [$key, $title, $content]) {
             Tooltip::updateOrCreate(['key' => $key], ['title' => $title, 'content' => $content, 'modul' => 'stok', 'aktif' => true, 'urutan' => 120 + $i]);
@@ -176,6 +184,30 @@ Tombol **Berita Acara** (PDF) dan ikon Excel di halaman opname: kepala, rincian 
 - **Barang tidak ada di daftar saat memulai**: barang harus milik lokasi itu, bertipe Bahan Baku/Kemasan/Tambahan Gratis, dan dicentang *Lacak Stok*.
 - **"Sedang dihitung di Stok Opname SO-…" saat Penyesuaian Stok**: selesaikan atau batalkan opname itu dulu.
 - **Tombol Ajukan tidak aktif**: lihat kotak kuning "Sebelum bisa diajukan".
+MARKDOWN;
+
+    public const PANDUAN_RUSAK = <<<'MARKDOWN'
+## Tujuan
+Barang yang di Stok Opname dicatat **Rusak**, **Basi/Kedaluwarsa**, atau **Freezer mati** keluar dari stok jual dan ditahan di **Stok Rusak** (tidak bisa dijual, dipakai resep, atau ditransfer). Kerugiannya sudah dicatat saat opname disetujui. Di sini Anda menentukan nasib barang itu.
+
+## Langkah-langkah
+1. Buka **Stok & Gudang → Stok Rusak**. Bawaan: barang yang masih tertahan di lokasi aktif.
+2. Klik **Tindak lanjut** pada barang, pilih tindakan dan jumlahnya (boleh sebagian).
+3. Klik **Simpan**.
+
+| Tindakan | Stok | Keuangan |
+|---|---|---|
+| Kembali ke pemasok — diganti barang | barang masuk lagi ke stok jual (harga pokok semula) | kerugian **dibatalkan** (tanpa kas) |
+| Kembali ke pemasok — dibayar uang | — | uang masuk ke **kas yang dipilih** (Pemulihan Kerugian Stok) |
+| Kembali ke pemasok — dipotong tagihan | — | nomor PO/faktur **wajib**; dicatat sebagai uang masuk ke kas yang dipakai membayar PO itu |
+| Dimusnahkan | — | tidak ada catatan baru. **Foto wajib**, **Berita Acara Pemusnahan** (PDF) dibuat otomatis |
+| Dipakai lagi | barang kembali ke stok jual (harga pokok semula) | kerugian **dibatalkan** (tanpa kas) |
+
+## Catatan Penting
+- **Dipakai lagi** hanya untuk penyebab **Rusak** (kemasan penyok/pecah, isi aman). Barang basi, kedaluwarsa, atau kena freezer mati hanya bisa dimusnahkan atau dikembalikan ke pemasok.
+- **Dipotong tagihan**: bayar PO tetap penuh di sistem. Karena potongan dicatat sebagai uang masuk ke kas yang sama, saldo kas bersihnya sama dengan uang yang benar-benar keluar.
+- Kalau hari ini sudah Closing Harian / Tutup Buku, tindakan yang mencatat keuangan ditolak — buka kunci atau lakukan besok.
+- Semua tindakan tercatat di riwayat baris itu dan di Laporan → Kerugian Stok.
 MARKDOWN;
 
     public const PANDUAN_LAPORAN = <<<'MARKDOWN'

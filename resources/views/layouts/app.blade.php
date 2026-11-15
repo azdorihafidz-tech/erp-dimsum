@@ -665,7 +665,7 @@
         @endcanany
 
         <!-- STOK & GUDANG -->
-        @canany(['stok.view', 'stok.request', 'stok.transfer', 'master.bahan_baku.view', 'master.produk_jual.view', 'item.view', 'pemakaian_perlengkapan.view', 'produksi.view', 'kiriman.view', 'retur.view', 'stok_opname.view', 'stok_opname.hitung', 'stok_opname.ajukan', 'stok_opname.setujui'])
+        @canany(['stok.view', 'stok.request', 'stok.transfer', 'master.bahan_baku.view', 'master.produk_jual.view', 'item.view', 'pemakaian_perlengkapan.view', 'produksi.view', 'kiriman.view', 'retur.view', 'stok_opname.view', 'stok_opname.hitung', 'stok_opname.ajukan', 'stok_opname.setujui', 'stok_opname.stok_rusak'])
         <div class="nav-section-title">Stok & Gudang</div>
         @can('stok.view')
         <a href="{{ route('stok.dashboard') }}"
@@ -701,6 +701,13 @@
             <i class="bi bi-clipboard-check"></i>
             <span>Stok Opname</span>
             @if($opnameBadge > 0)<span class="badge bg-danger ms-auto">{{ $opnameBadge }}</span>@endif
+        </a>
+        @endcanany
+        @canany(['stok_opname.stok_rusak', 'stok_opname.view'])
+        <a href="{{ route('stok-rusak.index') }}"
+           class="nav-link {{ request()->routeIs('stok-rusak.*') ? 'active' : '' }}">
+            <i class="bi bi-box-seam"></i>
+            <span>Stok Rusak</span>
         </a>
         @endcanany
         {{-- 4.49 Tahap B1 — Produksi bahan setengah jadi di gudang --}}
