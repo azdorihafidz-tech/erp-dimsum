@@ -76,7 +76,7 @@ Membuat dan mengelola akun yang bisa login.
 - Role yang tidak boleh melihat semua cabang hanya mengelola user yang berbagi cabang dengannya, dan hanya bisa menugaskan ke cabangnya sendiri.
 - Tidak bisa menghapus/menonaktifkan akun sendiri, atau menghapus satu-satunya Owner.
 - **Cabang default** = cabang yang terpilih otomatis saat login.
-- Akun **Tim IT** penyedia aplikasi tidak tampil di daftar ini dan tidak bisa diubah dari sini. Kapan tim IT login dan apa yang dilakukannya bisa dilihat Owner di **Keamanan → Aktivitas Tim IT**.
+- Akun **Tim IT** penyedia aplikasi tidak tampil di daftar ini dan tidak bisa diubah dari sini. Catatan login & tindakan Tim IT hanya bisa dilihat oleh Tim IT sendiri.
 
 ## Apa yang terjadi
 | Tombol | Akibat |

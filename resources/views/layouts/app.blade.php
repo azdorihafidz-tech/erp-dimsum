@@ -1228,9 +1228,9 @@
         </a>
 
         <!-- KEAMANAN -->
-        @if(isset($authUser) && ($authUser->aksesPenuh() || $authUser->canAny(['lihat_audit_log', 'lihat_data_terhapus', 'lihat_backup'])))
+        @if(isset($authUser) && ($authUser->isTeknisi() || $authUser->canAny(['lihat_audit_log', 'lihat_data_terhapus', 'lihat_backup'])))
         <div class="nav-section-title mt-2">Keamanan</div>
-        @if($authUser->aksesPenuh())
+        @if($authUser->isTeknisi())
         <a href="{{ route('aktivitas-tim-it.index') }}"
            class="nav-link {{ request()->routeIs('aktivitas-tim-it.*') ? 'active' : '' }}">
             <i class="bi bi-person-badge"></i>

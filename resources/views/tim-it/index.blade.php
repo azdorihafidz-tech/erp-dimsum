@@ -9,8 +9,8 @@
 </div>
 
 <div class="alert alert-info small py-2">
-    Akun Tim IT tidak terlihat oleh pelanggan (tidak ada di Manajemen User) dan tidak bisa diubah Owner.
-    Semua login & tindakan Tim IT tercatat dan bisa dilihat Owner di <a href="{{ route('aktivitas-tim-it.index') }}">Keamanan → Aktivitas Tim IT</a>.
+    Akun Tim IT tidak terlihat oleh pelanggan (tidak ada di Manajemen User maupun Audit Log) dan tidak bisa diubah Owner.
+    Semua login & tindakan Tim IT tercatat di <a href="{{ route('aktivitas-tim-it.index') }}">Keamanan → Aktivitas Tim IT</a> — hanya Tim IT yang bisa melihatnya.
     Kata sandi minimal 12 karakter (huruf + angka) dan <strong>berbeda di setiap instalasi pelanggan</strong>.
 </div>
 

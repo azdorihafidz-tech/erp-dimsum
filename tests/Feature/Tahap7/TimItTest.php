@@ -63,7 +63,7 @@ class TimItTest extends TestCase
         $this->actingAs($t)->post(route('tim-it.toggle', $this->buatUser('kasir')))->assertNotFound();
     }
 
-    public function test_aktivitas_tim_it_tercatat_dan_bisa_dilihat_owner(): void
+    public function test_aktivitas_tim_it_tercatat_dan_hanya_tim_it_yang_melihat(): void
     {
         $t = $this->buatUser('teknisi');
         $mulai = DB::table('activity_log')->where('log_name', 'TimIT')->count();
@@ -78,8 +78,19 @@ class TimItTest extends TestCase
         \Illuminate\Support\Facades\Event::dispatch(new \Illuminate\Auth\Events\Login('web', $t, false));
         $this->assertTrue(DB::table('activity_log')->where('log_name', 'TimIT')->where('causer_id', $t->id)->where('description', 'Login')->exists());
 
-        $this->actingAs($this->buatUser('owner'))->get(route('aktivitas-tim-it.index'))->assertOk()->assertSee($t->name);
+        // Khusus Tim IT (keputusan Owner 2026-11-16): Owner pun tidak bisa melihat
+        $this->actingAs($t)->get(route('aktivitas-tim-it.index'))->assertOk()->assertSee($t->name);
+        $owner = $this->buatUser('owner');
+        $this->actingAs($owner)->get(route('aktivitas-tim-it.index'))->assertForbidden();
         $this->actingAs($this->buatUser('admin_pusat'))->get(route('aktivitas-tim-it.index'))->assertForbidden();
+        $this->actingAs($owner)->followingRedirects()->get(route('dashboard'))->assertDontSee(route('aktivitas-tim-it.index'), false);
+
+        // Audit Log pelanggan tidak memuat catatan Tim IT maupun perubahan oleh akun Tim IT
+        $this->actingAs($owner)->get(route('audit-log.index', ['log_name' => 'TimIT']))->assertOk()->assertDontSee('Tindakan: tim-it.store');
+        $this->actingAs($owner)->get(route('audit-log.index'))->assertOk()->assertDontSee('it3');
+        $this->actingAs($owner)->get(route('audit-log.show', $tindakan->id))->assertNotFound();
+        $this->actingAs($t)->get(route('audit-log.show', $tindakan->id))->assertOk();
+        $this->actingAs($t)->get(route('audit-log.index', ['log_name' => 'TimIT']))->assertOk()->assertSee('Tindakan: tim-it.store');
         // Tindakan Owner tidak masuk catatan Tim IT
         $jumlah = DB::table('activity_log')->where('log_name', 'TimIT')->count();
         $this->actingAs($this->buatUser('owner'))->post(route('pengaturan.umum.update'), ['nama_perusahaan' => "D'mentai"]);

@@ -48,7 +48,7 @@ Akun **Tim IT** dipakai tim penyedia aplikasi untuk merawat dan memantau aplikas
 
 ## Catatan Penting
 - Gunakan kata sandi **berbeda di setiap instalasi pelanggan**. Batas salah kata sandi tetap berlaku (dikunci sementara setelah beberapa kali salah).
-- Semua login dan tindakan Tim IT tercatat di **Keamanan → Aktivitas Tim IT**, dan Owner pelanggan bisa melihatnya.
+- Semua login dan tindakan Tim IT tercatat di **Keamanan → Aktivitas Tim IT**. Hanya Tim IT yang bisa melihatnya — Owner pelanggan tidak, dan catatan Tim IT juga disembunyikan dari Audit Log untuk pelanggan.
 - Akun sendiri dan akun Tim IT aktif terakhir tidak bisa dinonaktifkan.
 - Verifikasi dua langkah belum ada (ditunda) — jaga kata sandi baik-baik.
 MARKDOWN;
@@ -76,7 +76,7 @@ MARKDOWN;
 
     public const PANDUAN_AKTIVITAS = <<<'MARKDOWN'
 ## Tujuan
-Menunjukkan kepada Owner kapan tim IT penyedia aplikasi masuk ke aplikasi dan apa yang mereka lakukan — supaya pemeliharaan oleh pihak luar tetap transparan.
+Catatan internal tim IT: kapan akun Tim IT masuk ke aplikasi pelanggan ini dan apa yang dilakukan.
 
 ## Langkah-langkah
 1. Buka **Keamanan → Aktivitas Tim IT**.
@@ -87,7 +87,7 @@ Menunjukkan kepada Owner kapan tim IT penyedia aplikasi masuk ke aplikasi dan ap
 - **Tindakan**: setiap simpan/ubah/hapus — nama menu, alamat halaman, metode, alamat IP. Isi formulir (mis. kata sandi) tidak disimpan.
 
 ## Catatan Penting
-- Khusus Owner (dan Tim IT). Catatan tidak bisa dihapus dari halaman ini.
-- Perubahan data yang lebih rinci (data lama → baru) tetap ada di **Audit Log**.
+- **Khusus Tim IT.** Owner pelanggan tidak melihat menu ini. Catatan tidak bisa dihapus dari halaman ini.
+- Di **Audit Log**, pelanggan tidak melihat catatan Tim IT maupun perubahan data yang dilakukan akun Tim IT; Tim IT melihat semuanya.
 MARKDOWN;
 }

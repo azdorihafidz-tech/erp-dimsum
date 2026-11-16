@@ -28,7 +28,7 @@ Akun **Tim IT** (role Teknisi) dipakai tim penyedia aplikasi untuk perawatan, pe
 | Ganti kata sandi | Kata sandi akun itu diganti |
 | Nonaktifkan / Aktifkan | Akun tidak bisa / bisa login lagi. Akun sendiri dan akun aktif terakhir tidak bisa dinonaktifkan |
 
-Semua tindakan di atas (dan semua tindakan Tim IT lain) tercatat di **Aktivitas Tim IT** yang bisa dilihat Owner.
+Semua tindakan di atas (dan semua tindakan Tim IT lain) tercatat di **Aktivitas Tim IT** — hanya Tim IT yang bisa melihatnya. Owner pelanggan tidak melihat catatan Tim IT, juga tidak di Audit Log.
 
 ## Wajib
 - Satu akun per orang IT, kata sandi **berbeda di setiap instalasi pelanggan**.
@@ -41,17 +41,17 @@ MD,
     [
         'slug' => 'aktivitas-tim-it', 'judul' => 'Aktivitas Tim IT', 'kelompok' => 'Keamanan', 'urutan' => 5,
         'letak' => 'Keamanan → Aktivitas Tim IT',
-        'ringkasan' => 'Catatan setiap login dan setiap simpan/ubah/hapus yang dilakukan tim IT penyedia aplikasi di usaha Anda. Tidak bisa dihapus.',
-        'izin' => ['@owner'],
+        'ringkasan' => 'Catatan setiap login dan setiap simpan/ubah/hapus yang dilakukan akun Tim IT di instalasi ini. Khusus Tim IT, tidak bisa dihapus.',
+        'izin' => ['@teknisi'],
         'route_names' => ['aktivitas-tim-it.*'],
         'terkait' => ['audit-log', 'tim-it'],
         'kata_kunci' => 'aktivitas tim it catatan teknisi siapa yang mengubah vendor login tim it jejak tim it keamanan',
         'konten' => <<<'MD'
 ## Fungsi
-Menunjukkan kapan tim IT penyedia aplikasi masuk ke aplikasi Anda dan apa yang mereka lakukan (menu, waktu, alamat IP). Isi formulir (mis. kata sandi) tidak disimpan.
+Menunjukkan kapan akun Tim IT masuk ke aplikasi pelanggan ini dan apa yang dilakukan (menu, waktu, alamat IP) — untuk catatan internal tim IT. Isi formulir (mis. kata sandi) tidak disimpan.
 
 ## Supaya menu ini muncul & bisa dipakai
-- Khusus **Owner** (dan Tim IT). Tidak ada centangan untuk role lain.
+- **Khusus Tim IT.** Owner pelanggan tidak melihat menu ini, dan catatan Tim IT juga disembunyikan dari Audit Log untuk pelanggan.
 - Catatan baru ada kalau tim IT pernah login atau melakukan perubahan.
 
 ## Apa yang terjadi kalau tombol diklik
@@ -60,7 +60,7 @@ Menunjukkan kapan tim IT penyedia aplikasi masuk ke aplikasi Anda dan apa yang m
 | Tampilkan (dari–sampai) | Hanya menyaring tampilan. Tidak ada tombol hapus |
 
 ## Menu yang mirip & bedanya
-- **Audit Log**: perubahan data oleh semua user (data lama → baru). Aktivitas Tim IT khusus akun tim IT, termasuk login.
+- **Audit Log**: perubahan data oleh user pelanggan (data lama → baru). Perubahan yang dilakukan akun Tim IT tidak tampil di Audit Log untuk pelanggan — lihat di sini.
 MD,
     ],
 

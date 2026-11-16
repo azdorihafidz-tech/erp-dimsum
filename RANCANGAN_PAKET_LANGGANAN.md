@@ -113,7 +113,7 @@ Pengecualian di mode baca-saja: login, logout, ganti kata sandi sendiri.
 
 ### Aktivitas Tim IT (untuk kepercayaan pelanggan)
 - Setiap login Teknisi dan setiap simpan/ubah/hapus yang dilakukan Teknisi dicatat (waktu, nama, menu, alamat IP).
-- Menu **Keamanan → Aktivitas Tim IT** untuk **Owner** (dan Teknisi): daftar catatan itu. Owner tidak bisa menghapusnya.
+- Menu **Keamanan → Aktivitas Tim IT** — **diubah 2026-11-16 atas keputusan Owner: KHUSUS Tim IT**. Owner pelanggan tidak melihatnya, dan catatan/perubahan oleh akun Tim IT disembunyikan dari Audit Log untuk pelanggan.
 
 ---
 

@@ -192,7 +192,7 @@ if (! $adaError) {
     echo "=== DEPLOY SELESAI ===\n";
     echo "Menu baru: Bantuan → Kamus Menu; Stok & Gudang → Stok Opname & Stok Rusak; Laporan → Kerugian Stok; SDM → Ganti Rugi Stok.\n";
     echo "Pengaturan Umum → kartu Stok Opname (hitung buta, batas foto, pengingat).\n";
-    echo "Tim IT: login dengan akun dari .env → Pengaturan → Paket & Langganan / Tim IT. Owner: Keamanan → Aktivitas Tim IT.\n";
+    echo "Tim IT: login dengan akun dari .env → Pengaturan → Paket & Langganan / Tim IT, Keamanan → Aktivitas Tim IT (khusus Tim IT).\n";
     echo "HAPUS baris TEKNISI_NAMA/TEKNISI_EMAIL/TEKNISI_PASSWORD dari .env sekarang.\n";
 } else {
     echo "=== SELESAI DENGAN ERROR — cek pesan di atas (lock tidak dibuat) ===\n";

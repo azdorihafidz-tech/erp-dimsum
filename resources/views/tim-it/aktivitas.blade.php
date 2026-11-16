@@ -9,7 +9,7 @@
 </div>
 
 <div class="alert alert-info small py-2">
-    Semua login dan tindakan (simpan, ubah, hapus) yang dilakukan tim IT penyedia aplikasi di instalasi ini. Catatan ini tidak bisa dihapus.
+    Semua login dan tindakan (simpan, ubah, hapus) yang dilakukan tim IT di instalasi ini. Hanya Tim IT yang bisa melihat halaman ini (Owner pelanggan tidak). Catatan tidak bisa dihapus.
 </div>
 
 <form method="GET" class="card card-body py-2 mb-3">
