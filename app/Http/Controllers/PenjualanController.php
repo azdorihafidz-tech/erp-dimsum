@@ -489,11 +489,14 @@ class PenjualanController extends Controller
         $authUser = auth()->user();
         $query    = Order::with(['cabang', 'kasir']);
 
-        // Filter per cabang
-        if (!$authUser->canAccessAllBranches()) {
-            $cabangId = session('active_cabang_id') ?? $authUser->defaultCabangId();
+        // Filter per cabang = cabang aktif di header. Dulu role akses semua cabang
+        // (Owner/Admin Pusat/Tim IT) selalu melihat semua cabang walau cabang di
+        // header sudah dipilih. null = "Semua Cabang"; role cabang selalu cabangnya.
+        $cabangId = \App\Support\CabangAktif::untukLaporan();
+        if ($cabangId !== null) {
             $query->where('cabang_id', $cabangId);
         }
+        $namaCabangAktif = $cabangId ? \App\Models\Cabang::whereKey($cabangId)->value('nama_cabang') : null;
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -525,7 +528,7 @@ class PenjualanController extends Controller
         $statuses = StatusOrder::cases();
         $tipes    = TipeOrder::cases();
 
-        return view('penjualan.index', compact('orders', 'statuses', 'tipes'));
+        return view('penjualan.index', compact('orders', 'statuses', 'tipes', 'cabangId', 'namaCabangAktif'));
     }
 
     public function show(Order $order)
