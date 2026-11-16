@@ -1799,6 +1799,7 @@ Setiap kali mulai kerja fitur baru, Claude Code WAJIB:
 | `CLAUDE.md` (ini) | Single source of truth — visi, aturan, spesifikasi |
 | `CLAUDE.berkahmulyo.backup.md` | Backup CLAUDE.md dari Berkah Mulyo (jangan dihapus, untuk referensi pola) |
 | `AUDIT_SISTEM.md` | Audit lengkap sistem base (Berkah Mulyo) — modul, alur, gap |
+| `PORTING_DIMSUM_4.50-4.53.md` | Panduan porting Kamus Menu, Tim IT + Paket & Langganan, Stok Opname (+ perbaikan audit 4.50/4.51) ke erp-coffeeshop & erp-manajemenberkahmulyo — dibaca sesi di proyek tujuan (keputusan Owner 2026-11-16) |
 | `.env` | Config lingkungan (APP_NAME, DB, dll) |
 | `routes/web.php` | 817 baris route — peta URL sistem |
 | `resources/views/layouts/app.blade.php` | Sidebar utama — peta menu sistem |
